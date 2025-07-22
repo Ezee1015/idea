@@ -122,6 +122,7 @@ void action(char *input) {
   }
 
   functionality[i].function_cmd(&cmd);
+  todo_list_modified = true;
 
   if (cmd.cursor <= cmd.input_length) INFO("Command parsing error");
 }

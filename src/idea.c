@@ -74,7 +74,7 @@ int window_app(void) {
     if (ret != OK && ret != KEY_RESIZE) abort();
   } while ( strcmp(input, CMD_EXIT) );
 
-  save_file();
+  if (todo_list_modified) save_file();
 
   return (endwin() == ERR);
 }

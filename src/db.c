@@ -8,6 +8,7 @@
 #include "utils/list.h"
 
 List todo_list = list_new();
+bool todo_list_modified = false;
 
 void free_todo(Todo *todo) {
   free(todo->data);
