@@ -7,8 +7,13 @@ typedef struct {
   unsigned int cursor;
 } Cmd;
 
-char *next_token(Cmd *cmd, char divider);
+typedef struct {
+  char *abbreviation_cmd;
+  char *full_cmd;
+  void (*function_cmd)(Cmd *);
+} Functionality;
 
+char *next_token(Cmd *cmd, char divider);
 void action(char *input);
 
 #endif

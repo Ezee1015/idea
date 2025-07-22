@@ -3,10 +3,6 @@
 
 #include "db.h"
 
-#define CMD_ADD "add"
-#define CMD_REMOVE "rm"
-#define CMD_MOVE "mv"
-#define CMD_EDIT "c"
 #define CMD_EXIT "q"
 
 typedef struct {
