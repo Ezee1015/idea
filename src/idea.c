@@ -10,12 +10,12 @@ Point area_start = {0};
 Size area_size = {0};
 
 void draw_window(void) {
-  int i = 1;
-  Todo_list *aux = todo_list;
-  while (aux) {
-    mvprintw(area_start.y+i + 2, area_start.x, "%d) %s", i, aux->todo.data); // +2 for the command line
-    aux = aux->next;
-    i++;
+  List_iterator iterator = list_iterator_create(todo_list);
+  while (list_iterator_next(&iterator)) {
+    Todo *todo = list_iterator_element(iterator);
+    mvprintw(area_start.y+list_iterator_index(iterator) + 2,
+             area_start.x,
+             "%d) %s", list_iterator_index(iterator)+1, todo->data); // +2 for the command line
   }
 
   mvprintw(area_start.y, area_start.x, "> ");
@@ -80,12 +80,10 @@ int window_app(void) {
 }
 
 void print_todo(void) {
-  int i = 1;
-  Todo_list *aux = todo_list;
-  while (aux) {
-    printf("%d) %s\n", i, aux->todo.data);
-    aux = aux->next;
-    i++;
+  List_iterator iterator = list_iterator_create(todo_list);
+  while (list_iterator_next(&iterator)) {
+    Todo *todo = list_iterator_element(iterator);
+    printf("%d) %s\n", list_iterator_index(iterator)+1, todo->data);
   }
 }
 
@@ -102,10 +100,6 @@ int main(int argc, char *argv[]) {
   else
     return 1;
 
-  while (todo_list) {
-    Todo_list *aux = todo_list;
-    todo_list = todo_list->next;
-    free_todo_node(aux);
-  }
+  list_destroy(&todo_list, (void (*)(void *))free_todo);
   return 0;
 }

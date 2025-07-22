@@ -1,97 +1,18 @@
 #include "db.h"
+#include "utils/list.h"
 #include <ncurses.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/// List
+#include "utils/list.h"
 
-Todo_list *todo_list = {0};
+List todo_list = list_new();
 
-Todo_list *get_node(unsigned int pos) {
-  Todo_list *current = todo_list;
-  while (--pos && current) current = current->next;
-  if (pos != 0) return NULL;
-  return current;
+void free_todo(Todo *todo) {
+  free(todo->data);
+  free(todo);
 }
-
-Todo_list *last_node() {
-  Todo_list *current = todo_list;
-  while (current->next) current = current->next;
-  return current;
-}
-
-bool create_todo_node(Todo todo) {
-  Todo_list *node = malloc(sizeof(Todo_list));
-  if (!node) return false;
-  node->todo = todo;
-  node->next = NULL;
-
-  if (!todo_list) {
-    todo_list = node;
-    return true;
-  }
-
-  last_node()->next = node;
-  return true;
-}
-
-void free_todo(Todo todo) {
-  free(todo.data);
-}
-
-void free_todo_node(Todo_list *node) {
-  free_todo(node->todo);
-  free(node);
-}
-
-Todo_list *remove_todo_node(unsigned int pos) {
-  if (pos == 1) {
-    Todo_list *aux = todo_list;
-    todo_list = aux->next;
-    return aux;
-  }
-
-  Todo_list *previous = get_node(pos - 1);
-  if (!previous || !previous->next) return NULL; // Index out of bounds
-  Todo_list *current = previous->next;
-  previous->next = current->next;
-  return current;
-}
-
-bool move_todo_node(unsigned int pos_origin, unsigned int pos_destination) {
-  if (pos_origin == pos_destination) return true;
-
-  Todo_list *node;
-  if ( !(node = remove_todo_node(pos_origin)) ) return false;
-
-  if (pos_origin < pos_destination) pos_destination--;
-
-  if (!insert_node_at(node, pos_destination)) {
-    insert_node_at(node, pos_origin);
-    return false;
-  } else {
-    return true;
-  }
-}
-
-bool insert_node_at(Todo_list *node, unsigned int pos) {
-  if (!node) abort();
-
-  if (pos == 1) {
-    node->next = todo_list;
-    todo_list = node;
-    return true;
-  }
-
-  Todo_list *previous = get_node(pos-1);
-  if (!previous) return false;
-  node->next = previous->next;
-  previous->next = node;
-  return true;
-}
-
-/// FILE
 
 char *get_path(const char *path_from_home) {
     const char *home = getenv("HOME");
@@ -122,16 +43,16 @@ bool load_string(FILE *file, char **str) {
   return true;
 }
 
-bool save_todo(FILE *file, Todo todo) {
-  bool ok = save_string(file, todo.data);
-  return ok;
+bool save_todo(FILE *file, Todo *todo) {
+  if (!save_string(file, todo->data)) return false;
+  return true;
 }
 
-bool load_todo(FILE *file, Todo *todo) {
+void *load_todo(FILE *file) {
+  Todo *todo = malloc(sizeof(Todo));
   if (!todo) abort();
-
-  bool ok = load_string(file, &todo->data);
-  return ok;
+  if (!load_string(file, &todo->data)) return false;
+  return todo;
 }
 
 void save_file() {
@@ -140,26 +61,20 @@ void save_file() {
   free(path);
   if (!save_file) return;
 
-  Todo_list *aux = todo_list;
-  while (aux) {
-    save_todo(save_file, aux->todo);
-    aux = aux->next;
-  }
+  list_save_to_bfile(todo_list, (bool (*)(FILE *, void *)) save_todo, save_file);
 
   fclose(save_file);
   return;
 }
 
 void load_file() {
-  if (todo_list) abort();
-
+  if (!list_is_empty(todo_list)) abort();
   char *path = get_path(SAVE_PATH);
   FILE *save_file = fopen(path, "rb");
   free(path);
   if (!save_file) return;
 
-  Todo todo = {0};
-  while (load_todo(save_file, &todo)) create_todo_node(todo);
+  list_load_from_bfile(&todo_list, load_todo, save_file);
 
   fclose(save_file);
   return;

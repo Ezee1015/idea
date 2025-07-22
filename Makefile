@@ -1,16 +1,24 @@
 EXEC  := build/idea
-CFILE := $(wildcard src/*.c)
-FLAGS := -lncurses
+CFILES := $(wildcard src/*.c) $(wildcard src/utils/*.c)
+FLAGS := -lncurses -ggdb
 
 all: $(EXEC)
 
-$(EXEC): $(CFILE)
-	gcc $(CFILE) -o $(EXEC) $(FLAGS)
-
-.PHONY = debug
-debug:
-	$(MAKE) FLAGS="$(FLAGS) -g" all
+$(EXEC): $(CFILES)
+	gcc $(CFILES) -o $(EXEC) $(FLAGS)
 
 .PHONY = clean
 clean:
 	rm $(EXEC)
+
+.PHONY = run
+run:
+	./$(EXEC)
+
+.PHONY = install
+install: $(EXEC)
+	sudo cp $(EXEC) /usr/local/bin/
+
+.PHONY = uninstall
+uninstall: $(EXEC)
+	sudo rm /usr/local/bin/$(EXEC)
