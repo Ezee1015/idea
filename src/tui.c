@@ -1,10 +1,10 @@
-#include <ncurses.h>
 #include <string.h>
 #include <stdlib.h>
 
-#include "idea.h"
-#include "actions.h"
+#include "tui.h"
+#include "utils/list.h"
 #include "db.h"
+#include "actions.h"
 
 Point area_start = {0};
 Size area_size = {0};
@@ -63,7 +63,27 @@ int window_app(void) {
         area_start.y = (window_size.height-area_size.height)/2;
       }
 
-      if (input[0] != '\0') action(input);
+      if (input[0] != '\0') {
+        Action_return action_return = action(input);
+        switch (action_return.type) {
+          case RETURN_INFO:
+          case RETURN_SUCCESS:
+            if (action_return.message && strcmp(action_return.message, ""))
+              message("INFO", action_return.message);
+            break;
+
+          case RETURN_ERROR:
+            if (action_return.message && strcmp(action_return.message, ""))
+              message("ERROR", action_return.message);
+            break;
+
+          case RETURN_ERROR_AND_EXIT:
+            if (action_return.message && strcmp(action_return.message, ""))
+              message("ERROR. Aborting...", action_return.message);
+            endwin();
+            return 1;
+        }
+      }
 
       erase();
       draw_window();
@@ -72,34 +92,7 @@ int window_app(void) {
     input[0] = '\0';
     int ret = getnstr(input, sizeof(input)-1);
     if (ret != OK && ret != KEY_RESIZE) abort();
-  } while ( strcmp(input, CMD_EXIT) );
-
-  if (todo_list_modified) save_file();
+  } while ( strcmp(input, "q") );
 
   return (endwin() == ERR);
-}
-
-void print_todo(void) {
-  List_iterator iterator = list_iterator_create(todo_list);
-  while (list_iterator_next(&iterator)) {
-    Todo *todo = list_iterator_element(iterator);
-    printf("%d) %s\n", list_iterator_index(iterator)+1, todo->data);
-  }
-}
-
-
-int main(int argc, char *argv[]) {
-  load_file();
-
-  if (argc > 2) return 1;
-
-  if (argc == 1 || !strcmp(argv[1], "--window") || !strcmp(argv[1], "-w"))
-    window_app();
-  else if (!strcmp(argv[1], "--list") || !strcmp(argv[1], "-l"))
-    print_todo();
-  else
-    return 1;
-
-  list_destroy(&todo_list, (void (*)(void *))free_todo);
-  return 0;
 }

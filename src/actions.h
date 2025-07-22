@@ -7,13 +7,30 @@ typedef struct {
   unsigned int cursor;
 } Cmd;
 
+typedef enum {
+  RETURN_ERROR,
+  RETURN_ERROR_AND_EXIT,
+  RETURN_INFO,
+  RETURN_SUCCESS,
+} Action_return_type ;
+
+typedef struct {
+  char *message;
+  Action_return_type type;
+} Action_return;
+
+#define ACTION_RETURN(return_type, return_message) (Action_return) { \
+  .type = return_type,                                               \
+  .message = return_message                                          \
+}
+
 typedef struct {
   char *abbreviation_cmd;
   char *full_cmd;
-  void (*function_cmd)(Cmd *);
+  Action_return (*function_cmd)(Cmd *);
 } Functionality;
 
 char *next_token(Cmd *cmd, char divider);
-void action(char *input);
+Action_return action(char *input);
 
 #endif

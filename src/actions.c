@@ -4,72 +4,67 @@
 
 #include "actions.h"
 #include "db.h"
-#include "idea.h"
 #include "utils/list.h"
 
 /// FUNCTIONALITY
 
-void add_todo(Cmd *cmd) {
+Action_return add_todo(Cmd *cmd) {
   Todo *new = malloc(sizeof(Todo));
-  if (!new) return;
+  if (!new) return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "No more memory");
   new->data = next_token(cmd, 0);
-  if (!new->data) return;
+  if (!new->data) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
   list_append(&todo_list, new);
+  return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
-void remove_todo(Cmd *cmd) {
+Action_return remove_todo(Cmd *cmd) {
   char *pos_str = next_token(cmd, 0);
-  if (!pos_str) return;
+  if (!pos_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
   unsigned int pos = atoi(pos_str);
   free(pos_str);
 
-  if (pos == 0 || pos > list_size(todo_list)) INFO("Invalid Position");
-  else free_todo(list_remove(&todo_list, pos-1));
+  if (pos == 0 || pos > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid Position");
+
+  free_todo(list_remove(&todo_list, pos-1));
+  return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
-void move_todo(Cmd *cmd) {
+Action_return move_todo(Cmd *cmd) {
   char *pos_origin_str = next_token(cmd, ' ');
-  if (!pos_origin_str) return;
-  char *pos_destination_str = next_token(cmd, 0);
-  if (!pos_destination_str) return;
-
+  if (!pos_origin_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
   unsigned int pos_origin = atoi(pos_origin_str);
-  unsigned int pos_destination = atoi(pos_destination_str);
-
-  if (pos_origin == 0 || pos_origin > list_size(todo_list)) {
-    INFO("Invalid origin position");
-  } else if (pos_destination == 0 || pos_destination > list_size(todo_list)) {
-    INFO("Invalid destination position");
-  } else if (pos_destination == pos_origin) {
-    INFO("Moving to the same position");
-  } else {
-    Todo *todo = list_remove(&todo_list, pos_origin-1);
-    // if (pos_origin < pos_destination) pos_destination--;
-    list_insert_at(&todo_list, todo, pos_destination-1);
-  }
-
   free(pos_origin_str);
+
+  char *pos_destination_str = next_token(cmd, 0);
+  if (!pos_destination_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  unsigned int pos_destination = atoi(pos_destination_str);
   free(pos_destination_str);
+
+  if (pos_origin == 0 || pos_origin > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid origin position");
+  if (pos_destination == 0 || pos_destination > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid destination position");
+  if (pos_destination == pos_origin) return ACTION_RETURN(RETURN_INFO, "Moving to the same position");
+
+  Todo *todo = list_remove(&todo_list, pos_origin-1);
+  // if (pos_origin < pos_destination) pos_destination--;
+  list_insert_at(&todo_list, todo, pos_destination-1);
+  return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
-void edit_todo(Cmd *cmd) {
+Action_return edit_todo(Cmd *cmd) {
     char *pos_str = next_token(cmd, ' ');
-    if (!pos_str) return;
+    if (!pos_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
     unsigned int pos = atoi(pos_str);
-
-    if (pos == 0 || pos > list_size(todo_list)) {
-      INFO("Invalid Position");
-    } else {
-      char *new_text = next_token(cmd, 0);
-      if (!new_text) {
-        INFO("Empty new text.");
-      } else {
-        Todo *todo = list_get(todo_list, pos-1);
-        free(todo->data);
-        todo->data = new_text;
-      }
-    }
     free(pos_str);
+
+    if (pos == 0 || pos > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid Position");
+
+    char *new_text = next_token(cmd, 0);
+    if (!new_text) return ACTION_RETURN(RETURN_ERROR, "Empty new text.");
+
+    Todo *todo = list_get(todo_list, pos-1);
+    free(todo->data);
+    todo->data = new_text;
+    return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
 Functionality functionality[] = {
@@ -82,10 +77,7 @@ Functionality functionality[] = {
 /// PARSING
 
 char *next_token(Cmd *cmd, char divider) {
-  if (cmd->cursor > cmd->input_length) {
-    INFO("Command malformed!");
-    return NULL;
-  }
+  if (cmd->cursor > cmd->input_length) return NULL;
 
   int i = cmd->cursor;
   while (i <= cmd->input_length && cmd->input[i] != divider) i++;
@@ -99,7 +91,7 @@ char *next_token(Cmd *cmd, char divider) {
   return token;
 }
 
-void action(char *input) {
+Action_return action(char *input) {
   Cmd cmd = {
     .input = input,
     .input_length = strlen(input),
@@ -116,13 +108,20 @@ void action(char *input) {
   }
   free(instruction); instruction = NULL;
 
-  if (i == functionality_count) {
-    INFO("Invalid command!");
-    return;
+  if (i == functionality_count) return ACTION_RETURN(RETURN_ERROR, "Invalid command");
+
+  Action_return action_return = functionality[i].function_cmd(&cmd);
+  switch (action_return.type) {
+    case RETURN_INFO:
+    case RETURN_SUCCESS:
+      if (cmd.cursor <= cmd.input_length) abort(); // Command parsing error. There's data left in the command
+      todo_list_modified = true;
+      break;
+
+    case RETURN_ERROR:
+    case RETURN_ERROR_AND_EXIT:
+      break;
   }
 
-  functionality[i].function_cmd(&cmd);
-  todo_list_modified = true;
-
-  if (cmd.cursor <= cmd.input_length) INFO("Command parsing error");
+  return action_return;
 }
