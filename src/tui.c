@@ -3,8 +3,8 @@
 
 #include "tui.h"
 #include "utils/list.h"
-#include "db.h"
-#include "actions.h"
+#include "todo_list.h"
+#include "parser.h"
 
 Point area_start = {0};
 Size area_size = {0};
@@ -64,7 +64,17 @@ int window_app(void) {
       }
 
       if (input[0] != '\0') {
-        Action_return action_return = action(input);
+        Input cmd = {
+          .input = input,
+          .length = strlen(input),
+          .cursor = 0,
+        };
+        char *instruction = next_token(&cmd, ' ');
+
+        Action_return (*function)(Input *input) = search_functionality_pos(instruction, todo_list_functionality, todo_list_functionality_count());
+        free(instruction);
+
+        Action_return action_return = (function) ? function(&cmd) : ACTION_RETURN(RETURN_ERROR, "Invalid command");
         switch (action_return.type) {
           case RETURN_INFO:
           case RETURN_SUCCESS:

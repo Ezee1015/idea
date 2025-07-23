@@ -3,9 +3,9 @@
 
 typedef struct {
   char *input;
-  unsigned int input_length;
+  unsigned int length;
   unsigned int cursor;
-} Cmd;
+} Input;
 
 typedef enum {
   RETURN_ERROR,
@@ -27,10 +27,11 @@ typedef struct {
 typedef struct {
   char *abbreviation_cmd;
   char *full_cmd;
-  Action_return (*function_cmd)(Cmd *);
+  Action_return (*function_cmd)(Input *);
 } Functionality;
 
-char *next_token(Cmd *cmd, char divider);
-Action_return action(char *input);
+char *next_token(Input *cmd, char divider);
+
+Action_return (*search_functionality_pos(char *instruction, Functionality functionality[], unsigned int functionality_count))(Input *);
 
 #endif

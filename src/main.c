@@ -1,4 +1,4 @@
-#include "db.h"
+#include "todo_list.h"
 #include "tui.h"
 #include "cli.h"
 
@@ -10,7 +10,7 @@ int main(int argc, char *argv[]) {
     window_app();
   } else {
     // CLI Version
-    print_todo();
+    cli_parse_input(argc, argv);
   }
 
   if (todo_list_modified) save_file();

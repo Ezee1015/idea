@@ -3,7 +3,9 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+
 #include "utils/list.h"
+#include "parser.h"
 
 #define SAVE_PATH ".local/share/idea"
 
@@ -27,5 +29,12 @@ bool save_todo(FILE *file, Todo *todo);
 
 void load_file();
 void save_file();
+
+Action_return add_todo(Input *cmd);
+Action_return remove_todo(Input *cmd);
+Action_return move_todo(Input *cmd);
+Action_return edit_todo(Input *cmd);
+extern Functionality todo_list_functionality[];
+unsigned int todo_list_functionality_count();
 
 #endif
