@@ -15,8 +15,61 @@ Action_return print_todo(Input *input) {
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
+Action_return export_todo(Input *input) {
+  char *export_path = next_token(input, '\0');
+  if (!export_path) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+
+  FILE *export_file = fopen(export_path, "w");
+  free(export_path);
+  if (!export_file) return ACTION_RETURN(RETURN_ERROR, "Unable to create the export file");
+
+  List_iterator iterator = list_iterator_create(todo_list);
+  while (list_iterator_next(&iterator)) {
+    if (!save_todo_to_text_file(export_file, list_iterator_element(iterator))) {
+      fclose(export_file);
+      return ACTION_RETURN(RETURN_ERROR, "Unable to save todo");
+    }
+  }
+
+  fclose(export_file);
+  return ACTION_RETURN(RETURN_SUCCESS, "");
+}
+
+Action_return import_todo(Input *input) {
+  char *import_path = next_token(input, '\0');
+  if (!import_path) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+
+  FILE *import_file = fopen(import_path, "r");
+  free(import_path);
+  if (!import_file) return ACTION_RETURN(RETURN_ERROR, "Unable to open the import file");
+
+  list_destroy(&todo_list, (void (*)(void *))free_todo);
+
+  char buffer[1024];
+  while (fgets(buffer, 1024, import_file) > 0) {
+    buffer[strlen(buffer)-1] = '\0'; // remove new line from fgets
+
+    Action_return result = cli_parse_input(buffer);
+    switch (result.type) {
+      case RETURN_SUCCESS: case RETURN_INFO: break; // TODO if the message exists and it's not empty: indicate the line number of the message
+      case RETURN_ERROR:
+        fclose(import_file);
+        return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "Import failed"); // TODO indicate line number of the error
+
+      case RETURN_ERROR_AND_EXIT:
+        fclose(import_file);
+        return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "Import failed. Something went really wrong"); // TODO indicate line number of the error
+    }
+  }
+
+  fclose(import_file);
+  return ACTION_RETURN(RETURN_SUCCESS, "");
+}
+
 Functionality cli_functionality[] = {
   {"-l", "list", print_todo},
+  { "" , "export", export_todo },
+  { "" , "import", import_todo },
 };
 
 unsigned int cli_functionality_count() {
@@ -25,45 +78,43 @@ unsigned int cli_functionality_count() {
 
 /// Parsing
 
-void cli_parse_input(int argc, char *argv[]) {
-  for (int i = 1; i<argc; i++) {
-    Input cmd = {
-      .input = argv[i],
-      .length = strlen(argv[i]),
-      .cursor = 0,
-    };
-    char *instruction = next_token(&cmd, ' ');
+Action_return cli_parse_input(char *input) {
+  Input cmd = {
+    .input = input,
+    .length = strlen(input),
+    .cursor = 0,
+  };
+  char *instruction = next_token(&cmd, ' ');
 
-    Action_return (*function)(Input *input) = search_functionality_pos(instruction, cli_functionality, cli_functionality_count());
-    if (!function) {
-      function = search_functionality_pos(instruction, todo_list_functionality, todo_list_functionality_count());
-      todo_list_modified = true;
-    }
-    free(instruction);
+  Action_return (*function)(Input *input) = search_functionality_pos(instruction, cli_functionality, cli_functionality_count());
+  if (!function) {
+    function = search_functionality_pos(instruction, todo_list_functionality, todo_list_functionality_count());
+    todo_list_modified = true;
+  }
+  free(instruction);
 
-    Action_return action_return = (function) ? function(&cmd) : ACTION_RETURN(RETURN_ERROR, "Invalid command");
-    switch (action_return.type) {
-      case RETURN_INFO:
-      case RETURN_SUCCESS:
-        if (cmd.cursor <= cmd.length) abort(); // Command parsing error. There's data left in the command
+  Action_return action_return = (function) ? function(&cmd) : ACTION_RETURN(RETURN_ERROR, "Invalid command");
+  switch (action_return.type) {
+    case RETURN_INFO:
+    case RETURN_SUCCESS:
+      if (cmd.cursor <= cmd.length) abort(); // Command parsing error. There's data left in the command
 
-        if (action_return.message && strcmp(action_return.message, ""))
-          printf("INFO: %s\n", action_return.message);
-        break;
+      if (action_return.message && strcmp(action_return.message, ""))
+        printf("INFO: %s\n", action_return.message);
+      break;
 
-      case RETURN_ERROR:
-        todo_list_modified = false; // in order to not save the list
-        if (action_return.message && strcmp(action_return.message, ""))
-          printf("ERROR: %s\n", action_return.message);
-        break;
+    case RETURN_ERROR:
+      todo_list_modified = false; // in order to not save the list
+      if (action_return.message && strcmp(action_return.message, ""))
+        printf("ERROR: %s\n", action_return.message);
+      break;
 
-      case RETURN_ERROR_AND_EXIT:
-        todo_list_modified = false; // in order to not save the list
-        if (action_return.message && strcmp(action_return.message, ""))
-          printf("ABORT: %s\n", action_return.message);
-        return;
-    }
+    case RETURN_ERROR_AND_EXIT:
+      todo_list_modified = false; // in order to not save the list
+      if (action_return.message && strcmp(action_return.message, ""))
+        printf("ABORT: %s\n", action_return.message);
+      break;
   }
 
-  if (todo_list_modified) print_todo(NULL);
+  return action_return;
 }

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "parser.h"
 #include "utils/list.h"
 #include "todo_list.h"
 
@@ -28,14 +29,14 @@ char *get_path(const char *path_from_home) {
     return full_path;
 }
 
-bool save_string(FILE *file, char *str) {
+bool save_string_to_binary_file(FILE *file, char *str) {
   unsigned int size = strlen(str);
   if (fwrite(&size, sizeof(unsigned int), 1, file) != 1) return false;
   if (fwrite(str, size, 1, file) != 1) return false;
   return true;
 }
 
-bool load_string(FILE *file, char **str) {
+bool load_string_from_binary_file(FILE *file, char **str) {
   unsigned int size;
   if (fread(&size, sizeof(unsigned int), 1, file) != 1) return false;
   *str = malloc(size+1);
@@ -44,16 +45,21 @@ bool load_string(FILE *file, char **str) {
   return true;
 }
 
-bool save_todo(FILE *file, Todo *todo) {
-  if (!save_string(file, todo->data)) return false;
+bool save_todo_to_binary_file(FILE *file, Todo *todo) {
+  if (!save_string_to_binary_file(file, todo->data)) return false;
   return true;
 }
 
-void *load_todo(FILE *file) {
+void *load_todo_from_binary_file(FILE *file) {
   Todo *todo = malloc(sizeof(Todo));
   if (!todo) abort();
-  if (!load_string(file, &todo->data)) return false;
+  if (!load_string_from_binary_file(file, &todo->data)) return false;
   return todo;
+}
+
+bool save_todo_to_text_file(FILE *file, Todo *todo) {
+  if (fprintf(file, "add %s\n",todo->data) <= 0) return false;
+  return true;
 }
 
 void save_file() {
@@ -62,7 +68,7 @@ void save_file() {
   free(path);
   if (!save_file) return;
 
-  list_save_to_bfile(todo_list, (bool (*)(FILE *, void *)) save_todo, save_file);
+  list_save_to_bfile(todo_list, (bool (*)(FILE *, void *)) save_todo_to_binary_file, save_file);
 
   fclose(save_file);
   return;
@@ -75,7 +81,7 @@ void load_file() {
   free(path);
   if (!save_file) return;
 
-  list_load_from_bfile(&todo_list, load_todo, save_file);
+  list_load_from_bfile(&todo_list, load_todo_from_binary_file, save_file);
 
   fclose(save_file);
   return;

@@ -21,19 +21,22 @@ void free_todo(Todo *node);
 
 // Save file
 char *get_path(const char *path_from_home);
-bool save_string(FILE *file, char *str);
-bool load_string(FILE *file, char **str);
+bool save_string_to_binary_file(FILE *file, char *str);
+bool load_string_from_binary_file(FILE *file, char **str);
 
-void *load_todo(FILE *file);
-bool save_todo(FILE *file, Todo *todo);
+bool save_todo_to_binary_file(FILE *file, Todo *todo);
+void *load_todo_from_binary_file(FILE *file);
+bool save_todo_to_text_file(FILE *file, Todo *todo);
 
 void load_file();
 void save_file();
 
-Action_return add_todo(Input *cmd);
-Action_return remove_todo(Input *cmd);
-Action_return move_todo(Input *cmd);
-Action_return edit_todo(Input *cmd);
+Action_return add_todo(Input *input);
+Action_return remove_todo(Input *input);
+Action_return move_todo(Input *input);
+Action_return edit_todo(Input *input);
+Action_return export_todo(Input *input);
+Action_return import_todo(Input *input);
 extern Functionality todo_list_functionality[];
 unsigned int todo_list_functionality_count();
 
