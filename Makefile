@@ -1,10 +1,12 @@
 EXEC  := build/idea
 CFILES := $(wildcard src/*.c) $(wildcard src/utils/*.c)
 FLAGS := -lncurses -ggdb
+BUILD_FOLDER := build
 
 all: $(EXEC)
 
 $(EXEC): $(CFILES)
+	mkdir -p $(BUILD_FOLDER)
 	gcc $(CFILES) -o $(EXEC) $(FLAGS)
 
 .PHONY = clean
