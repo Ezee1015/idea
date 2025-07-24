@@ -134,20 +134,20 @@ Action_return move_todo(Input *input) {
 }
 
 Action_return edit_todo(Input *input) {
-    char *pos_str = next_token(input, ' ');
-    if (!pos_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
-    unsigned int pos = atoi(pos_str);
-    free(pos_str);
+  char *pos_str = next_token(input, ' ');
+  if (!pos_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  unsigned int pos = atoi(pos_str);
+  free(pos_str);
 
-    if (pos == 0 || pos > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid Position");
+  if (pos == 0 || pos > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid Position");
 
-    char *new_text = next_token(input, 0);
-    if (!new_text) return ACTION_RETURN(RETURN_ERROR, "Empty new text.");
+  char *new_text = next_token(input, 0);
+  if (!new_text) return ACTION_RETURN(RETURN_ERROR, "Empty new text.");
 
-    Todo *todo = list_get(todo_list, pos-1);
-    free(todo->data);
-    todo->data = new_text;
-    return ACTION_RETURN(RETURN_SUCCESS, "");
+  Todo *todo = list_get(todo_list, pos-1);
+  free(todo->data);
+  todo->data = new_text;
+  return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
 Action_return clear_todos(Input *input) {
