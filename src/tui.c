@@ -78,6 +78,7 @@ int window_app(void) {
         switch (action_return.type) {
           case RETURN_INFO:
           case RETURN_SUCCESS:
+            todo_list_modified = true;
             if (action_return.message && strcmp(action_return.message, ""))
               message("INFO", action_return.message);
             break;
@@ -88,6 +89,7 @@ int window_app(void) {
             break;
 
           case RETURN_ERROR_AND_EXIT:
+            todo_list_modified = false;
             if (action_return.message && strcmp(action_return.message, ""))
               message("ERROR. Aborting...", action_return.message);
             endwin();
