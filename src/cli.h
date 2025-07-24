@@ -6,6 +6,7 @@
 Action_return print_todo(Input *input);
 Action_return import_todo(Input *input);
 Action_return export_todo(Input *input);
+Action_return do_nothing(Input *input);
 
 Action_return cli_parse_input(char *input);
 

@@ -77,7 +77,13 @@ Action_return import_todo(Input *input) {
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
+Action_return do_nothing(Input *input) {
+  input->cursor = input->length+1;
+  return ACTION_RETURN(RETURN_SUCCESS, "");
+}
+
 Functionality cli_functionality[] = {
+  { "" , "--", do_nothing }, // Comment and empty lines (for import)
   {"-l", "list", print_todo},
   { "" , "export", export_todo },
   { "" , "import", import_todo },
