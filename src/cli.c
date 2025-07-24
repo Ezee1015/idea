@@ -4,6 +4,7 @@
 #include "cli.h"
 #include "parser.h"
 #include "todo_list.h"
+#include "utils/list.h"
 
 /// Functionality
 Action_return print_todo(Input *input) {
@@ -16,6 +17,8 @@ Action_return print_todo(Input *input) {
 }
 
 Action_return export_todo(Input *input) {
+  if (list_is_empty(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Unable to create the export file: the todo list is empty.");
+
   char *export_path = next_token(input, '\0');
   if (!export_path) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
 
@@ -23,6 +26,7 @@ Action_return export_todo(Input *input) {
   free(export_path);
   if (!export_file) return ACTION_RETURN(RETURN_ERROR, "Unable to create the export file");
 
+  fprintf(export_file, "clear all\n");
   List_iterator iterator = list_iterator_create(todo_list);
   while (list_iterator_next(&iterator)) {
     if (!save_todo_to_text_file(export_file, list_iterator_element(iterator))) {
@@ -42,8 +46,6 @@ Action_return import_todo(Input *input) {
   FILE *import_file = fopen(import_path, "r");
   free(import_path);
   if (!import_file) return ACTION_RETURN(RETURN_ERROR, "Unable to open the import file");
-
-  list_destroy(&todo_list, (void (*)(void *))free_todo);
 
   char buffer[1024];
   unsigned int line = 1;
