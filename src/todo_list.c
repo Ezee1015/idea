@@ -150,11 +150,24 @@ Action_return edit_todo(Input *input) {
     return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
+Action_return clear_todos(Input *input) {
+  char *confirmation = next_token(input, 0);
+  if (!confirmation || strcmp(confirmation, "all")) {
+    free(confirmation);
+    return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  }
+  free(confirmation);
+
+  list_destroy(&todo_list, (void (*)(void *))free_todo);
+  return ACTION_RETURN(RETURN_SUCCESS, "");
+}
+
 Functionality todo_list_functionality[] = {
   { "a", "add", add_todo },
   { "rm", "" , remove_todo },
   { "mv" , "move", move_todo },
   { "e" , "edit", edit_todo },
+  { "" , "clear", clear_todos },
 };
 
 unsigned int todo_list_functionality_count() {
