@@ -26,6 +26,10 @@ Action_return export_todo(Input *input) {
   free(export_path);
   if (!export_file) return ACTION_RETURN(RETURN_ERROR, "Unable to create the export file");
 
+  if (!export_template(export_file)) {
+    fclose(export_file);
+    return ACTION_RETURN(RETURN_ERROR, "Unable to save todo's structure info");
+  }
   fprintf(export_file, "clear all\n");
   List_iterator iterator = list_iterator_create(todo_list);
   while (list_iterator_next(&iterator)) {

@@ -18,6 +18,7 @@ extern List todo_list;
 extern bool todo_list_modified;
 
 void free_todo(Todo *node);
+bool export_template(FILE * file);
 
 // Save file
 char *get_path(const char *path_from_home);
