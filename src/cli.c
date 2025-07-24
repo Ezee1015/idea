@@ -46,20 +46,29 @@ Action_return import_todo(Input *input) {
   list_destroy(&todo_list, (void (*)(void *))free_todo);
 
   char buffer[1024];
+  unsigned int line = 1;
   while (fgets(buffer, 1024, import_file) > 0) {
     buffer[strlen(buffer)-1] = '\0'; // remove new line from fgets
 
     Action_return result = cli_parse_input(buffer);
     switch (result.type) {
-      case RETURN_SUCCESS: case RETURN_INFO: break; // TODO if the message exists and it's not empty: indicate the line number of the message
+      case RETURN_SUCCESS: case RETURN_INFO:
+        if (result.message && strcmp(result.message, ""))
+          printf("Message from line %d (%s) of the import\n\n", line, buffer);
+        break;
+
       case RETURN_ERROR:
         fclose(import_file);
-        return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "Import failed"); // TODO indicate line number of the error
+        printf("Import failed at line %d (%s)\n", line, buffer);
+        return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "");
 
       case RETURN_ERROR_AND_EXIT:
         fclose(import_file);
-        return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "Import failed. Something went really wrong"); // TODO indicate line number of the error
+        printf("Import failed miserably at line %d (%s)\n", line, buffer);
+        return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "");
     }
+
+    line++;
   }
 
   fclose(import_file);

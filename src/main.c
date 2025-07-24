@@ -18,19 +18,17 @@ int main(int argc, char *argv[]) {
         case RETURN_SUCCESS:
         case RETURN_INFO:
           if (result.message && strcmp(result.message, ""))
-            printf("Message from the %dº command\n", i);
+            printf("Message from the %dº command (%s)\n\n", i, argv[i]);
           break;
 
         case RETURN_ERROR:
           list_destroy(&todo_list, (void (*)(void *))free_todo);
-          if (result.message && strcmp(result.message, ""))
-            printf("An ERROR occurred in the %dº command\n", i);
+          printf("An ERROR occurred in the %dº command (%s)\n", i, argv[i]);
           return 1;
 
       case RETURN_ERROR_AND_EXIT:
           list_destroy(&todo_list, (void (*)(void *))free_todo);
-          if (result.message && strcmp(result.message, ""))
-            printf("An ABORT occurred in the %dº command\n", i);
+          printf("An ABORT occurred in the %dº command (%s)\n", i, argv[i]);
           return 1;
       }
     }
