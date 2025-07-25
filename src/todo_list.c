@@ -25,17 +25,21 @@ void free_todo(Todo *todo) {
 }
 
 /// FILE OPERATIONS
-char *get_path(const char *path_from_home) {
-    const char *home = getenv("HOME");
-    if (!home) return NULL;
+char *concatenate_paths(const char *directory, const char *relative) {
+  unsigned int directory_length = strlen(directory);
+  unsigned int relative_length = strlen(relative);
 
-    unsigned int home_length = strlen(home);
-    unsigned int len_rel = strlen(path_from_home);
+  char *full_path = malloc(directory_length + 1 + relative_length + 1);
+  if (!full_path) return NULL;
+  sprintf(full_path, "%s/%s", directory, relative);
+  return full_path;
+}
 
-    char *full_path = malloc(home_length + 1 + len_rel + 1);
-    if (!full_path) return NULL;
-    sprintf(full_path, "%s/%s", home, path_from_home);
-    return full_path;
+char *get_path_from_variable(const char *variable, const char *path_from_directory) {
+  const char *directory_path = getenv(variable);
+  if (!directory_path) return NULL;
+
+  return concatenate_paths(directory_path, path_from_directory);
 }
 
 bool save_string_to_binary_file(FILE *file, char *str) {
@@ -72,7 +76,7 @@ bool save_todo_to_text_file(FILE *file, Todo *todo) {
 }
 
 void save_file() {
-  char *path = get_path(SAVE_PATH);
+  char *path = get_path_from_variable("HOME", SAVE_PATH);
   FILE *save_file = fopen(path, "wb");
   free(path);
   if (!save_file) return;
@@ -85,7 +89,7 @@ void save_file() {
 
 void load_file() {
   if (!list_is_empty(todo_list)) abort();
-  char *path = get_path(SAVE_PATH);
+  char *path = get_path_from_variable("HOME", SAVE_PATH);
   FILE *save_file = fopen(path, "rb");
   free(path);
   if (!save_file) return;

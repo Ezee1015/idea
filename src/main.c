@@ -6,9 +6,8 @@
 #include "tui.h"
 #include "cli.h"
 
-const char *lock_path = "/tmp/lock.idea";
-
 bool lock_file() {
+  const char *lock_path = get_path_from_variable("TMPDIR", "idea.lock");
   if (access(lock_path, F_OK) == 0) {
     printf("Idea is already running...\n");
     return false;
@@ -25,6 +24,7 @@ bool lock_file() {
 }
 
 bool unlock_file() {
+  const char *lock_path = get_path_from_variable("TMPDIR", "idea.lock");
   bool removed = (remove(lock_path) == 0);
   if (!removed) printf("Unable to remove the lock file\n");
   return removed;

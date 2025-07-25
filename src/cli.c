@@ -102,9 +102,9 @@ Action_return import_todo(Input *input) {
   char *import_path = next_token(input, '\0');
   if (!import_path) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
 
-  char *base_path = "/tmp/local_without_changes.idea";
-  char *local_path = "/tmp/local.idea";
-  char *external_path = "/tmp/external.idea";
+  char *base_path =  get_path_from_variable("TMPDIR", "local_without_changes.idea");
+  char *local_path = get_path_from_variable("TMPDIR", "local.idea");
+  char *external_path = get_path_from_variable("TMPDIR", "external.idea");
 
   // Clone the external file to a temporary location
   if (!clone_text_file(import_path, external_path)) return ACTION_RETURN(RETURN_ERROR, "Unable to copy the external file to the /tmp folder");

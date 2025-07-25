@@ -21,7 +21,7 @@ void free_todo(Todo *node);
 bool export_template(FILE * file);
 
 // Save file
-char *get_path(const char *path_from_home);
+char *get_path_from_variable(const char *variable, const char *path_from_directory);
 bool save_string_to_binary_file(FILE *file, char *str);
 bool load_string_from_binary_file(FILE *file, char **str);
 
