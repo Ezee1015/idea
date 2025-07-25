@@ -88,7 +88,7 @@ bool clone_text_file(char *origin_path, char *clone_path) {
   FILE *clone = fopen(clone_path, "w");
   if (!clone) return false;
 
-  char c;
+  int c; // int for EOF
   while ( (c = fgetc(origin)) != EOF ) fputc(c, clone);
 
   fclose(clone);
