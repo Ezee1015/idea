@@ -9,6 +9,8 @@
 
 /// Functionality
 Action_return print_todo(Input *input) {
+  (void) input;
+
   List_iterator iterator = list_iterator_create(todo_list);
   while (list_iterator_next(&iterator)) {
     Todo *todo = list_iterator_element(iterator);
@@ -54,7 +56,7 @@ Action_return execute_commands(Input *input) {
 
   char buffer[1024];
   unsigned int line = 1;
-  while (fgets(buffer, 1024, import_file) > 0) {
+  while (fgets(buffer, 1024, import_file)) {
     buffer[strlen(buffer)-1] = '\0'; // remove new line from fgets
 
     Action_return result = cli_parse_input(buffer);
@@ -105,7 +107,7 @@ Action_return import_todo(Input *input) {
   char *external_path = "/tmp/external.idea";
 
   // Clone the external file to a temporary location
-  if (!clone_text_file(import_path, external_path)) ACTION_RETURN(RETURN_ERROR, "Unable to copy the external file to the /tmp folder");
+  if (!clone_text_file(import_path, external_path)) return ACTION_RETURN(RETURN_ERROR, "Unable to copy the external file to the /tmp folder");
   free(import_path);
 
   // Generate the "local" file -that contains the actual database- (to diff it with the external file)
@@ -115,13 +117,12 @@ Action_return import_todo(Input *input) {
     case RETURN_SUCCESS: case RETURN_INFO: break;
     case RETURN_ERROR: case RETURN_ERROR_AND_EXIT:
       printf("ERROR: Unable to export the local todos to diff them from the external one\n");
-      free(import_path);
       return result;
   }
   // Clone the generated file (/tmp/local.idea) into (/tmp/local_without_changes.idea)
   // to compare the changes made with the diff tool (that are saved in /tmp/local.idea)
   // with the current state of the data base (/tmp/local_without_changes.idea)
-  if(!clone_text_file(local_path, base_path)) ACTION_RETURN(RETURN_ERROR, "Unable to clone the exported local database in the /tmp folder");
+  if(!clone_text_file(local_path, base_path)) return ACTION_RETURN(RETURN_ERROR, "Unable to clone the exported local database in the /tmp folder");
 
   // Execute the diff tool to get the changes the user wants.
   // The diff tool has to save the final version of the file

@@ -20,7 +20,7 @@ void list_append(List *list, void *element) {
   list->count += 1;
 }
 
-static List_node *list_node_get(List list, unsigned int pos) {
+List_node *list_node_get(List list, unsigned int pos) {
   if (pos >= list.count) abort();
 
   List_iterator iterator = list_iterator_create(list);
@@ -124,7 +124,7 @@ bool list_load_from_bfile(List *list, void *(*read_element_from_bfile)(FILE *), 
   unsigned int elements;
   if (!fread(&elements, sizeof(unsigned int), 1, file)) return false;
 
-  for (int i=0; i<elements; i++) {
+  for (unsigned int i=0; i<elements; i++) {
     list_append(list, read_element_from_bfile(file));
   }
 
@@ -158,7 +158,7 @@ unsigned int list_iterator_index(List_iterator iterator) {
   return iterator.index;
 }
 
-static List_node *list_iterator_node(List_iterator iterator) {
+List_node *list_iterator_node(List_iterator iterator) {
   if (list_iterator_finished(iterator)) abort();
   return iterator.current;
 }

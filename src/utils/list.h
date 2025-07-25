@@ -29,7 +29,7 @@ void list_insert_at(List *list, void *element, unsigned int pos);
 
 void *list_remove(List *list, unsigned int pos);
 
-static List_node *list_node_get(List list, unsigned int pos);
+List_node *list_node_get(List list, unsigned int pos);
 
 void *list_get(List list, unsigned int pos);
 
@@ -54,7 +54,7 @@ bool list_iterator_next(List_iterator *iterator);
 
 unsigned int list_iterator_index(List_iterator iterator);
 
-static List_node *list_iterator_node(List_iterator iterator);
+List_node *list_iterator_node(List_iterator iterator);
 
 void *list_iterator_element(List_iterator iterator);
 
