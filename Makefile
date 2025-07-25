@@ -1,6 +1,6 @@
 EXEC  := build/idea
 CFILES := $(wildcard src/*.c) $(wildcard src/utils/*.c)
-FLAGS := -lncurses -ggdb
+FLAGS := -Wall -Wextra -lncurses -ggdb
 BUILD_FOLDER := build
 
 all: $(EXEC)
