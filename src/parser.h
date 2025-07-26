@@ -16,13 +16,19 @@ typedef enum {
 
 typedef struct {
   char *message;
+  char *file;
+  unsigned int line;
+  const char *function;
   Action_return_type type;
 } Action_return;
 
 #define ACTION_RETURN(return_type, return_message) (Action_return) { \
-  .type = return_type,                                               \
-  .message = return_message                                          \
-}
+    .type = return_type,                                             \
+    .message = return_message,                                        \
+    .file = __FILE__,                                            \
+    .line = __LINE__,                                                 \
+    .function = __func__,                                        \
+  }
 
 typedef struct {
   char *abbreviation_cmd;

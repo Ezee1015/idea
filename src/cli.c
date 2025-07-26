@@ -7,6 +7,8 @@
 #include "todo_list.h"
 #include "utils/list.h"
 
+unsigned int msg_indentation = 1;
+
 /// Functionality
 Action_return print_todo(Input *input) {
   (void) input;
@@ -59,22 +61,23 @@ Action_return execute_commands(Input *input) {
   while (fgets(buffer, 1024, import_file)) {
     buffer[strlen(buffer)-1] = '\0'; // remove new line from fgets
 
-    Action_return result = cli_parse_input(buffer);
+    Action_return result;
+    NESTED_ACTION(result = cli_parse_input(buffer), result);
     switch (result.type) {
       case RETURN_SUCCESS: case RETURN_INFO:
         if (result.message && strcmp(result.message, ""))
-          printf("Message from line %d (%s) of the commands in the file\n\n", line, buffer);
+          PRINT_MESSAGE("Message from line %d (%s) of the commands in the file", line, buffer);
         break;
 
       case RETURN_ERROR:
+        PRINT_MESSAGE("Execution of the commands in the file failed at line %d (%s)", line, buffer);
         fclose(import_file);
-        printf("Execution of the commands in the file failed at line %d (%s)\n", line, buffer);
-        return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "");
+        return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "Execution failed");
 
       case RETURN_ERROR_AND_EXIT:
+        PRINT_MESSAGE("Execution of the commands in the file failed at line %d (%s)", line, buffer);
         fclose(import_file);
-        printf("Execution of the commands in the file failed miserably at line %d (%s)\n", line, buffer);
-        return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "");
+        return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "Execution aborted");
     }
 
     line++;
@@ -100,6 +103,7 @@ bool clone_text_file(char *origin_path, char *clone_path) {
 
 Action_return import_todo(Input *input) {
   Action_return result = ACTION_RETURN(RETURN_SUCCESS, "");
+  char command[TEMP_BUF_SIZE];
   char *base_path = get_path_from_variable("TMPDIR", "local_without_changes.idea");
   char *local_path = get_path_from_variable("TMPDIR", "local.idea");
   char *external_path = get_path_from_variable("TMPDIR", "external.idea");
@@ -117,15 +121,16 @@ Action_return import_todo(Input *input) {
   }
 
   // Generate the "local" file -that contains the actual database- (to diff it with the external file)
-  Input local_input = { .input = local_path, .length = strlen(local_path), .cursor = 0 };
-  Action_return function_return = export_todo(&local_input);
+  snprintf(command, TEMP_BUF_SIZE, "export %s", local_path);
+  Action_return function_return;
+  NESTED_ACTION(function_return = cli_parse_input(command), function_return);
   switch (function_return.type) {
-    case RETURN_SUCCESS: case RETURN_INFO: break;
-    case RETURN_ERROR: case RETURN_ERROR_AND_EXIT:
-      if (function_return.message && strcmp(function_return.message, ""))
-        printf("ERROR: %s\n", function_return.message);
-      result = ACTION_RETURN(RETURN_ERROR, "Unable to export the local todos to diff them from the external one\n");;
-      goto exit;
+      case RETURN_SUCCESS: case RETURN_INFO:
+        break;
+      case RETURN_ERROR:
+      case RETURN_ERROR_AND_EXIT:
+        result = ACTION_RETURN(RETURN_ERROR_AND_EXIT, "Unable to export the local todos to diff them from the external one");
+        goto exit;
   }
   // Clone the generated file (/tmp/local.idea) into (/tmp/local_without_changes.idea)
   // to compare the changes made with the diff tool (that are saved in /tmp/local.idea)
@@ -138,7 +143,6 @@ Action_return import_todo(Input *input) {
   // Execute the diff tool to get the changes the user wants.
   // The diff tool has to save the final version of the file
   // in /tmp/local.idea for idea to execute them.
-  char command[TEMP_BUF_SIZE];
   snprintf(command, TEMP_BUF_SIZE, DIFF_TOOL" %s %s", local_path, external_path);
   int system_ret = system(command);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) != 0)) {
@@ -171,15 +175,16 @@ Action_return import_todo(Input *input) {
     goto exit;
   }
 
-  local_input.cursor = 0;
-  function_return = execute_commands(&local_input);
+  snprintf(command, TEMP_BUF_SIZE, "execute %s", local_path);
+  NESTED_ACTION(function_return = cli_parse_input(command), function_return);
   switch (function_return.type) {
-    case RETURN_SUCCESS: case RETURN_INFO: break;
-    case RETURN_ERROR: case RETURN_ERROR_AND_EXIT:
-      if (function_return.message && strcmp(function_return.message, ""))
-        printf("ERROR: %s\n", function_return.message);
-      result = ACTION_RETURN(RETURN_ERROR, "Unable to apply the changes to the database");;
-      goto exit;
+      case RETURN_SUCCESS: case RETURN_INFO:
+        break;
+
+      case RETURN_ERROR:
+      case RETURN_ERROR_AND_EXIT:
+        result = ACTION_RETURN(RETURN_ERROR_AND_EXIT, "Unable to apply the changes to the database");;
+        goto exit;
   }
 
 exit:
@@ -229,23 +234,23 @@ Action_return cli_parse_input(char *input) {
     case RETURN_INFO:
     case RETURN_SUCCESS:
       if (cmd.cursor <= cmd.length) abort(); // Command parsing error. There's data left in the command
-
-      if (action_return.message && strcmp(action_return.message, ""))
-        printf("INFO: %s\n", action_return.message);
       break;
 
     case RETURN_ERROR:
-      todo_list_modified = false; // in order to not save the list
-      if (action_return.message && strcmp(action_return.message, ""))
-        printf("ERROR: %s\n", action_return.message);
-      break;
-
     case RETURN_ERROR_AND_EXIT:
       todo_list_modified = false; // in order to not save the list
-      if (action_return.message && strcmp(action_return.message, ""))
-        printf("ABORT: %s\n", action_return.message);
       break;
   }
 
   return action_return;
+}
+
+char *print_action_return(Action_return_type type) {
+  switch (type) {
+    case RETURN_SUCCESS: return "SUCCESS";
+    case RETURN_INFO: return "INFO";
+    case RETURN_ERROR: return "ERROR";
+    case RETURN_ERROR_AND_EXIT: return "ABORT";
+  }
+  return NULL;
 }

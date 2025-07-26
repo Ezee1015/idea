@@ -37,21 +37,21 @@ bool unlock_file() {
 
 bool parse_argv_cli(int argc, char *argv[]) {
   for (int i=1; i<argc; i++) {
-    Action_return result = cli_parse_input(argv[i]);
-
+    Action_return result;
+    NESTED_ACTION(result = cli_parse_input(argv[i]), result);
     switch (result.type) {
       case RETURN_SUCCESS:
       case RETURN_INFO:
         if (result.message && strcmp(result.message, ""))
-          printf("Message from the %dº command (%s)\n\n", i, argv[i]);
+          PRINT_MESSAGE("Message from the %dº command (%s)", i, argv[i]);
         break;
 
       case RETURN_ERROR:
-        printf("An ERROR occurred in the %dº command (%s)\n", i, argv[i]);
+        PRINT_MESSAGE("An ERROR occurred in the %dº command (%s)", i, argv[i]);
         return false;
 
       case RETURN_ERROR_AND_EXIT:
-        printf("An ABORT occurred in the %dº command (%s)\n", i, argv[i]);
+        PRINT_MESSAGE("An ABORT occurred in the %dº command (%s)", i, argv[i]);
         return false;
     }
   }

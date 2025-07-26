@@ -15,6 +15,17 @@
 #define ANSI_RESET "\033[0m"
 #define DIFF_FORMAT "'" ANSI_BLUE "<<< changes\n" ANSI_GREEN "%>" ANSI_BLUE "===\n" ANSI_RED "%<" ANSI_BLUE ">>> local" ANSI_RESET "\n'"
 
+extern unsigned int msg_indentation;
+#define PRINT(file, line, function, fmt, ...) printf("#%*s " ANSI_BLUE "%s:%d (%s)" ANSI_RESET ": " fmt "\n",  msg_indentation, "|", file, line, function, __VA_ARGS__)
+#define PRINT_MESSAGE(fmt, ...) PRINT(__FILE__, __LINE__, __func__, fmt, __VA_ARGS__)
+#define NESTED_ACTION(operation, result) do {                                      \
+    msg_indentation += 2;                                                          \
+    operation;                                                                     \
+    if (result.message && strcmp(result.message, ""))                              \
+      PRINT(result.file, result.line, result.function, "[%s] %s", print_action_return(result.type), result.message); \
+    msg_indentation -= 2;                                                          \
+  } while (0)
+
 Action_return print_todo(Input *input);
 Action_return import_todo(Input *input);
 Action_return export_todo(Input *input);
@@ -24,5 +35,7 @@ Action_return do_nothing(Input *input);
 bool clone_text_file(char *origin_path, char *clone_path);
 
 Action_return cli_parse_input(char *input);
+
+char *print_action_return(Action_return_type type);
 
 #endif // CLI_H
