@@ -24,10 +24,10 @@ typedef struct {
 
 #define ACTION_RETURN(return_type, return_message) (Action_return) { \
     .type = return_type,                                             \
-    .message = return_message,                                        \
-    .file = __FILE__,                                            \
-    .line = __LINE__,                                                 \
-    .function = __func__,                                        \
+    .message = return_message,                                       \
+    .file = __FILE__,                                                \
+    .line = __LINE__,                                                \
+    .function = __func__,                                            \
   }
 
 typedef struct {
