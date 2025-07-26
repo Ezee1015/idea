@@ -192,6 +192,9 @@ Action_return import_todo(Input *input) {
   }
 
 exit:
+  remove(base_path);
+  remove(local_path);
+  remove(external_path);
   if (import_path) free(import_path);
   if (base_path) free(base_path);
   if (local_path) free(local_path);
