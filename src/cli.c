@@ -11,7 +11,11 @@ unsigned int msg_indentation = 1;
 
 /// Functionality
 Action_return print_todo(Input *input) {
-  (void) input;
+  char *args;
+  if ( input && (args = next_token(input, 0)) ) {
+    free(args);
+    return ACTION_RETURN(RETURN_ERROR, "list doesn't require arguments");
+  }
 
   List_iterator iterator = list_iterator_create(todo_list);
   while (list_iterator_next(&iterator)) {
