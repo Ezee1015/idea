@@ -99,30 +99,41 @@ bool clone_text_file(char *origin_path, char *clone_path) {
 }
 
 Action_return import_todo(Input *input) {
-  char *import_path = next_token(input, '\0');
-  if (!import_path) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
-
-  char *base_path =  get_path_from_variable("TMPDIR", "local_without_changes.idea");
+  Action_return result = ACTION_RETURN(RETURN_SUCCESS, "");
+  char *base_path = get_path_from_variable("TMPDIR", "local_without_changes.idea");
   char *local_path = get_path_from_variable("TMPDIR", "local.idea");
   char *external_path = get_path_from_variable("TMPDIR", "external.idea");
 
+  char *import_path = next_token(input, '\0');
+  if (!import_path) {
+    result = ACTION_RETURN(RETURN_ERROR, "Command malformed");
+    goto exit;
+  }
+
   // Clone the external file to a temporary location
-  if (!clone_text_file(import_path, external_path)) return ACTION_RETURN(RETURN_ERROR, "Unable to copy the external file to the /tmp folder");
-  free(import_path);
+  if (!clone_text_file(import_path, external_path)) {
+    result = ACTION_RETURN(RETURN_ERROR, "Unable to copy the external file to the /tmp folder");
+    goto exit;
+  }
 
   // Generate the "local" file -that contains the actual database- (to diff it with the external file)
   Input local_input = { .input = local_path, .length = strlen(local_path), .cursor = 0 };
-  Action_return result = export_todo(&local_input);
-  switch (result.type) {
+  Action_return function_return = export_todo(&local_input);
+  switch (function_return.type) {
     case RETURN_SUCCESS: case RETURN_INFO: break;
     case RETURN_ERROR: case RETURN_ERROR_AND_EXIT:
-      printf("ERROR: Unable to export the local todos to diff them from the external one\n");
-      return result;
+      if (function_return.message && strcmp(function_return.message, ""))
+        printf("ERROR: %s\n", function_return.message);
+      result = ACTION_RETURN(RETURN_ERROR, "Unable to export the local todos to diff them from the external one\n");;
+      goto exit;
   }
   // Clone the generated file (/tmp/local.idea) into (/tmp/local_without_changes.idea)
   // to compare the changes made with the diff tool (that are saved in /tmp/local.idea)
   // with the current state of the data base (/tmp/local_without_changes.idea)
-  if(!clone_text_file(local_path, base_path)) return ACTION_RETURN(RETURN_ERROR, "Unable to clone the exported local database in the /tmp folder");
+  if(!clone_text_file(local_path, base_path)) {
+    result = ACTION_RETURN(RETURN_ERROR, "Unable to clone the exported local database in the /tmp folder");
+    goto exit;
+  }
 
   // Execute the diff tool to get the changes the user wants.
   // The diff tool has to save the final version of the file
@@ -131,7 +142,8 @@ Action_return import_todo(Input *input) {
   snprintf(command, TEMP_BUF_SIZE, DIFF_TOOL" %s %s", local_path, external_path);
   int system_ret = system(command);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) != 0)) {
-    return ACTION_RETURN(RETURN_ERROR, "Diff tool failed");
+    result = ACTION_RETURN(RETURN_ERROR, "Diff tool failed");
+    goto exit;
   }
 
   // Show the user the changes in the commands that are going to be executed
@@ -144,27 +156,38 @@ Action_return import_todo(Input *input) {
   snprintf(command, TEMP_BUF_SIZE, "%s %s %s", diff_command, base_path, local_path);
   system_ret = system(command);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) == 2)) {
-    return ACTION_RETURN(RETURN_ERROR, "Final diff failed");
+    result = ACTION_RETURN(RETURN_ERROR, "Final diff failed");
+    goto exit;
   }
   if (WEXITSTATUS(system_ret) == 0) {
-    return ACTION_RETURN(RETURN_INFO, "The file to import is the same as the database. Import canceled");
+    result = ACTION_RETURN(RETURN_INFO, "The file to import is the same as the database. Import canceled");
+    goto exit;
   }
 
   printf("\nDo you want execute this commands? [y/N] > ");
   char ans = getchar();
   if (ans != 'y' && ans != 'Y') {
-    return ACTION_RETURN(RETURN_INFO, "Import canceled");
+    result = ACTION_RETURN(RETURN_INFO, "Import canceled");
+    goto exit;
   }
 
   local_input.cursor = 0;
-  result = execute_commands(&local_input);
-  switch (result.type) {
+  function_return = execute_commands(&local_input);
+  switch (function_return.type) {
     case RETURN_SUCCESS: case RETURN_INFO: break;
     case RETURN_ERROR: case RETURN_ERROR_AND_EXIT:
-      printf("ERROR: Unable to apply the changes to the database\n");
-      return result;
+      if (function_return.message && strcmp(function_return.message, ""))
+        printf("ERROR: %s\n", function_return.message);
+      result = ACTION_RETURN(RETURN_ERROR, "Unable to apply the changes to the database");;
+      goto exit;
   }
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+
+exit:
+  if (import_path) free(import_path);
+  if (base_path) free(base_path);
+  if (local_path) free(local_path);
+  if (external_path) free(external_path);
+  return result;
 }
 
 Action_return do_nothing(Input *input) {

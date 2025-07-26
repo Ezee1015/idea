@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -7,26 +8,30 @@
 #include "cli.h"
 
 bool lock_file() {
-  const char *lock_path = get_path_from_variable("TMPDIR", "idea.lock");
+  char *lock_path = get_path_from_variable("TMPDIR", "idea.lock");
   if (access(lock_path, F_OK) == 0) {
     printf("Idea is already running...\n");
+    free(lock_path);
     return false;
   }
 
   FILE *lock_file = fopen(lock_path, "w");
   if (!lock_file) {
     printf("Error creating the lock...\n");
+    free(lock_path);
     return false;
   }
 
+  free(lock_path);
   fclose(lock_file);
   return true;
 }
 
 bool unlock_file() {
-  const char *lock_path = get_path_from_variable("TMPDIR", "idea.lock");
+  char *lock_path = get_path_from_variable("TMPDIR", "idea.lock");
   bool removed = (remove(lock_path) == 0);
   if (!removed) printf("Unable to remove the lock file\n");
+  free(lock_path);
   return removed;
 }
 
