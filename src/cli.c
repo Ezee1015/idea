@@ -150,7 +150,7 @@ Action_return action_import_todo(Input *input) {
   // Execute the diff tool to get the changes the user wants.
   // The diff tool has to save the final version of the file
   // in /tmp/local.idea for idea to execute them.
-  snprintf(command, TEMP_BUF_SIZE, DIFF_TOOL" %s %s", local_path, external_path);
+  snprintf(command, TEMP_BUF_SIZE, DIFFTOOL_CMD " %s %s", local_path, external_path);
   int system_ret = system(command);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) != 0)) {
     result = ACTION_RETURN(RETURN_ERROR, "Diff tool failed");
@@ -159,12 +159,7 @@ Action_return action_import_todo(Input *input) {
 
   // Show the user the changes in the commands that are going to be executed
   printf("Diff of the database commands:\n\n");
-  // const char *diff_command = "diff --color";
-  const char *diff_command = "diff --old-group-format="DIFF_FORMAT
-                                 " --new-group-format="DIFF_FORMAT
-                                 " --changed-group-format="DIFF_FORMAT
-                                 " --unchanged-group-format='%='";
-  snprintf(command, TEMP_BUF_SIZE, "%s %s %s", diff_command, base_path, local_path);
+  snprintf(command, TEMP_BUF_SIZE, "%s %s %s", DIFF_CMD, base_path, local_path);
   system_ret = system(command);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) == 2)) {
     result = ACTION_RETURN(RETURN_ERROR, "Final diff failed");

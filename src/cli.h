@@ -8,13 +8,17 @@
 
 #define TEMP_BUF_SIZE 512
 
-#define DIFF_TOOL "nvim -d"
+#define DIFFTOOL_CMD "nvim -d"
 
 #define ANSI_RED "\033[0;31m"
 #define ANSI_GREEN "\033[0;32m"
 #define ANSI_BLUE "\033[0;34m"
 #define ANSI_RESET "\033[0m"
 #define DIFF_FORMAT "'" ANSI_BLUE "<<< changes\n" ANSI_GREEN "%>" ANSI_BLUE "===\n" ANSI_RED "%<" ANSI_BLUE ">>> local" ANSI_RESET "\n'"
+#define DIFF_CMD "diff --old-group-format=" DIFF_FORMAT      \
+                     " --new-group-format=" DIFF_FORMAT      \
+                     " --changed-group-format=" DIFF_FORMAT  \
+                     " --unchanged-group-format='%='"
 
 extern unsigned int msg_indentation;
 #define PRINT(file, line, function, fmt, ...) printf("#%*s " ANSI_BLUE "%s:%d (%s)" ANSI_RESET ": " fmt "\n",  msg_indentation, "|", file, line, function, __VA_ARGS__)
