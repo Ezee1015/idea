@@ -4,13 +4,16 @@
 
 #include "cli.h"
 #include "parser.h"
-#include "todo_list.h"
 #include "utils/list.h"
 
 unsigned int msg_indentation = 1;
 
+void print_todo(unsigned int index, Todo todo) {
+  printf("%d) %s\n", index + 1, todo.data);
+}
+
 /// Functionality
-Action_return print_todo(Input *input) {
+Action_return action_print_todo(Input *input) {
   char *args;
   if ( input && (args = next_token(input, 0)) ) {
     free(args);
@@ -19,13 +22,13 @@ Action_return print_todo(Input *input) {
 
   List_iterator iterator = list_iterator_create(todo_list);
   while (list_iterator_next(&iterator)) {
-    Todo *todo = list_iterator_element(iterator);
-    printf("%d) %s\n", list_iterator_index(iterator)+1, todo->data);
+    const Todo *todo = list_iterator_element(iterator);
+    print_todo(list_iterator_index(iterator), *todo);
   }
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
-Action_return export_todo(Input *input) {
+Action_return action_export_todo(Input *input) {
   if (list_is_empty(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Unable to create the export file: the todo list is empty.");
 
   char *export_path = next_token(input, '\0');
@@ -52,7 +55,7 @@ Action_return export_todo(Input *input) {
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
-Action_return execute_commands(Input *input) {
+Action_return action_execute_commands(Input *input) {
   char *import_path = next_token(input, '\0');
   if (!import_path) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
 
@@ -105,7 +108,7 @@ bool clone_text_file(char *origin_path, char *clone_path) {
   return true;
 }
 
-Action_return import_todo(Input *input) {
+Action_return action_import_todo(Input *input) {
   Action_return result = ACTION_RETURN(RETURN_SUCCESS, "");
   char command[TEMP_BUF_SIZE];
   char *base_path = get_path_from_variable("TMPDIR", "local_without_changes.idea");
@@ -202,17 +205,17 @@ exit:
   return result;
 }
 
-Action_return do_nothing(Input *input) {
+Action_return action_do_nothing(Input *input) {
   input->cursor = input->length+1;
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
 Functionality cli_functionality[] = {
-  { "" , "--", do_nothing }, // Comment and empty lines (for import)
-  {"-l", "list", print_todo},
-  { "" , "execute", execute_commands },
-  { "" , "export", export_todo },
-  { "" , "import", import_todo },
+  { "" , "--", action_do_nothing }, // Comment and empty lines (for import)
+  {"-l", "list", action_print_todo},
+  { "" , "execute", action_execute_commands },
+  { "" , "export", action_export_todo },
+  { "" , "import", action_import_todo },
 };
 
 unsigned int cli_functionality_count() {

@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 #include "parser.h"
+#include "todo_list.h"
 
 #define TEMP_BUF_SIZE 512
 
@@ -26,11 +27,13 @@ extern unsigned int msg_indentation;
     msg_indentation -= 2;                                                          \
   } while (0)
 
-Action_return print_todo(Input *input);
-Action_return import_todo(Input *input);
-Action_return export_todo(Input *input);
-Action_return execute_commands(Input *input);
-Action_return do_nothing(Input *input);
+Action_return action_print_todo(Input *input);
+Action_return action_import_todo(Input *input);
+Action_return action_export_todo(Input *input);
+Action_return action_execute_commands(Input *input);
+Action_return action_do_nothing(Input *input);
+
+void print_todo(unsigned int index, Todo todo);
 
 bool clone_text_file(char *origin_path, char *clone_path);
 

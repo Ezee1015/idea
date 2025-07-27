@@ -12,10 +12,12 @@ Size area_size = {0};
 void draw_window(void) {
   List_iterator iterator = list_iterator_create(todo_list);
   while (list_iterator_next(&iterator)) {
-    Todo *todo = list_iterator_element(iterator);
-    mvprintw(area_start.y+list_iterator_index(iterator) + 2,
+    const Todo *todo = list_iterator_element(iterator);
+    const unsigned int index = list_iterator_index(iterator);
+
+    mvprintw(area_start.y+index + 2, // +2 for the command line
              area_start.x,
-             "%d) %s", list_iterator_index(iterator)+1, todo->data); // +2 for the command line
+             "%d) %s", index + 1, todo->data);
   }
 
   mvprintw(area_start.y, area_start.x, "> ");

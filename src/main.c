@@ -56,7 +56,7 @@ bool parse_argv_cli(int argc, char *argv[]) {
     }
   }
 
-  if (todo_list_modified) print_todo(NULL);
+  if (todo_list_modified) action_print_todo(NULL);
   return true;
 }
 
