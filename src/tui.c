@@ -73,7 +73,7 @@ int window_app(void) {
         };
         char *instruction = next_token(&cmd, ' ');
 
-        Action_return (*function)(Input *input) = search_functionality_pos(instruction, todo_list_functionality, todo_list_functionality_count());
+        Action_return (*function)(Input *input) = search_functionality_function(instruction, todo_list_functionality, todo_list_functionality_count);
         free(instruction);
 
         Action_return action_return = (function) ? function(&cmd) : ACTION_RETURN(RETURN_ERROR, "Invalid command");

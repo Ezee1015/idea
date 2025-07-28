@@ -38,6 +38,6 @@ typedef struct {
 
 char *next_token(Input *cmd, char divider);
 
-Action_return (*search_functionality_pos(char *instruction, Functionality functionality[], unsigned int functionality_count))(Input *);
+Action_return (*search_functionality_function(char *instruction, Functionality functionality[], unsigned int functionality_count))(Input *);
 
 #endif

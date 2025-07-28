@@ -227,9 +227,9 @@ Action_return cli_parse_input(char *input) {
   };
   char *instruction = next_token(&cmd, ' ');
 
-  Action_return (*function)(Input *input) = search_functionality_pos(instruction, cli_functionality, cli_functionality_count());
+  Action_return (*function)(Input *input) = search_functionality_function(instruction, cli_functionality, cli_functionality_count);
   if (!function) {
-    function = search_functionality_pos(instruction, todo_list_functionality, todo_list_functionality_count());
+    function = search_functionality_function(instruction, todo_list_functionality, todo_list_functionality_count);
     todo_list_modified = true;
   }
   free(instruction);
