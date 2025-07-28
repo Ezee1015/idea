@@ -176,13 +176,10 @@ Action_return clear_todos(Input *input) {
 }
 
 Functionality todo_list_functionality[] = {
-  { "a", "add", add_todo },
-  { "rm", "" , remove_todo },
-  { "mv" , "move", move_todo },
-  { "e" , "edit", edit_todo },
-  { "" , "clear", clear_todos },
+  { "add", "a", add_todo, MAN("Add a ToDo", "[name]") },
+  { "remove", "rm", remove_todo, MAN("Remove a ToDo", "[ID]") },
+  { "move", "mv", move_todo, MAN("Move ToDo", "[ID]") },
+  { "edit", "e", edit_todo, MAN("Edit a ToDo", "[ID] [new name]") },
+  { "clear", NULL, clear_todos, MAN("Clear all ToDos", "all") },
 };
-
-unsigned int todo_list_functionality_count() {
-  return sizeof(todo_list_functionality) / sizeof(Functionality);
-}
+unsigned int todo_list_functionality_count = sizeof(todo_list_functionality) / sizeof(Functionality);

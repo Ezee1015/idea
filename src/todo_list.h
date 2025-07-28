@@ -39,6 +39,6 @@ Action_return edit_todo(Input *input);
 Action_return export_todo(Input *input);
 Action_return import_todo(Input *input);
 extern Functionality todo_list_functionality[];
-unsigned int todo_list_functionality_count();
+extern unsigned int todo_list_functionality_count;
 
 #endif

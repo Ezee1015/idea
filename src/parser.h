@@ -31,9 +31,18 @@ typedef struct {
   }
 
 typedef struct {
-  char *abbreviation_cmd;
-  char *full_cmd;
+  char *description;
+  char **parameters; // Optional --> Empty if it doesn't expect parameters
+} Manual;
+
+// MAN(description of the command, [valid parameter combinations for this functionality])
+#define MAN(description, ...) (Manual){ description, (char *[]){ __VA_ARGS__, NULL} }
+
+typedef struct {
+  char *full_cmd;         // Obligatory
+  char *abbreviation_cmd; // Optional
   Action_return (*function_cmd)(Input *);
+  Manual man;
 } Functionality;
 
 char *next_token(Input *cmd, char divider);

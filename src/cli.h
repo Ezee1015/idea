@@ -36,6 +36,9 @@ Action_return action_import_todo(Input *input);
 Action_return action_export_todo(Input *input);
 Action_return action_execute_commands(Input *input);
 Action_return action_do_nothing(Input *input);
+Action_return action_print_help(Input *input);
+extern Functionality cli_functionality[];
+extern unsigned int cli_functionality_count;
 
 void print_todo(unsigned int index, Todo todo);
 

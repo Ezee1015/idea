@@ -73,6 +73,7 @@ int window_app(void) {
         };
         char *instruction = next_token(&cmd, ' ');
 
+        // TODO Implement tui custom functionality: help (Generic and TUI specific commands)
         Action_return (*function)(Input *input) = search_functionality_function(instruction, todo_list_functionality, todo_list_functionality_count);
         free(instruction);
 
