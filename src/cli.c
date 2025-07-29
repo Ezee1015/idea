@@ -9,7 +9,7 @@
 unsigned int msg_indentation = 1;
 
 void print_todo(unsigned int index, Todo todo) {
-  printf("%d) %s\n", index + 1, todo.data);
+  printf(ANSI_RED "%d)" ANSI_RESET " %s\n", index + 1, todo.data);
 }
 
 /// Functionality
