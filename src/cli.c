@@ -28,7 +28,8 @@ Action_return action_print_todo(Input *input) {
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
-void print_functionality(Functionality *functionality, unsigned int functionality_count) {
+void print_functionality(char *source, Functionality *functionality, unsigned int functionality_count) {
+  printf(ANSI_UNDERLINE "%s" ANSI_RESET ":\n", source);
   if (functionality_count == 0) return;
 
   unsigned int max_cmd_length = 0;
@@ -49,13 +50,13 @@ void print_functionality(Functionality *functionality, unsigned int functionalit
     const unsigned int description_padding = 3;
     unsigned int padding = max_cmd_length - cmd_length + description_padding;
 
-    if (f.abbreviation_cmd) printf("\t%s, %s%*s%s\n", f.full_cmd, f.abbreviation_cmd, padding, " ", f.man.description);
-    else                    printf("\t%s  %*s%s\n", f.full_cmd, padding, " ", f.man.description);
+    if (f.abbreviation_cmd) printf("\t" ANSI_YELLOW "%s" ANSI_RESET ", " ANSI_YELLOW "%s" ANSI_RESET "%*s%s\n", f.full_cmd, f.abbreviation_cmd, padding, " ", f.man.description);
+    else                    printf("\t" ANSI_YELLOW "%s" ANSI_RESET "  %*s%s\n", f.full_cmd, padding, " ", f.man.description);
 
     const unsigned int separator_between_commands_length = 2; // ", " when f.abbreviation_cmd exist or "  " when it doesn't
     for (unsigned int x = 0; f.man.parameters[x]; x++) {
       unsigned int padding_parameter = max_cmd_length + description_padding + separator_between_commands_length;
-      printf("\t%*sUse: %s %s\n", padding_parameter, "", f.full_cmd, functionality[i].man.parameters[x]);
+      printf("\t%*sUsage: "ANSI_BLUE"%s %s"ANSI_RESET"\n", padding_parameter, "", f.full_cmd, functionality[i].man.parameters[x]);
     }
     printf("\n");
   }
@@ -68,11 +69,8 @@ Action_return action_print_help(Input *input) {
     return ACTION_RETURN(RETURN_ERROR, "help doesn't require arguments");
   }
 
-  printf("Generic commands:\n");
-  print_functionality(todo_list_functionality, todo_list_functionality_count);
-
-  printf("CLI Specific commands:\n");
-  print_functionality(cli_functionality, cli_functionality_count);
+  print_functionality("Generic commands", todo_list_functionality, todo_list_functionality_count);
+  print_functionality("CLI Specific commands", cli_functionality, cli_functionality_count);
 
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
