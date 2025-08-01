@@ -4,12 +4,112 @@
 
 #include "cli.h"
 #include "parser.h"
+#include "todo_list.h"
 #include "utils/list.h"
 
 unsigned int msg_indentation = 1;
 
 void print_todo(unsigned int index, Todo todo) {
-  printf(ANSI_RED "%d)" ANSI_RESET " %s\n", index + 1, todo.data);
+  printf(ANSI_RED "%d)" ANSI_GREEN "%s" ANSI_RESET " %s\n", index + 1, (todo.notes_filename) ? " " NOTES_ICON : "", todo.data);
+}
+
+bool write_notes_to_file(FILE *file, char *content) {
+  unsigned int content_lenght = strlen(content);
+  bool escaped = false;
+  for (unsigned int i=0; i<content_lenght; i++) {
+    switch (content[i]) {
+      case '\\':
+        if (escaped && fputs("\\\\", file) == EOF) return false;
+        escaped = !escaped;
+        break;
+
+      case 'n':
+        if (fputs( (escaped) ? "\n" : "n", file) == EOF) return false;
+        escaped = false;
+        break;
+
+      default:
+        if (escaped) {
+          if (fputc('\\', file) == EOF) return false;
+          escaped = false;
+        }
+        if (fputc(content[i], file) == EOF) return false;
+        break;
+    }
+  }
+  return true;
+}
+
+bool clone_text_file(char *origin_path, char *clone_path) {
+  FILE *origin = fopen(origin_path, "r");
+  if (!origin) return false;
+  FILE *clone = fopen(clone_path, "w");
+  if (!clone) return false;
+
+  int c; // int for EOF
+  while ( (c = fgetc(origin)) != EOF ) fputc(c, clone);
+
+  fclose(clone);
+  fclose(origin);
+  return true;
+}
+
+bool create_backup() {
+  char *backup_path = get_path_from_variable("TMPDIR", BACKUP_NAME);
+  char cmd[TEMP_BUF_SIZE];
+  snprintf(cmd, TEMP_BUF_SIZE, "export %s", backup_path);
+
+  Action_return result;
+  NESTED_ACTION(result = cli_parse_input(cmd), result);
+  bool ok;
+  switch (result.type) {
+    case RETURN_SUCCESS: case RETURN_INFO:
+      if (result.message && strcmp(result.message, ""))
+        PRINT_MESSAGE("Message from the backup file (%s)...", backup_path);
+      ok = true;
+      break;
+
+    case RETURN_ERROR:
+    case RETURN_ERROR_AND_EXIT:
+      PRINT_MESSAGE("Unable to create the backup file (%s)...", backup_path);
+      ok = false;
+      break;
+  }
+
+  free(backup_path);
+  return ok;
+}
+
+bool restore_backup() {
+  char *backup_path = get_path_from_variable("TMPDIR", BACKUP_NAME);
+  char cmd[TEMP_BUF_SIZE];
+  snprintf(cmd, TEMP_BUF_SIZE, "execute %s", backup_path);
+
+  Action_return result;
+  NESTED_ACTION(result = cli_parse_input(cmd), result);
+  bool ok;
+  switch (result.type) {
+    case RETURN_SUCCESS: case RETURN_INFO:
+      if (result.message && strcmp(result.message, ""))
+        PRINT_MESSAGE("Message from the backup file (%s)", backup_path);
+      ok = true;
+      break;
+
+    case RETURN_ERROR:
+    case RETURN_ERROR_AND_EXIT:
+      PRINT_MESSAGE("Unable to restore from the backup file... The backup file is located *TEMPORARY* at %s", backup_path);
+      ok = false;
+      break;
+  }
+
+  free(backup_path);
+  return ok;
+}
+
+void remove_backup() {
+  char *backup_path = get_path_from_variable("TMPDIR", BACKUP_NAME);
+  remove(backup_path);
+  free(backup_path);
 }
 
 /// Functionality
@@ -76,13 +176,11 @@ Action_return action_print_help(Input *input) {
 }
 
 Action_return action_export_todo(Input *input) {
-  if (list_is_empty(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Unable to create the export file: the todo list is empty.");
-
   char *export_path = next_token(input, '\0');
   if (!export_path) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
 
   FILE *export_file = fopen(export_path, "w");
-  free(export_path);
+  free(export_path); export_path = NULL;
   if (!export_file) return ACTION_RETURN(RETURN_ERROR, "Unable to create the export file");
 
   if (!export_template(export_file)) {
@@ -107,7 +205,7 @@ Action_return action_execute_commands(Input *input) {
   if (!import_path) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
 
   FILE *import_file = fopen(import_path, "r");
-  free(import_path);
+  free(import_path); import_path = NULL;
   if (!import_file) return ACTION_RETURN(RETURN_ERROR, "Unable to open the import file");
 
   char buffer[1024];
@@ -139,20 +237,6 @@ Action_return action_execute_commands(Input *input) {
 
   fclose(import_file);
   return ACTION_RETURN(RETURN_SUCCESS, "");
-}
-
-bool clone_text_file(char *origin_path, char *clone_path) {
-  FILE *origin = fopen(origin_path, "r");
-  if (!origin) return false;
-  FILE *clone = fopen(clone_path, "w");
-  if (!clone) return false;
-
-  int c; // int for EOF
-  while ( (c = fgetc(origin)) != EOF ) fputc(c, clone);
-
-  fclose(clone);
-  fclose(origin);
-  return true;
 }
 
 Action_return action_import_todo(Input *input) {
@@ -247,6 +331,83 @@ exit:
   return result;
 }
 
+Action_return notes_todo(Input *input) {
+  char *pos_str = next_token(input, 0);
+  if (!pos_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  unsigned int pos = atoi(pos_str);
+  free(pos_str); pos_str = NULL;
+  if (!pos) return ACTION_RETURN(RETURN_ERROR, "The given position is not a number");
+  if (pos == 0 || pos > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid position");
+  Todo *todo = list_get(todo_list, pos-1);
+
+  if (!todo->notes_filename) {
+    char command[TEMP_BUF_SIZE];
+    snprintf(command, TEMP_BUF_SIZE, "notes_create %d", pos);
+    Action_return result;
+    NESTED_ACTION(result = cli_parse_input(command), result);
+    switch (result.type) {
+      case RETURN_SUCCESS: case RETURN_INFO:
+        break;
+
+      case RETURN_ERROR: case RETURN_ERROR_AND_EXIT:
+        return ACTION_RETURN(RETURN_ERROR, "Unable to create the notes file");
+    }
+  }
+
+  char command[TEMP_BUF_SIZE];
+  char *notes_directory = get_path_from_variable("HOME", CONFIG_PATH NOTES_FOLDER);
+  snprintf(command, TEMP_BUF_SIZE, TEXT_EDITOR " '%s%s'", notes_directory, todo->notes_filename);
+  free(notes_directory); notes_directory = NULL;
+  int system_ret = system(command);
+  if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) != 0)) {
+    return ACTION_RETURN(RETURN_ERROR, "Text editor failed or file doesn't exist");
+  }
+
+  return ACTION_RETURN(RETURN_SUCCESS, "");
+}
+
+Action_return notes_todo_content(Input *input) {
+  char *content = next_token(input, 0);
+  if (!content) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  unsigned int pos = list_size(todo_list);
+  if (pos == 0 || pos > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid position");
+  Todo *todo = list_get(todo_list, pos-1);
+
+  // Create the notes file
+  if (!todo->notes_filename) {
+    char command[TEMP_BUF_SIZE];
+    snprintf(command, TEMP_BUF_SIZE, "notes_create %d", pos);
+    Action_return result;
+    NESTED_ACTION(result = cli_parse_input(command), result);
+    switch (result.type) {
+      case RETURN_SUCCESS: case RETURN_INFO:
+        break;
+
+      case RETURN_ERROR: case RETURN_ERROR_AND_EXIT:
+        return ACTION_RETURN(RETURN_ERROR, "Unable to create the notes file");
+    }
+  }
+
+  // Write the file
+  char *notes_directory = get_path_from_variable("HOME", CONFIG_PATH NOTES_FOLDER);
+  char *path = concatenate_paths(notes_directory, todo->notes_filename);
+  free(notes_directory); notes_directory = NULL;
+
+  FILE *notes = fopen(path, "w");
+  free(path); path = NULL;
+  if (!notes) return ACTION_RETURN(RETURN_ERROR, "Unable to open the notes file for the ToDo (the last one)");
+
+  if (!write_notes_to_file(notes, content)) {
+    free(content);
+    fclose(notes);
+    return ACTION_RETURN(RETURN_ERROR, "Unable to write to the notes file of the ToDo (the last one)");
+  }
+
+  free(content);
+  fclose(notes);
+  return ACTION_RETURN(RETURN_SUCCESS, "");
+}
+
 Action_return action_do_nothing(Input *input) {
   input->cursor = input->length+1;
   return ACTION_RETURN(RETURN_SUCCESS, "");
@@ -259,6 +420,8 @@ Functionality cli_functionality[] = {
   { "export", NULL, action_export_todo, MAN("Export the database", "[file]") },
   { "import", NULL, action_import_todo, MAN("Import a database generated by idea", "[file]") },
   { "help", "-h", action_print_help, MAN("Generic and CLI help page", NULL) },
+  { "notes", NULL, notes_todo, MAN("Open the ToDo's notes file", "[ID]") },
+  { "notes_content", NULL, notes_todo_content, MAN("Replace the notes file content with Content of the last ToDo of the list. Intended for import/export commands only", "[Content]") },
 };
 unsigned int cli_functionality_count = sizeof(cli_functionality) / sizeof(Functionality);
 
@@ -277,7 +440,7 @@ Action_return cli_parse_input(char *input) {
     function = search_functionality_function(instruction, todo_list_functionality, todo_list_functionality_count);
     todo_list_modified = true;
   }
-  free(instruction);
+  free(instruction); instruction = NULL;
 
   Action_return action_return = (function) ? function(&cmd) : ACTION_RETURN(RETURN_ERROR, "Invalid command");
   switch (action_return.type) {
@@ -288,7 +451,6 @@ Action_return cli_parse_input(char *input) {
 
     case RETURN_ERROR:
     case RETURN_ERROR_AND_EXIT:
-      todo_list_modified = false; // in order to not save the list
       break;
   }
 

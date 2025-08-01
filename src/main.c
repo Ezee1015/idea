@@ -36,7 +36,11 @@ bool unlock_file() {
 }
 
 bool parse_argv_cli(int argc, char *argv[]) {
-  for (int i=1; i<argc; i++) {
+  if (!create_backup()) return false;
+
+  int i=1;
+  bool something_went_wrong = false;
+  while (!something_went_wrong && i<argc) {
     Action_return result;
     NESTED_ACTION(result = cli_parse_input(argv[i]), result);
     switch (result.type) {
@@ -47,22 +51,39 @@ bool parse_argv_cli(int argc, char *argv[]) {
         break;
 
       case RETURN_ERROR:
+        something_went_wrong = true;
         PRINT_MESSAGE("An ERROR occurred in the %dº command (%s)", i, argv[i]);
-        return false;
+        break;
 
       case RETURN_ERROR_AND_EXIT:
+        something_went_wrong = true;
         PRINT_MESSAGE("An ABORT occurred in the %dº command (%s)", i, argv[i]);
-        return false;
+        break;
+    }
+    i++;
+  }
+
+  if (something_went_wrong) {
+    PRINT_TEXT("Restoring the state from the Backup file...\n");
+    if (!restore_backup()) {
+      todo_list_modified = false; // Try to not save it because it may be corrupted
+      PRINT_TEXT("Restoring the backup file failed... We're screwed...");
+      PRINT_TEXT("Save right now a copy of the backup file (may be owerwritten in the future) and try to fix the problem");
+      return false;
     }
   }
 
+  remove_backup();
   if (todo_list_modified) action_print_todo(NULL);
-  return true;
+  return !something_went_wrong;
 }
 
 int main(int argc, char *argv[]) {
   if (!lock_file()) return 1;
-  load_file();
+  if (!load_file()) {
+    unlock_file();
+    return 1;
+  }
 
   int ret;
   if (argc == 1) {
@@ -73,7 +94,9 @@ int main(int argc, char *argv[]) {
     ret = (parse_argv_cli(argc, argv)) ? 0 : 1;
   }
 
-  if (todo_list_modified) save_file();
+  if (todo_list_modified) {
+    if (!save_file()) ret = 1;
+  }
   list_destroy(&todo_list, (void (*)(void *))free_todo);
   if (!unlock_file()) return 1;
   return ret;

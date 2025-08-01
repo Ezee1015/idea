@@ -40,7 +40,7 @@ bool list_is_empty(List list);
 // If free_element is NULL, it will not free the element, just the list
 void list_destroy(List *list, void (*free_element)(void *));
 
-void list_map(List list, void (*operation)(void *));
+bool list_map_bool(List list, bool (*operation)(void *));
 
 bool list_save_to_bfile(List list, bool (*save_element_to_bfile)(FILE *, void *), FILE *file);
 

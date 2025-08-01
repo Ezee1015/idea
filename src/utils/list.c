@@ -23,6 +23,8 @@ void list_append(List *list, void *element) {
 List_node *list_node_get(List list, unsigned int pos) {
   if (pos >= list.count) abort();
 
+  if (pos == list.count-1) return list.last;
+
   List_iterator iterator = list_iterator_create(list);
   while (list_iterator_next(&iterator) && pos--);
   if (list_iterator_finished(iterator)) abort();
@@ -82,13 +84,14 @@ void *list_remove(List *list, unsigned int pos) {
   return remove_data;
 }
 
-void list_map(List list, void (*operation)(void *)) {
+bool list_map_bool(List list, bool (*operation)(void *)) {
   if (!operation) abort();
 
   List_iterator iterator = list_iterator_create(list);
   while (list_iterator_next(&iterator)) {
-    operation(list_iterator_element(iterator));
+    if (!operation(list_iterator_element(iterator))) return false;
   }
+  return true;
 }
 
 void list_destroy(List *list, void (*free_element)(void *)) {
