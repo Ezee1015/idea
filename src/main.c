@@ -35,29 +35,29 @@ bool unlock_file() {
   return removed;
 }
 
-bool parse_argv_cli(int argc, char *argv[]) {
+bool parse_commands_cli(char *commands[], int count) {
   if (!create_backup()) return false;
 
-  int i=1;
+  int i=0;
   bool something_went_wrong = false;
-  while (!something_went_wrong && i<argc) {
+  while (!something_went_wrong && i<count) {
     Action_return result;
-    NESTED_ACTION(result = cli_parse_input(argv[i]), result);
+    NESTED_ACTION(result = cli_parse_input(commands[i]), result);
     switch (result.type) {
       case RETURN_SUCCESS:
       case RETURN_INFO:
         if (result.message && strcmp(result.message, ""))
-          PRINT_MESSAGE("Message from the %dº command (%s)", i, argv[i]);
+          PRINT_MESSAGE("Message from the %dº command (%s)", i+1, commands[i]);
         break;
 
       case RETURN_ERROR:
         something_went_wrong = true;
-        PRINT_MESSAGE("An ERROR occurred in the %dº command (%s)", i, argv[i]);
+        PRINT_MESSAGE("An ERROR occurred in the %dº command (%s)", i+1, commands[i]);
         break;
 
       case RETURN_ERROR_AND_EXIT:
         something_went_wrong = true;
-        PRINT_MESSAGE("An ABORT occurred in the %dº command (%s)", i, argv[i]);
+        PRINT_MESSAGE("An ABORT occurred in the %dº command (%s)", i+1, commands[i]);
         break;
     }
     i++;
@@ -91,7 +91,8 @@ int main(int argc, char *argv[]) {
     ret = window_app();
   } else {
     // CLI Version
-    ret = (parse_argv_cli(argc, argv)) ? 0 : 1;
+    argv++; argc--;
+    ret = (parse_commands_cli(argv, argc)) ? 0 : 1;
   }
 
   if (todo_list_modified) {
