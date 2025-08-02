@@ -11,7 +11,7 @@
 #define BACKUP_NAME "backup.idea" // For restoring to the previous state in case of an error
 
 #define TEXT_EDITOR "nvim"
-#define NOTES_ICON "" // 󰅏    󰠮  󰺿  󱅄
+#define NOTES_ICON "󱅄" //     󰠮  󰺿  󰅏
 
 #define DIFFTOOL_CMD "nvim -d"
 
