@@ -40,14 +40,14 @@ bool create_dir_structure();
 bool load_file();
 bool save_file();
 
-Action_return add_todo(Input *input);
-Action_return remove_todo(Input *input);
-Action_return move_todo(Input *input);
-Action_return edit_todo(Input *input);
-Action_return export_todo(Input *input);
-Action_return import_todo(Input *input);
-Action_return notes_todo_create(Input *input);
-Action_return notes_todo_remove(Input *input);
+Action_return action_add_todo(Input *input);
+Action_return action_remove_todo(Input *input);
+Action_return action_move_todo(Input *input);
+Action_return action_edit_todo(Input *input);
+Action_return action_export_todo(Input *input);
+Action_return action_import_todo(Input *input);
+Action_return action_notes_todo_create(Input *input);
+Action_return action_notes_todo_remove(Input *input);
 extern Functionality todo_list_functionality[];
 extern unsigned int todo_list_functionality_count;
 

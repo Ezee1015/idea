@@ -198,7 +198,7 @@ bool load_file() {
 }
 
 /// Functionality
-Action_return add_todo(Input *input) {
+Action_return action_add_todo(Input *input) {
   Todo *new = malloc(sizeof(Todo));
   if (!new) return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "No more memory");
   new->notes_filename = NULL;
@@ -211,7 +211,7 @@ Action_return add_todo(Input *input) {
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
-Action_return remove_todo(Input *input) {
+Action_return action_remove_todo(Input *input) {
   char *pos_str = next_token(input, 0);
   if (!pos_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
   unsigned int pos = atoi(pos_str);
@@ -230,7 +230,7 @@ Action_return remove_todo(Input *input) {
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
-Action_return move_todo(Input *input) {
+Action_return action_move_todo(Input *input) {
   char *pos_origin_str = next_token(input, ' ');
   if (!pos_origin_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
   unsigned int pos_origin = atoi(pos_origin_str);
@@ -251,7 +251,7 @@ Action_return move_todo(Input *input) {
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
-Action_return edit_todo(Input *input) {
+Action_return action_edit_todo(Input *input) {
   char *pos_str = next_token(input, ' ');
   if (!pos_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
   unsigned int pos = atoi(pos_str);
@@ -268,7 +268,7 @@ Action_return edit_todo(Input *input) {
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
-Action_return clear_todos(Input *input) {
+Action_return action_clear_todos(Input *input) {
   char *confirmation = next_token(input, 0);
   if (!confirmation) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
   if (strcmp(confirmation, "all")) {
@@ -282,7 +282,7 @@ Action_return clear_todos(Input *input) {
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
-Action_return notes_todo_remove(Input *input) {
+Action_return action_notes_todo_remove(Input *input) {
   char *pos_str = next_token(input, 0);
   if (!pos_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
   unsigned int pos = atoi(pos_str);
@@ -296,7 +296,7 @@ Action_return notes_todo_remove(Input *input) {
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
-Action_return notes_todo_create(Input *input) {
+Action_return action_notes_todo_create(Input *input) {
   char *pos_str = next_token(input, 0);
   if (!pos_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
   unsigned int pos = atoi(pos_str);
@@ -335,12 +335,12 @@ Action_return notes_todo_create(Input *input) {
 }
 
 Functionality todo_list_functionality[] = {
-  { "add", "a", add_todo, MAN("Add a ToDo", "[name]") },
-  { "remove", "rm", remove_todo, MAN("Remove a ToDo", "[ID]") },
-  { "move", "mv", move_todo, MAN("Move ToDo", "[ID]") },
-  { "edit", "e", edit_todo, MAN("Edit a ToDo", "[ID] [new name]") },
-  { "clear", NULL, clear_todos, MAN("Clear all ToDos", "all") },
-  { "notes_create", NULL, notes_todo_create, MAN("Create the notes file for the todo if it doesn't already exist", "[ID]") }, // The opening of the todo is delegated to each interface
-  { "notes_remove", NULL, notes_todo_remove, MAN("Remove the notes file for the todo", "[ID]") },
+  { "add", "a", action_add_todo, MAN("Add a ToDo", "[name]") },
+  { "remove", "rm", action_remove_todo, MAN("Remove a ToDo", "[ID]") },
+  { "move", "mv", action_move_todo, MAN("Move ToDo", "[ID]") },
+  { "edit", "e", action_edit_todo, MAN("Edit a ToDo", "[ID] [new name]") },
+  { "clear", NULL, action_clear_todos, MAN("Clear all ToDos", "all") },
+  { "notes_create", NULL, action_notes_todo_create, MAN("Create the notes file for the todo if it doesn't already exist", "[ID]") }, // The opening of the todo is delegated to each interface
+  { "notes_remove", NULL, action_notes_todo_remove, MAN("Remove the notes file for the todo", "[ID]") },
 };
 unsigned int todo_list_functionality_count = sizeof(todo_list_functionality) / sizeof(Functionality);
