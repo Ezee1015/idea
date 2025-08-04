@@ -56,11 +56,13 @@ bool clone_text_file(char *origin_path, char *clone_path) {
 
 bool create_backup() {
   char *backup_path = get_path_from_variable("TMPDIR", BACKUP_NAME);
-  char cmd[TEMP_BUF_SIZE];
-  snprintf(cmd, TEMP_BUF_SIZE, "export %s", backup_path);
+  const char *command = "export ";
+  char *instruction = malloc(strlen(command) + strlen(backup_path) + 1);
+  strcpy(instruction, command);
+  strcat(instruction, backup_path);
 
   Action_return result;
-  NESTED_ACTION(result = cli_parse_input(cmd), result);
+  NESTED_ACTION(result = cli_parse_input(instruction), result);
   bool ok;
   switch (result.type) {
     case RETURN_SUCCESS: case RETURN_INFO:
@@ -77,16 +79,19 @@ bool create_backup() {
   }
 
   free(backup_path);
+  free(instruction);
   return ok;
 }
 
 bool restore_backup() {
   char *backup_path = get_path_from_variable("TMPDIR", BACKUP_NAME);
-  char cmd[TEMP_BUF_SIZE];
-  snprintf(cmd, TEMP_BUF_SIZE, "execute %s", backup_path);
+  const char *command = "execute ";
+  char *instruction = malloc(strlen(command) + strlen(backup_path) + 1);
+  strcpy(instruction, command);
+  strcat(instruction, backup_path);
 
   Action_return result;
-  NESTED_ACTION(result = cli_parse_input(cmd), result);
+  NESTED_ACTION(result = cli_parse_input(instruction), result);
   bool ok;
   switch (result.type) {
     case RETURN_SUCCESS: case RETURN_INFO:
@@ -103,6 +108,7 @@ bool restore_backup() {
   }
 
   free(backup_path);
+  free(instruction);
   return ok;
 }
 
@@ -200,6 +206,27 @@ Action_return action_export_todo(Input *input) {
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
+char *read_line(FILE *f) {
+  if (!f) abort();
+  long original_pos = ftell(f);
+  if (original_pos == -1) abort();
+
+  unsigned int line_count = 2; // '\n' and '\0' character are always at the end when fgets reads the line
+  int c;
+  while ( (c = fgetc(f)) != EOF && c != '\n') line_count++;
+
+  fseek(f, original_pos, SEEK_SET);
+
+  char *str = malloc(line_count);
+  if (!fgets(str, line_count, f)) {
+    free(str);
+    return NULL;
+  }
+
+  str[line_count-2] = '\0'; // remove new line from fgets
+  return str;
+}
+
 Action_return action_execute_commands(Input *input) {
   char *import_path = next_token(input, '\0');
   if (!import_path) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
@@ -208,27 +235,28 @@ Action_return action_execute_commands(Input *input) {
   free(import_path); import_path = NULL;
   if (!import_file) return ACTION_RETURN(RETURN_ERROR, "Unable to open the import file");
 
-  char buffer[1024];
   unsigned int line = 1;
-  while (fgets(buffer, 1024, import_file)) {
-    buffer[strlen(buffer)-1] = '\0'; // remove new line from fgets
-
+  char *str;
+  while ( (str = read_line(import_file)) ) {
     Action_return result;
-    NESTED_ACTION(result = cli_parse_input(buffer), result);
+    NESTED_ACTION(result = cli_parse_input(str), result);
     switch (result.type) {
       case RETURN_SUCCESS: case RETURN_INFO:
         if (result.message && strcmp(result.message, ""))
-          PRINT_MESSAGE("Message from line %d (%s) of the commands in the file", line, buffer);
+          PRINT_MESSAGE("Message from line %d (%s) of the commands in the file", line, str);
+        free(str);
         break;
 
       case RETURN_ERROR:
-        PRINT_MESSAGE("Execution of the commands in the file failed at line %d (%s)", line, buffer);
+        PRINT_MESSAGE("Execution of the commands in the file failed at line %d (%s)", line, str);
         fclose(import_file);
+        free(str);
         return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "Execution failed");
 
       case RETURN_ERROR_AND_EXIT:
-        PRINT_MESSAGE("Execution of the commands in the file failed at line %d (%s)", line, buffer);
+        PRINT_MESSAGE("Execution of the commands in the file failed at line %d (%s)", line, str);
         fclose(import_file);
+        free(str);
         return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "Execution aborted");
     }
 
@@ -241,7 +269,6 @@ Action_return action_execute_commands(Input *input) {
 
 Action_return action_import_todo(Input *input) {
   Action_return result = ACTION_RETURN(RETURN_SUCCESS, "");
-  char command[TEMP_BUF_SIZE];
   char *base_path = get_path_from_variable("TMPDIR", "local_without_changes.idea");
   char *local_path = get_path_from_variable("TMPDIR", "local.idea");
   char *external_path = get_path_from_variable("TMPDIR", "external.idea");
@@ -259,9 +286,13 @@ Action_return action_import_todo(Input *input) {
   }
 
   // Generate the "local" file -that contains the actual database- (to diff it with the external file)
-  snprintf(command, TEMP_BUF_SIZE, "export %s", local_path);
+  char *cmd = "export ";
+  char *instruction = malloc(strlen(cmd) + strlen(local_path) + 1);
+  strcpy(instruction, cmd);
+  strcat(instruction, local_path);
   Action_return function_return;
-  NESTED_ACTION(function_return = cli_parse_input(command), function_return);
+  NESTED_ACTION(function_return = cli_parse_input(instruction), function_return);
+  free(instruction);
   switch (function_return.type) {
       case RETURN_SUCCESS: case RETURN_INFO:
         break;
@@ -281,8 +312,13 @@ Action_return action_import_todo(Input *input) {
   // Execute the diff tool to get the changes the user wants.
   // The diff tool has to save the final version of the file
   // in /tmp/local.idea for idea to execute them.
-  snprintf(command, TEMP_BUF_SIZE, DIFFTOOL_CMD " %s %s", local_path, external_path);
-  int system_ret = system(command);
+  instruction = malloc(strlen(DIFFTOOL_CMD) + 1 + strlen(local_path) + 1 + strlen(external_path) + 1);
+  strcpy(instruction, DIFFTOOL_CMD " ");
+  strcat(instruction, local_path);
+  strcat(instruction, " ");
+  strcat(instruction, external_path);
+  int system_ret = system(instruction);
+  free(instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) != 0)) {
     result = ACTION_RETURN(RETURN_ERROR, "Diff tool failed");
     goto exit;
@@ -290,8 +326,13 @@ Action_return action_import_todo(Input *input) {
 
   // Show the user the changes in the commands that are going to be executed
   printf("Diff of the database commands:\n\n");
-  snprintf(command, TEMP_BUF_SIZE, "%s %s %s", DIFF_CMD, base_path, local_path);
-  system_ret = system(command);
+  instruction = malloc(strlen(DIFF_CMD) + 1 + strlen(base_path) + 1 + strlen(local_path) + 1);
+  strcpy(instruction, DIFF_CMD " ");
+  strcat(instruction, base_path);
+  strcat(instruction, " ");
+  strcat(instruction, local_path);
+  system_ret = system(instruction);
+  free(instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) == 2)) {
     result = ACTION_RETURN(RETURN_ERROR, "Final diff failed");
     goto exit;
@@ -308,8 +349,12 @@ Action_return action_import_todo(Input *input) {
     goto exit;
   }
 
-  snprintf(command, TEMP_BUF_SIZE, "execute %s", local_path);
-  NESTED_ACTION(function_return = cli_parse_input(command), function_return);
+  cmd = "execute ";
+  instruction = malloc(strlen(cmd) + strlen(local_path) + 1);
+  strcpy(instruction, cmd);
+  strcat(instruction, local_path);
+  NESTED_ACTION(function_return = cli_parse_input(instruction), function_return);
+  free(instruction);
   switch (function_return.type) {
       case RETURN_SUCCESS: case RETURN_INFO:
         break;
@@ -335,16 +380,20 @@ Action_return notes_todo(Input *input) {
   char *pos_str = next_token(input, 0);
   if (!pos_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
   unsigned int pos = atoi(pos_str);
-  free(pos_str); pos_str = NULL;
   if (!pos) return ACTION_RETURN(RETURN_ERROR, "The given position is not a number");
   if (pos == 0 || pos > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid position");
   Todo *todo = list_get(todo_list, pos-1);
 
   if (!todo->notes_filename) {
-    char command[TEMP_BUF_SIZE];
-    snprintf(command, TEMP_BUF_SIZE, "notes_create %d", pos);
+    char *cmd = "notes_create ";
+    char *instruction = malloc(strlen(cmd) + strlen(pos_str) + 1);
+    strcpy(instruction, cmd);
+    strcat(instruction, pos_str);
+    free(pos_str); pos_str = NULL;
+
     Action_return result;
-    NESTED_ACTION(result = cli_parse_input(command), result);
+    NESTED_ACTION(result = cli_parse_input(instruction), result);
+    free(instruction);
     switch (result.type) {
       case RETURN_SUCCESS: case RETURN_INFO:
         break;
@@ -352,13 +401,20 @@ Action_return notes_todo(Input *input) {
       case RETURN_ERROR: case RETURN_ERROR_AND_EXIT:
         return ACTION_RETURN(RETURN_ERROR, "Unable to create the notes file");
     }
+  } else {
+    free(pos_str); pos_str = NULL;
   }
 
-  char command[TEMP_BUF_SIZE];
   char *notes_directory = get_path_from_variable("HOME", CONFIG_PATH NOTES_FOLDER);
-  snprintf(command, TEMP_BUF_SIZE, TEXT_EDITOR " '%s%s'", notes_directory, todo->notes_filename);
+  char *instruction = malloc(strlen(TEXT_EDITOR) + 2 + strlen(notes_directory) + strlen(todo->notes_filename) + 1 + 1);
+  strcpy(instruction, TEXT_EDITOR " '");
+  strcat(instruction, notes_directory);
+  strcat(instruction, todo->notes_filename);
+  strcat(instruction, "'");
   free(notes_directory); notes_directory = NULL;
-  int system_ret = system(command);
+
+  int system_ret = system(instruction);
+  free(instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) != 0)) {
     return ACTION_RETURN(RETURN_ERROR, "Text editor failed or file doesn't exist");
   }
@@ -375,10 +431,18 @@ Action_return notes_todo_content(Input *input) {
 
   // Create the notes file
   if (!todo->notes_filename) {
-    char command[TEMP_BUF_SIZE];
-    snprintf(command, TEMP_BUF_SIZE, "notes_create %d", pos);
+    char *pos_str = malloc(sizeof(pos%10+2));
+    sprintf(pos_str, "%d", pos);
+
+    char *cmd = "notes_create ";
+    char *instruction = malloc(strlen(cmd) + strlen(pos_str) + 1);
+    strcpy(instruction, cmd);
+    strcat(instruction, pos_str);
+    free(pos_str); pos_str = NULL;
+
     Action_return result;
-    NESTED_ACTION(result = cli_parse_input(command), result);
+    NESTED_ACTION(result = cli_parse_input(instruction), result);
+    free(instruction);
     switch (result.type) {
       case RETURN_SUCCESS: case RETURN_INFO:
         break;

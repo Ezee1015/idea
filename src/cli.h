@@ -6,8 +6,6 @@
 #include "parser.h"
 #include "todo_list.h"
 
-#define TEMP_BUF_SIZE 512
-
 #define BACKUP_NAME "backup.idea" // For restoring to the previous state in case of an error
 
 #define TEXT_EDITOR "nvim"
