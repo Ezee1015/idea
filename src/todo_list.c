@@ -43,6 +43,14 @@ bool remove_todo_notes(Todo *todo) {
   return true;
 }
 
+Todo *create_todo(char *data) {
+  Todo *new = malloc(sizeof(Todo));
+  if (!new) return NULL;
+  new->notes_filename = NULL;
+  new->data = data;
+  return new;
+}
+
 /// FILE OPERATIONS
 char *concatenate_paths(const char *directory, const char *relative) {
   unsigned int directory_length = strlen(directory);
@@ -199,15 +207,33 @@ bool load_file() {
 
 /// Functionality
 Action_return action_add_todo(Input *input) {
-  Todo *new = malloc(sizeof(Todo));
-  if (!new) return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "No more memory");
-  new->notes_filename = NULL;
-  new->data = next_token(input, 0);
-  if (!new->data) {
-    free(new);
-    return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  char *data = next_token(input, 0);
+  if (!data) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+
+  Todo *todo = create_todo(data);
+  if (!todo) return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "No more memory");
+
+  list_append(&todo_list, todo);
+  return ACTION_RETURN(RETURN_SUCCESS, "");
+}
+
+Action_return action_add_at_todo(Input *input) {
+  char *pos_str = next_token(input, ' ');
+  if (!pos_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  unsigned int pos = atoi(pos_str);
+  free(pos_str);
+  if (pos == 0 || pos > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid position");
+
+  char *data = next_token(input, 0);
+  if (!data) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+
+  Todo *todo = create_todo(data);
+  if (!todo) {
+    free(data);
+    return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "No more memory");
   }
-  list_append(&todo_list, new);
+
+  list_insert_at(&todo_list, todo, pos-1);
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
@@ -336,6 +362,7 @@ Action_return action_notes_todo_create(Input *input) {
 
 Functionality todo_list_functionality[] = {
   { "add", "a", action_add_todo, MAN("Add a ToDo", "[name]") },
+  { "add_at", "ap", action_add_at_todo, MAN("Add a ToDo in the specified position", "[index] [name]") },
   { "remove", "rm", action_remove_todo, MAN("Remove a ToDo", "[ID]") },
   { "move", "mv", action_move_todo, MAN("Move ToDo", "[ID]") },
   { "edit", "e", action_edit_todo, MAN("Edit a ToDo", "[ID] [new name]") },
