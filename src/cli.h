@@ -39,6 +39,7 @@ extern unsigned int msg_indentation;
 
 Action_return action_print_todo(Input *input);
 Action_return action_import_todo(Input *input);
+Action_return action_import_todo_no_diff(Input *input);
 Action_return action_export_todo(Input *input);
 Action_return action_execute_commands(Input *input);
 Action_return action_do_nothing(Input *input);

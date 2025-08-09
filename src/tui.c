@@ -17,7 +17,7 @@ void draw_window(void) {
 
     mvprintw(area_start.y+index + 2, // +2 for the command line
              area_start.x,
-             "%d) %s", index + 1, todo->data);
+             "%d) %s", index + 1, todo->name);
   }
 
   mvprintw(area_start.y, area_start.x, "> ");

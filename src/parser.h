@@ -45,7 +45,7 @@ typedef struct {
   Manual man;
 } Functionality;
 
-char *next_token(Input *cmd, char divider);
+char *next_token(Input *input, char divider);
 
 Action_return (*search_functionality_function(char *instruction, Functionality functionality[], unsigned int functionality_count))(Input *);
 
