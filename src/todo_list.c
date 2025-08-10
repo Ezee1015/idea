@@ -168,103 +168,167 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
   char *atribute = NULL;
   Todo *new_todo = NULL;
   Todo *old_todo = NULL;
-  while ( (line = read_line(load_file)) ) {
-    // Finished reading ToDo
-    if (!strcmp(line, "")) break;
+  FILE *todo_notes = NULL;
+  enum State {
+    NO_STATE,
+    STATE_PROPERTIES, // Reading properties of the ToDo
+    STATE_NOTES_CONTENT, // Reading the content of the todo notes
+    STATE_EXIT
+  } state = NO_STATE;
 
-    bool indented = (str_starts_with(line, EXPORT_FILE_INDENTATION));
+  while ( state != STATE_EXIT && (line = read_line(load_file)) ) {
+    // Finished reading ToDo
+    if (!strcmp(line, "")) {
+      free(line);
+      state = STATE_EXIT;
+      break;
+    }
+
+    unsigned int indentation = 0;
+    while (str_starts_with(line + indentation * strlen(EXPORT_FILE_INDENTATION), EXPORT_FILE_INDENTATION)) indentation++;
+
     Input line_input = {
       .input = line,
-      .cursor = (indented) ? strlen(EXPORT_FILE_INDENTATION) : 0,
+      .cursor = indentation * strlen(EXPORT_FILE_INDENTATION),
       .length = strlen(line)
     };
     atribute = next_token(&line_input, ' ');
 
-    // Parse
 
-    if (!indented && !strcmp(atribute, "--")) { } // Comment, skip it
+    if (!indentation && !strcmp(atribute, "--")) {
+      free(line);
+      free(atribute);
+      continue;
+    }
 
-    else if (!indented && !strcmp(atribute, "todo")) { } // start of the ToDo
+    switch (state) {
+      case NO_STATE:
+        if (!indentation && !strcmp(atribute, "todo")) {
+          state = STATE_PROPERTIES;
 
-    else if (indented && !strcmp(atribute, "id:")) {
-      // You can't have multiple IDs
-      if (new_todo) {
-        ret = false;
-        break;
-      }
-
-      char *id = next_token(&line_input, 0);
-      new_todo = create_todo(id);
-      free(id);
-
-      list_append(&todo_list, new_todo);
-
-      // Search if the todo has a local version
-      List_iterator iterator = list_iterator_create(*old_todo_list);
-      while (list_iterator_next(&iterator)) {
-        Todo *element = list_iterator_element(iterator);
-        if (!strcmp(element->id, new_todo->id)) {
-          old_todo = list_remove(old_todo_list, list_iterator_index(iterator));
-          break;
+        } else {
+          ret = false;
+          state = STATE_EXIT;
         }
-      }
-    }
-
-    else if (indented && !strcmp(atribute, "name:")) {
-      if (!new_todo || new_todo->name) {
-        ret = false;
         break;
-      }
 
-      new_todo->name = next_token(&line_input, 0);
-    }
+      case STATE_PROPERTIES:
+        if (!indentation && !strcmp(atribute, "todo")) {
+          // Rewind what it read and break out of the function because it's
+          // reading the next todo, and this function only reads one ToDo
+          fseek(load_file, -1 * (strlen(line) + 1 /* \n */), SEEK_CUR);
+          state = STATE_EXIT;
+          break;
 
-    else if (indented && !strcmp(atribute, "notes_content:")) {
-      if (!new_todo || new_todo->notes) {
-        ret = false;
+        } else if (indentation == 1 && !strcmp(atribute, "id:")) {
+          if (new_todo) {
+            ret = false;
+            state = STATE_EXIT;
+            break;
+          }
+
+          char *id = next_token(&line_input, 0);
+          new_todo = create_todo(id);
+          free(id);
+
+          list_append(&todo_list, new_todo);
+
+          // Search if the todo has a local version
+          List_iterator iterator = list_iterator_create(*old_todo_list);
+          while (list_iterator_next(&iterator)) {
+            Todo *element = list_iterator_element(iterator);
+            if (!strcmp(element->id, new_todo->id)) {
+              old_todo = list_remove(old_todo_list, list_iterator_index(iterator));
+              break;
+            }
+          }
+
+        } else if (indentation == 1 && !strcmp(atribute, "name:")) {
+          if (!new_todo || new_todo->name) {
+            ret = false;
+            state = STATE_EXIT;
+            break;
+          }
+
+          new_todo->name = next_token(&line_input, 0);
+
+        } else if (indentation == 1 && !strcmp(atribute, "notes_content:")) {
+          if (!new_todo || new_todo->notes || todo_notes) {
+            ret = false;
+            state = STATE_EXIT;
+            break;
+          }
+
+          char *notes_directory = get_path_from_variable("HOME", CONFIG_PATH NOTES_FOLDER);
+          char *file_path_without_ext = concatenate_paths(notes_directory, new_todo->id);
+          free(notes_directory); notes_directory = NULL;
+          char *path = malloc(strlen(file_path_without_ext) + 4);
+          sprintf(path, "%s.md", file_path_without_ext);
+          free(file_path_without_ext); file_path_without_ext = NULL;
+
+          todo_notes = fopen(path, "w");
+          free(path); path = NULL;
+          if (!todo_notes) { ret = false; state = STATE_EXIT; break; }
+          new_todo->notes = true;
+          state = STATE_NOTES_CONTENT;
+
+        } else {
+          ret = false;
+          state = STATE_EXIT;
+        }
         break;
-      }
 
-      char *notes_content = next_token(&line_input, 0);
+      case STATE_NOTES_CONTENT:
+        if (indentation == 2) {
+          if (!new_todo || !new_todo->notes || !todo_notes) {
+            ret = false;
+            state = STATE_EXIT;
+            break;
+          }
 
-      char *notes_directory = get_path_from_variable("HOME", CONFIG_PATH NOTES_FOLDER);
-      char *file_path_without_ext = concatenate_paths(notes_directory, new_todo->id);
-      free(notes_directory); notes_directory = NULL;
-      char *path = malloc(strlen(file_path_without_ext) + 4);
-      sprintf(path, "%s.md", file_path_without_ext);
-      free(file_path_without_ext); file_path_without_ext = NULL;
+          line_input.cursor = indentation * strlen(EXPORT_FILE_INDENTATION);
+          char *file_content = next_token(&line_input, 0);
+          if (!file_content) {
+            fputs("\n", todo_notes);
+            break;
+          }
+          fprintf(todo_notes, "%s\n", file_content);
+          free(file_content);
 
-      FILE *notes = fopen(path, "w");
-      free(path); path = NULL;
-      if (!notes) return false;
+        } else if (indentation == 1 && !strcmp(atribute, "EOF")) {
+          fclose(todo_notes); todo_notes = NULL;
+          state = STATE_PROPERTIES;
 
-      bool ok = write_notes_to_notes_file(notes, notes_content);
-      free(notes_content);
-      fclose(notes);
-      if (!ok) {
-        ret = false;
+        } else {
+          fclose(todo_notes); todo_notes = NULL;
+          ret = false;
+          state = STATE_EXIT;
+        }
         break;
-      }
-      new_todo->notes = true;
-    }
 
-    else {
-      ret = false;
-      break;
+      case STATE_EXIT:
+        abort();
+        break;
     }
 
     free(atribute); atribute = NULL;
     free(line); line = NULL;
   }
 
-  if (!line && !new_todo) {
+  if (state == NO_STATE) {
     *reached_eof = true;
     ret = false;
   }
 
-  if (old_todo) free_todo(old_todo);
-  if (atribute) free(atribute);
-  if (line) free(line);
+  if (todo_notes) {
+    fclose(todo_notes);
+    ret = false;
+  }
+
+  if (old_todo) {
+    if (old_todo->notes && !new_todo->notes) remove_todo_notes(old_todo);
+    free_todo(old_todo);
+  }
   return ret;
 }
 
@@ -283,16 +347,26 @@ bool save_todo_notes_to_text_file(FILE *save_file, Todo *todo) {
   free(path); path = NULL;
   if (!notes) return false;
 
-  if (fputs(EXPORT_FILE_INDENTATION "notes_content: ", save_file) == EOF) { fclose(notes); return false; }
-  int c;
-  while ( (c = fgetc(notes)) != EOF ) {
-    if (c == '\n') {
-      if (fputs("\\n", save_file) == EOF) { fclose(notes); return false; }
-    } else {
-      if (fputc(c, save_file) == EOF) { fclose(notes); return false; }
+  if (fputs(EXPORT_FILE_INDENTATION "notes_content:\n" EXPORT_FILE_INDENTATION EXPORT_FILE_INDENTATION, save_file) == EOF) { fclose(notes); return false; }
+  int prev = fgetc(notes), cur;
+
+  while ( (cur = fgetc(notes)) != EOF ) {
+    switch (prev) {
+      case '\n' :
+        if (fputs("\n" EXPORT_FILE_INDENTATION EXPORT_FILE_INDENTATION, save_file) == EOF) { fclose(notes); return false; }
+        break;
+
+      default:
+        if (fputc(prev, save_file) == EOF) { fclose(notes); return false; }
+        break;
     }
+
+    prev = cur;
   }
-  fputc('\n', save_file);
+
+  // Every line in the notes content will always start with "| | [here is the content]"
+  // I know a file ended when I encounter an "| EOF"
+  fputs("\n" EXPORT_FILE_INDENTATION "EOF\n", save_file);
 
   fclose(notes);
   return true;
@@ -333,7 +407,6 @@ bool save_todo_to_text_file(FILE *file, Todo *todo) {
   if (todo->notes) {
     if (!save_todo_notes_to_text_file(file, todo)) return false;
   }
-  if (fprintf(file, "\n") <= 0) return false;
 
   return true;
 }

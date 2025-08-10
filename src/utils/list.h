@@ -50,6 +50,8 @@ List_iterator list_iterator_create(List list);
 
 bool list_iterator_finished(List_iterator iterator);
 
+bool list_iterator_has_next(List_iterator iterator);
+
 bool list_iterator_next(List_iterator *iterator);
 
 unsigned int list_iterator_index(List_iterator iterator);

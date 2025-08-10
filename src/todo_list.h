@@ -8,7 +8,7 @@
 #include "parser.h"
 
 #define CONFIG_PATH ".config/idea/"
-#define EXPORT_FILE_INDENTATION "│ "
+#define EXPORT_FILE_INDENTATION " │"
 
 #define NOTES_FOLDER "notes/"
 #define SAVE_FILENAME "idea.bin"

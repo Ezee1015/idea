@@ -187,6 +187,10 @@ Action_return action_export_todo(Input *input) {
       fclose(export_file);
       return ACTION_RETURN(RETURN_ERROR, "Unable to save todo");
     }
+    if (list_iterator_has_next(iterator) && fprintf(export_file, "\n") <= 0) {
+      fclose(export_file);
+      return ACTION_RETURN(RETURN_ERROR, "Unable to print new line in the file");
+    }
   }
 
   fclose(export_file);

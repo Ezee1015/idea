@@ -146,6 +146,10 @@ bool list_iterator_finished(List_iterator iterator) {
   return ( !iterator.current );
 }
 
+bool list_iterator_has_next(List_iterator iterator) {
+  return ( iterator.next );
+}
+
 bool list_iterator_next(List_iterator *iterator) {
   if (!iterator) abort();
 
