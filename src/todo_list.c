@@ -32,10 +32,10 @@ char *generate_unique_todo_id() {
   if (gethostname(hostname, sizeof(hostname)) == -1) return NULL;
   time_t t = time(NULL);
 
-  unsigned int id_length = strlen(hostname) + digit_count(t) + digit_count(++instance_todo_counter);
+  unsigned int id_length = strlen(hostname) + 1 + digit_count(t) + 1 + digit_count(++instance_todo_counter);
   char *id = malloc(id_length + 1);
   if (!id) return NULL;
-  snprintf(id, id_length+1, "%s-%ld-%d", hostname, t, instance_todo_counter);
+  sprintf(id, "%s-%ld-%d", hostname, t, instance_todo_counter);
   return id;
 }
 
