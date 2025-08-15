@@ -7,14 +7,13 @@
 #include "utils/list.h"
 #include "parser.h"
 
-#define CONFIG_PATH ".config/idea/"
 #define EXPORT_FILE_INDENTATION " │"
 
+#define LOCK_FILENAME "idea.lock"
+#define CONFIG_PATH ".config/idea/"
 #define NOTES_FOLDER "notes/"
+#define NOTES_EXTENSION ".md"
 #define SAVE_FILENAME "idea.bin"
-#define NOTES_TEMPLATE "notes-XXXXXX.md"
-
-#define str_starts_with(str, start) (!strncmp(start, str, strlen(start)))
 
 typedef struct {
   char *id;
@@ -25,20 +24,16 @@ typedef struct {
 extern List todo_list;
 extern bool todo_list_modified;
 
-unsigned int digit_count(long n);
 char *generate_unique_todo_id();
 void free_todo(Todo *node);
 bool remove_todo_notes(Todo *todo);
 Todo *create_todo(char *id);
 
-// Save file
-char *concatenate_paths(const char *directory, const char *relative);
-char *get_path_from_variable(const char *variable, const char *path_from_directory);
 char *read_line(FILE *f);
-bool save_string_to_binary_file(FILE *file, char *str);
-bool load_string_from_binary_file(FILE *file, char **str);
 
 // DB
+bool save_string_to_binary_file(FILE *file, char *str);
+bool load_string_from_binary_file(FILE *file, char **str);
 bool save_todo_to_binary_file(FILE *file, Todo *todo);
 void *load_todo_from_binary_file(FILE *file);
 

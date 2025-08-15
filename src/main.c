@@ -3,35 +3,33 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "main.h"
 #include "todo_list.h"
 #include "tui.h"
 #include "cli.h"
+#include "utils/string.h"
+
+State idea_state = {0};
 
 bool lock_file() {
-  char *lock_path = get_path_from_variable("TMPDIR", "idea.lock");
-  if (access(lock_path, F_OK) == 0) {
+  if (access(idea_state.lock_filepath, F_OK) == 0) {
     printf("Idea is already running...\n");
-    free(lock_path);
     return false;
   }
 
-  FILE *lock_file = fopen(lock_path, "w");
+  FILE *lock_file = fopen(idea_state.lock_filepath, "w");
   if (!lock_file) {
     printf("Error creating the lock...\n");
-    free(lock_path);
     return false;
   }
 
-  free(lock_path);
   fclose(lock_file);
   return true;
 }
 
 bool unlock_file() {
-  char *lock_path = get_path_from_variable("TMPDIR", "idea.lock");
-  bool removed = (remove(lock_path) == 0);
+  bool removed = (remove(idea_state.lock_filepath) == 0);
   if (!removed) printf("Unable to remove the lock file\n");
-  free(lock_path);
   return removed;
 }
 
@@ -78,14 +76,45 @@ bool parse_commands_cli(char *commands[], int count) {
   return !something_went_wrong;
 }
 
-int main(int argc, char *argv[]) {
-  if (!lock_file()) return 1;
-  if (!load_file()) {
-    unlock_file();
-    return 1;
-  }
+bool load_paths() {
+  String_builder sb = str_new();
+  if (!str_append_from_shell_variable(&sb, "TMPDIR")) return false;
+  idea_state.tmp_path = strdup(str_to_cstr(sb));
 
+  str_append_to_path(&sb, BACKUP_NAME);
+  idea_state.backup_filepath = strdup(str_to_cstr(sb));
+  str_clean(&sb);
+
+  str_append(&sb, idea_state.tmp_path);
+  str_append_to_path(&sb, LOCK_FILENAME);
+  idea_state.lock_filepath = strdup(str_to_cstr(sb));
+  str_clean(&sb);
+
+  if (!str_append_from_shell_variable(&sb, "HOME")) return false;
+  str_append_to_path(&sb, CONFIG_PATH);
+  idea_state.config_path = strdup(str_to_cstr(sb));
+
+  str_append_to_path(&sb, NOTES_FOLDER);
+  idea_state.notes_path = strdup(str_to_cstr(sb));
+  str_free(&sb);
+
+  return true;
+}
+
+void free_paths() {
+  if (idea_state.tmp_path) free(idea_state.tmp_path);
+  if (idea_state.backup_filepath) free(idea_state.backup_filepath);
+  if (idea_state.lock_filepath) free(idea_state.lock_filepath);
+  if (idea_state.config_path) free(idea_state.config_path);
+  if (idea_state.notes_path) free(idea_state.notes_path);
+}
+
+int main(int argc, char *argv[]) {
   int ret;
+  if (!load_paths()) { ret = 1; goto exit; }
+  if (!lock_file())  { ret = 1; goto exit; }
+  if (!load_file())  { ret = 1; goto exit; }
+
   if (argc == 1) {
     // TUI Version
     ret = window_app();
@@ -95,10 +124,13 @@ int main(int argc, char *argv[]) {
     ret = (parse_commands_cli(argv, argc)) ? 0 : 1;
   }
 
-  if (todo_list_modified) {
+
+exit:
+  if (todo_list_modified && ret == 0) {
     if (!save_file()) ret = 1;
   }
+  if (!unlock_file()) ret = 1;
   list_destroy(&todo_list, (void (*)(void *))free_todo);
-  if (!unlock_file()) return 1;
+  free_paths();
   return ret;
 }

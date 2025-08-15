@@ -51,13 +51,11 @@ bool create_backup();
 bool restore_backup();
 void remove_backup();
 
+bool clone_text_file(char *origin_path, char *clone_path);
+
 bool write_notes_to_file(FILE *file, char *content);
 
-bool clone_text_file(char *origin_path, char *clone_path);
-
 void print_todo(unsigned int index, Todo todo);
-
-bool clone_text_file(char *origin_path, char *clone_path);
 
 Action_return cli_parse_input(char *input);
 

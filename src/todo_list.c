@@ -6,37 +6,29 @@
 #include <sys/stat.h>
 #include <time.h>
 
+#include "main.h"
 #include "parser.h"
 #include "utils/list.h"
+#include "utils/string.h"
 #include "todo_list.h"
 
 List todo_list = list_new();
 bool todo_list_modified = false;
 unsigned int instance_todo_counter = 0; // Counter of ToDos created by the current instance (to avoid id collisions in the same second)
 
-unsigned int digit_count(long n) {
-  if (n == 0) return 1;
-  if (n < 0) n = n * (-1);
-
-  unsigned int c = 0;
-  while (n > 0) {
-    n /= 10;
-    c++;
-  }
-
-  return c;
-}
-
 char *generate_unique_todo_id() {
   char hostname[256];
   if (gethostname(hostname, sizeof(hostname)) == -1) return NULL;
-  time_t t = time(NULL);
+  char time_cstr[50];
+  snprintf(time_cstr, 50, "%ld", time(NULL));
 
-  unsigned int id_length = strlen(hostname) + 1 + digit_count(t) + 1 + digit_count(++instance_todo_counter);
-  char *id = malloc(id_length + 1);
-  if (!id) return NULL;
-  sprintf(id, "%s-%ld-%d", hostname, t, instance_todo_counter);
-  return id;
+  String_builder id_builder = str_new();
+  str_append(&id_builder, hostname);
+  str_append(&id_builder, "-");
+  str_append(&id_builder, time_cstr);
+  str_append(&id_builder, "-");
+  str_append_uint(&id_builder, ++instance_todo_counter);
+  return str_to_cstr(id_builder);
 }
 
 void free_todo(Todo *todo) {
@@ -48,15 +40,13 @@ void free_todo(Todo *todo) {
 bool remove_todo_notes(Todo *todo) {
   if (!todo->notes) return true;
 
-  char *notes_directory = get_path_from_variable("HOME", CONFIG_PATH NOTES_FOLDER);
-  char *file_path_without_ext = concatenate_paths(notes_directory, todo->id);
-  free(notes_directory);
-  char *path = malloc(strlen(file_path_without_ext) + 4);
-  sprintf(path, "%s.md", file_path_without_ext);
-  free(file_path_without_ext); file_path_without_ext = NULL;
+  String_builder path = str_new();
+  str_append(&path, idea_state.notes_path);
+  str_append_to_path(&path, todo->id);
+  str_append(&path, NOTES_EXTENSION);
 
-  int remove_ret = remove(path);
-  free(path);
+  int remove_ret = remove(str_to_cstr(path));
+  str_free(&path);
   if (remove_ret == -1) return false;
 
   todo->notes = false;
@@ -93,31 +83,6 @@ char *read_line(FILE *f) {
 
   str[line_count-2] = '\0'; // remove new line from fgets
   return str;
-}
-
-char *concatenate_paths(const char *directory, const char *relative) {
-  unsigned int directory_length = strlen(directory);
-  unsigned int relative_length = strlen(relative);
-
-  char *full_path = NULL;
-  if (directory[directory_length-1] == '/') {
-    full_path = malloc(directory_length + relative_length + 1);
-    if (!full_path) return NULL;
-    strcpy(full_path, directory);
-    strcat(full_path, relative);
-  } else {
-    full_path = malloc(directory_length + 1 + relative_length + 1);
-    if (!full_path) return NULL;
-    sprintf(full_path, "%s/%s", directory, relative);
-  }
-  return full_path;
-}
-
-char *get_path_from_variable(const char *variable, const char *path_from_directory) {
-  const char *directory_path = getenv(variable);
-  if (!directory_path) return NULL;
-
-  return concatenate_paths(directory_path, path_from_directory);
 }
 
 bool save_string_to_binary_file(FILE *file, char *str) {
@@ -185,7 +150,7 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
     }
 
     unsigned int indentation = 0;
-    while (str_starts_with(line + indentation * strlen(EXPORT_FILE_INDENTATION), EXPORT_FILE_INDENTATION)) indentation++;
+    while (cstr_starts_with(line + indentation * strlen(EXPORT_FILE_INDENTATION), EXPORT_FILE_INDENTATION)) indentation++;
 
     Input line_input = {
       .input = line,
@@ -259,15 +224,13 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
             break;
           }
 
-          char *notes_directory = get_path_from_variable("HOME", CONFIG_PATH NOTES_FOLDER);
-          char *file_path_without_ext = concatenate_paths(notes_directory, new_todo->id);
-          free(notes_directory); notes_directory = NULL;
-          char *path = malloc(strlen(file_path_without_ext) + 4);
-          sprintf(path, "%s.md", file_path_without_ext);
-          free(file_path_without_ext); file_path_without_ext = NULL;
+          String_builder path = str_new();
+          str_append(&path, idea_state.notes_path);
+          str_append_to_path(&path, new_todo->id);
+          str_append(&path, NOTES_EXTENSION);
 
-          todo_notes = fopen(path, "w");
-          free(path); path = NULL;
+          todo_notes = fopen(str_to_cstr(path), "w");
+          str_free(&path);
           if (!todo_notes) { ret = false; state = STATE_EXIT; break; }
           new_todo->notes = true;
           state = STATE_NOTES_CONTENT;
@@ -336,15 +299,13 @@ bool save_todo_notes_to_text_file(FILE *save_file, Todo *todo) {
   if (!todo || !save_file) return false;
   if (!todo->notes) return true;
 
-  char *notes_directory = get_path_from_variable("HOME", CONFIG_PATH NOTES_FOLDER);
-  char *file_path_without_ext = concatenate_paths(notes_directory, todo->id);
-  free(notes_directory); notes_directory = NULL;
-  char *path = malloc(strlen(file_path_without_ext) + 4);
-  sprintf(path, "%s.md", file_path_without_ext);
-  free(file_path_without_ext); file_path_without_ext = NULL;
+  String_builder path = str_new();
+  str_append(&path, idea_state.notes_path);
+  str_append_to_path(&path, todo->id);
+  str_append(&path, NOTES_EXTENSION);
 
-  FILE *notes = fopen(path, "r");
-  free(path); path = NULL;
+  FILE *notes = fopen(str_to_cstr(path), "r");
+  str_free(&path);
   if (!notes) return false;
 
   if (fputs(EXPORT_FILE_INDENTATION "notes_content:\n" EXPORT_FILE_INDENTATION EXPORT_FILE_INDENTATION, save_file) == EOF) { fclose(notes); return false; }
@@ -412,9 +373,11 @@ bool save_todo_to_text_file(FILE *file, Todo *todo) {
 }
 
 bool save_file() {
-  char *path = get_path_from_variable("HOME", CONFIG_PATH SAVE_FILENAME);
-  FILE *save_file = fopen(path, "wb");
-  free(path);
+  String_builder path = str_new();
+  str_append(&path, idea_state.config_path);
+  str_append_to_path(&path, SAVE_FILENAME);
+  FILE *save_file = fopen(str_to_cstr(path), "wb");
+  str_free(&path);
   if (!save_file) return false;
 
   if (!list_save_to_bfile(todo_list, (bool (*)(FILE *, void *)) save_todo_to_binary_file, save_file)) {
@@ -433,25 +396,19 @@ bool create_dir_if_not_exists(char *dir_path) {
 }
 
 bool create_dir_structure() {
-  List paths = list_new();
+  char *dirs[] = {
+    idea_state.config_path,
+    idea_state.notes_path
+  };
 
-  list_append(&paths, get_path_from_variable("HOME", CONFIG_PATH));
-
-  char *notes_path = get_path_from_variable("HOME", CONFIG_PATH NOTES_FOLDER);
-  notes_path[strlen(notes_path) - 1] = '\0'; // Remove the "/" at the end
-  list_append(&paths, notes_path);
-
-  while (!list_is_empty(paths)) {
-    char *path = list_remove(&paths, 0);
-
+  unsigned int dirs_count = sizeof(dirs) / sizeof(char *);
+  for (unsigned int i=0; i<dirs_count; i++) {
+    char *path = dirs[i];
     if (!create_dir_if_not_exists(path)) {
-      printf("Unable to create the directory %s\n", path);
-      free(path);
-      list_destroy(&paths, free);
       return false;
     }
-    free(path);
   }
+
   return true;
 }
 
@@ -460,9 +417,12 @@ bool load_file() {
 
   if (!create_dir_structure()) return false;
 
-  char *path = get_path_from_variable("HOME", CONFIG_PATH SAVE_FILENAME);
-  FILE *save_file = fopen(path, "rb");
-  free(path);
+  String_builder path = str_new();
+  str_append(&path, idea_state.config_path);
+  str_append_to_path(&path, SAVE_FILENAME);
+
+  FILE *save_file = fopen(str_to_cstr(path), "rb");
+  str_free(&path);
   if (!save_file) return true; // First time running it
 
   if (!list_load_from_bfile(&todo_list, load_todo_from_binary_file, save_file)) abort();
@@ -594,15 +554,13 @@ Action_return action_notes_todo_remove(Input *input) {
 bool create_notes_todo(Todo *todo) {
   if (!todo || todo->notes) return false;
 
-  char *notes_directory = get_path_from_variable("HOME", CONFIG_PATH NOTES_FOLDER);
-  char *file_path_without_ext = concatenate_paths(notes_directory, todo->id);
-  free(notes_directory); notes_directory = NULL;
-  char *path = malloc(strlen(file_path_without_ext) + 4);
-  sprintf(path, "%s.md", file_path_without_ext);
-  free(file_path_without_ext);
+  String_builder path = str_new();
+  str_append(&path, idea_state.notes_path);
+  str_append_to_path(&path, todo->id);
+  str_append(&path, NOTES_EXTENSION);
 
-  FILE *notes = fopen(path, "w");
-  free(path); path = NULL;
+  FILE *notes = fopen(str_to_cstr(path), "w");
+  str_free(&path);
   if (!notes) return false;
 
   bool ok = (fprintf(notes, "# %s\n\n\n", todo->name));

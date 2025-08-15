@@ -1,0 +1,39 @@
+#ifndef STRINGS_H
+#define STRINGS_H
+
+#include <stdio.h>
+#include <stdbool.h>
+
+typedef struct {
+  char *s;
+  unsigned int len;
+  unsigned int size;
+} String_builder;
+
+#define str_new() (String_builder) {0}
+
+#define cstr_starts_with(str, start) (!strncmp(start, str, strlen(start)))
+
+bool str_append_from_shell_variable(String_builder *str, const char *variable);
+
+// Append a '/' at the end of str if it doesn't have it, and then append rel_path
+void str_append_to_path(String_builder *str, char *rel_path);
+
+void str_append(String_builder *str, const char *cstr);
+
+// str_dst and str_src SHOULD NOT be the same String_builder
+void str_append_str(String_builder *str_dst, const String_builder str_src);
+
+void str_append_uint(String_builder *str, unsigned int n);
+
+void str_replace(String_builder *str, unsigned int index, const char *replace_cstr);
+
+unsigned int str_length(String_builder str);
+
+char *str_to_cstr(String_builder str);
+
+void str_free(String_builder *str);
+
+void str_clean(String_builder *str);
+
+#endif // STRINGS_H

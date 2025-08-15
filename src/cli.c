@@ -3,9 +3,11 @@
 #include <string.h>
 
 #include "cli.h"
+#include "main.h"
 #include "parser.h"
 #include "todo_list.h"
 #include "utils/list.h"
+#include "utils/string.h"
 
 unsigned int msg_indentation = 1;
 
@@ -28,67 +30,59 @@ bool clone_text_file(char *origin_path, char *clone_path) {
 }
 
 bool create_backup() {
-  char *backup_path = get_path_from_variable("TMPDIR", BACKUP_NAME);
-  const char *command = "export ";
-  char *instruction = malloc(strlen(command) + strlen(backup_path) + 1);
-  strcpy(instruction, command);
-  strcat(instruction, backup_path);
+  String_builder instruction = str_new();
+  str_append(&instruction, "export ");
+  str_append(&instruction, idea_state.backup_filepath);
 
   Action_return result;
-  NESTED_ACTION(result = cli_parse_input(instruction), result);
+  NESTED_ACTION(result = cli_parse_input(str_to_cstr(instruction)), result);
   bool ok;
   switch (result.type) {
     case RETURN_SUCCESS: case RETURN_INFO:
       if (result.message && strcmp(result.message, ""))
-        PRINT_MESSAGE("Message from the backup file (%s)...", backup_path);
+        PRINT_MESSAGE("Message from the backup file (%s)...", idea_state.backup_filepath);
       ok = true;
       break;
 
     case RETURN_ERROR:
     case RETURN_ERROR_AND_EXIT:
-      PRINT_MESSAGE("Unable to create the backup file (%s)...", backup_path);
+      PRINT_MESSAGE("Unable to create the backup file (%s)...", idea_state.backup_filepath);
       ok = false;
       break;
   }
 
-  free(backup_path);
-  free(instruction);
+  str_free(&instruction);
   return ok;
 }
 
 bool restore_backup() {
-  char *backup_path = get_path_from_variable("TMPDIR", BACKUP_NAME);
-  const char *command = "import_no_diff ";
-  char *instruction = malloc(strlen(command) + strlen(backup_path) + 1);
-  strcpy(instruction, command);
-  strcat(instruction, backup_path);
+  String_builder instruction = str_new();
+  str_append(&instruction, "import_no_diff ");
+  str_append(&instruction, idea_state.backup_filepath);
 
   Action_return result;
-  NESTED_ACTION(result = cli_parse_input(instruction), result);
+  NESTED_ACTION(result = cli_parse_input(str_to_cstr(instruction)), result);
   bool ok;
   switch (result.type) {
     case RETURN_SUCCESS: case RETURN_INFO:
       if (result.message && strcmp(result.message, ""))
-        PRINT_MESSAGE("Message from the backup file (%s)", backup_path);
+        PRINT_MESSAGE("Message from the backup file (%s)", idea_state.backup_filepath);
       ok = true;
       break;
 
     case RETURN_ERROR:
     case RETURN_ERROR_AND_EXIT:
-      PRINT_MESSAGE("Unable to restore from the backup file... The backup file is located *TEMPORARY* at %s", backup_path);
+      PRINT_MESSAGE("Unable to restore from the backup file... The backup file is located *TEMPORARY* at %s", idea_state.backup_filepath);
       ok = false;
       break;
   }
 
-  free(backup_path);
-  free(instruction);
+  str_free(&instruction);
   return ok;
 }
 
 void remove_backup() {
-  char *backup_path = get_path_from_variable("TMPDIR", BACKUP_NAME);
-  remove(backup_path);
-  free(backup_path);
+  remove(idea_state.backup_filepath);
 }
 
 bool import_file(char *filepath) {
@@ -253,9 +247,18 @@ Action_return action_import_todo_no_diff(Input *input) {
 
 Action_return action_import_todo(Input *input) {
   Action_return result = ACTION_RETURN(RETURN_SUCCESS, "");
-  char *base_path = get_path_from_variable("TMPDIR", "local_without_changes.idea");
-  char *local_path = get_path_from_variable("TMPDIR", "local.idea");
-  char *external_path = get_path_from_variable("TMPDIR", "external.idea");
+
+  String_builder base_path = str_new();
+  str_append(&base_path, idea_state.tmp_path);
+  str_append_to_path(&base_path, "local_without_changes.idea");
+
+  String_builder local_path = str_new();
+  str_append(&local_path, idea_state.tmp_path);
+  str_append_to_path(&local_path, "local.idea");
+
+  String_builder external_path = str_new();
+  str_append(&external_path, idea_state.tmp_path);
+  str_append_to_path(&external_path, "external.idea");
 
   char *import_path = next_token(input, '\0');
   if (!import_path) {
@@ -264,19 +267,19 @@ Action_return action_import_todo(Input *input) {
   }
 
   // Clone the external file to a temporary location
-  if (!clone_text_file(import_path, external_path)) {
+  if (!clone_text_file(import_path, str_to_cstr(external_path))) {
     result = ACTION_RETURN(RETURN_ERROR, "Unable to copy the external file to the /tmp folder");
     goto exit;
   }
 
   // Generate the "local" file -that contains the actual database- (to diff it with the external file)
-  char *cmd = "export ";
-  char *instruction = malloc(strlen(cmd) + strlen(local_path) + 1);
-  strcpy(instruction, cmd);
-  strcat(instruction, local_path);
+  String_builder instruction = str_new();
+  str_append(&instruction, "export ");
+  str_append_str(&instruction, local_path);
+
   Action_return function_return;
-  NESTED_ACTION(function_return = cli_parse_input(instruction), function_return);
-  free(instruction);
+  NESTED_ACTION(function_return = cli_parse_input(str_to_cstr(instruction)), function_return);
+  str_free(&instruction);
   switch (function_return.type) {
       case RETURN_SUCCESS: case RETURN_INFO:
         break;
@@ -288,7 +291,7 @@ Action_return action_import_todo(Input *input) {
   // Clone the generated file (/tmp/local.idea) into (/tmp/local_without_changes.idea)
   // to compare the changes made with the diff tool (that are saved in /tmp/local.idea)
   // with the current state of the data base (/tmp/local_without_changes.idea)
-  if (!clone_text_file(local_path, base_path)) {
+  if (!clone_text_file(str_to_cstr(local_path), str_to_cstr(base_path))) {
     result = ACTION_RETURN(RETURN_ERROR, "Unable to clone the exported local database in the /tmp folder");
     goto exit;
   }
@@ -296,13 +299,12 @@ Action_return action_import_todo(Input *input) {
   // Execute the diff tool to get the changes the user wants.
   // The diff tool has to save the final version of the file
   // in /tmp/local.idea for idea to execute them.
-  instruction = malloc(strlen(DIFFTOOL_CMD) + 1 + strlen(local_path) + 1 + strlen(external_path) + 1);
-  strcpy(instruction, DIFFTOOL_CMD " ");
-  strcat(instruction, local_path);
-  strcat(instruction, " ");
-  strcat(instruction, external_path);
-  int system_ret = system(instruction);
-  free(instruction);
+  str_append(&instruction, DIFFTOOL_CMD " ");
+  str_append_str(&instruction, local_path);
+  str_append(&instruction, " ");
+  str_append_str(&instruction, external_path);
+  int system_ret = system(str_to_cstr(instruction));
+  str_free(&instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) != 0)) {
     result = ACTION_RETURN(RETURN_ERROR, "Diff tool failed");
     goto exit;
@@ -310,13 +312,12 @@ Action_return action_import_todo(Input *input) {
 
   // Show the user the changes in the commands that are going to be executed
   printf("Diff of the database commands:\n\n");
-  instruction = malloc(strlen(DIFF_CMD) + 1 + strlen(base_path) + 1 + strlen(local_path) + 1);
-  strcpy(instruction, DIFF_CMD " ");
-  strcat(instruction, base_path);
-  strcat(instruction, " ");
-  strcat(instruction, local_path);
-  system_ret = system(instruction);
-  free(instruction);
+  str_append(&instruction, DIFF_CMD " ");
+  str_append_str(&instruction, base_path);
+  str_append(&instruction, " ");
+  str_append_str(&instruction, local_path);
+  system_ret = system(str_to_cstr(instruction));
+  str_free(&instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) == 2)) {
     result = ACTION_RETURN(RETURN_ERROR, "Final diff failed");
     goto exit;
@@ -333,20 +334,21 @@ Action_return action_import_todo(Input *input) {
     goto exit;
   }
 
-  if (!import_file(local_path)) {
+  if (!import_file(str_to_cstr(local_path))) {
     result = ACTION_RETURN(RETURN_ERROR, "Import failed!");
     goto exit;
   }
   todo_list_modified = true;
 
 exit:
-  remove(base_path);
-  remove(local_path);
-  remove(external_path);
+  remove(str_to_cstr(base_path));
+  remove(str_to_cstr(local_path));
+  remove(str_to_cstr(external_path));
+  str_free(&base_path);
+  str_free(&local_path);
+  str_free(&external_path);
+
   if (import_path) free(import_path);
-  if (base_path) free(base_path);
-  if (local_path) free(local_path);
-  if (external_path) free(external_path);
   return result;
 }
 
@@ -364,16 +366,14 @@ Action_return notes_todo(Input *input) {
     todo_list_modified = true;
   }
 
-  char *notes_directory = get_path_from_variable("HOME", CONFIG_PATH NOTES_FOLDER);
-  char *instruction = malloc(strlen(TEXT_EDITOR) + 2 + strlen(notes_directory) + strlen(todo->id) + 4 + 1);
-  strcpy(instruction, TEXT_EDITOR " '");
-  strcat(instruction, notes_directory);
-  strcat(instruction, todo->id);
-  strcat(instruction, ".md'");
-  free(notes_directory); notes_directory = NULL;
+  String_builder instruction = str_new();
+  str_append(&instruction, TEXT_EDITOR " '");
+  str_append(&instruction, idea_state.notes_path);
+  str_append_to_path(&instruction, todo->id);
+  str_append(&instruction, ".md'");
 
-  int system_ret = system(instruction);
-  free(instruction);
+  int system_ret = system(str_to_cstr(instruction));
+  str_free(&instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) != 0)) {
     return ACTION_RETURN(RETURN_ERROR, "Text editor failed or file doesn't exist");
   }
