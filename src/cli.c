@@ -381,6 +381,20 @@ Action_return notes_todo(Input *input) {
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
+#ifdef COMMIT
+Action_return action_version(Input *input) {
+  char *args;
+  if ( input && (args = next_token(input, 0)) ) {
+    free(args);
+    return ACTION_RETURN(RETURN_ERROR, "version doesn't require arguments");
+  }
+
+  printf(ANSI_GRAY "Version: " ANSI_RESET COMMIT "\n");
+  printf(ANSI_GRAY "Config: "ANSI_RESET "%s\n", idea_state.config_path);
+  return ACTION_RETURN(RETURN_SUCCESS, "");
+}
+#endif // COMMIT
+
 Action_return action_do_nothing(Input *input) {
   input->cursor = input->length+1;
   return ACTION_RETURN(RETURN_SUCCESS, "");
@@ -395,6 +409,9 @@ Functionality cli_functionality[] = {
   { "import_no_diff", NULL, action_import_todo_no_diff, MAN("Import the ToDos without any interaction (no diff)", "[file]") },
   { "help", "-h", action_print_help, MAN("Help page", NULL) },
   { "notes", NULL, notes_todo, MAN("Open the ToDo's notes file", "[ID]") },
+#ifdef COMMIT
+  { "version", "-v", action_version, MAN("Print the commit hash and version", NULL) },
+#endif // COMMIT
 };
 unsigned int cli_functionality_count = sizeof(cli_functionality) / sizeof(Functionality);
 

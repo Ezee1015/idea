@@ -17,6 +17,7 @@
 #define ANSI_GREEN "\033[0;32m"
 #define ANSI_YELLOW "\033[0;33m"
 #define ANSI_BLUE "\033[0;34m"
+#define ANSI_GRAY "\033[0;90m"
 #define ANSI_RESET "\033[0m"
 #define ANSI_UNDERLINE "\033[4m"
 #define DIFF_FORMAT "'" ANSI_BLUE "<<< changes\n" ANSI_GREEN "%>" ANSI_BLUE "===\n" ANSI_RED "%<" ANSI_BLUE ">>> local" ANSI_RESET "\n'"
