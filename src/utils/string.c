@@ -62,6 +62,11 @@ void str_append_str(String_builder *str_dst, const String_builder str_src) {
   _str_append(str_dst, str_src.s, str_src.len);
 }
 
+void str_append_c(String_builder *str, char c) {
+  char cstr[2] = {c, '\0'};
+  _str_append(str, cstr, 1);
+}
+
 void str_append_uint(String_builder *str, unsigned int n) {
   unsigned int n_cstr_size = (!n) ? 1 : 0;
   unsigned int aux = n;
@@ -90,6 +95,10 @@ unsigned int str_length(String_builder str) {
   return str.len;
 }
 
+bool str_is_empty(String_builder str) {
+  return str.len == 0;
+}
+
 char *str_to_cstr(String_builder str) {
   return str.s;
 }
@@ -104,4 +113,28 @@ void str_free(String_builder *str) {
 void str_clean(String_builder *str) {
   str->len = 0;
   if (str->s) str->s[0] = '\0';
+}
+
+bool str_read_line(FILE *f, String_builder *str) {
+  if (!f) abort();
+  if (!str) abort();
+
+  char buffer[512];
+  bool read = false;
+  bool line_finished = false;
+  while (!line_finished && fgets(buffer, 512, f)) {
+    read = true;
+    unsigned int buffer_len = strlen(buffer);
+
+    if (buffer[buffer_len-1] == '\n') {
+      buffer[--buffer_len] = '\0';
+      line_finished = true;
+    }
+
+    if (!buffer_len) break;
+
+    _str_append(str, buffer, buffer_len);
+  }
+
+  return read;
 }

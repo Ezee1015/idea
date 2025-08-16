@@ -199,34 +199,37 @@ Action_return action_execute_commands(Input *input) {
   free(import_path); import_path = NULL;
   if (!cmds_file) return ACTION_RETURN(RETURN_ERROR, "Unable to open the import file");
 
-  unsigned int line = 1;
-  char *str;
-  while ( (str = read_line(cmds_file)) ) {
+  unsigned int line_nr = 1;
+  String_builder line = str_new();
+  while ( (str_read_line(cmds_file, &line)) ) {
+    if (str_is_empty(line)) continue;
+
     Action_return result;
-    NESTED_ACTION(result = cli_parse_input(str), result);
+    NESTED_ACTION(result = cli_parse_input(str_to_cstr(line)), result);
     switch (result.type) {
       case RETURN_SUCCESS: case RETURN_INFO:
         if (result.message && strcmp(result.message, ""))
-          PRINT_MESSAGE("Message from line %d (%s) of the commands in the file", line, str);
-        free(str);
+          PRINT_MESSAGE("Message from line %d (%s) of the commands in the file", line_nr, str_to_cstr(line));
         break;
 
       case RETURN_ERROR:
-        PRINT_MESSAGE("Execution of the commands in the file failed at line %d (%s)", line, str);
+        PRINT_MESSAGE("Execution of the commands in the file failed at line %d (%s)", line_nr, str_to_cstr(line));
         fclose(cmds_file);
-        free(str);
+        str_free(&line);
         return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "Execution failed");
 
       case RETURN_ERROR_AND_EXIT:
-        PRINT_MESSAGE("Execution of the commands in the file failed at line %d (%s)", line, str);
+        PRINT_MESSAGE("Execution of the commands in the file failed at line %d (%s)", line_nr, str_to_cstr(line));
         fclose(cmds_file);
-        free(str);
+        str_free(&line);
         return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "Execution aborted");
     }
 
-    line++;
+    str_clean(&line);
+    line_nr++;
   }
 
+  str_free(&line);
   fclose(cmds_file);
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }

@@ -24,16 +24,22 @@ void str_append(String_builder *str, const char *cstr);
 // str_dst and str_src SHOULD NOT be the same String_builder
 void str_append_str(String_builder *str_dst, const String_builder str_src);
 
+void str_append_c(String_builder *str, char c);
+
 void str_append_uint(String_builder *str, unsigned int n);
 
 void str_replace(String_builder *str, unsigned int index, const char *replace_cstr);
 
 unsigned int str_length(String_builder str);
 
+bool str_is_empty(String_builder str);
+
 char *str_to_cstr(String_builder str);
 
 void str_free(String_builder *str);
 
 void str_clean(String_builder *str);
+
+bool str_read_line(FILE *f, String_builder *str);
 
 #endif // STRINGS_H

@@ -64,27 +64,6 @@ Todo *create_todo(char *id) {
 }
 
 /// FILE OPERATIONS
-char *read_line(FILE *f) {
-  if (!f) abort();
-  long original_pos = ftell(f);
-  if (original_pos == -1) abort();
-
-  unsigned int line_count = 2; // '\n' and '\0' character are always at the end when fgets reads the line
-  int c;
-  while ( (c = fgetc(f)) != EOF && c != '\n') line_count++;
-
-  fseek(f, original_pos, SEEK_SET);
-
-  char *str = malloc(line_count);
-  if (!fgets(str, line_count, f)) {
-    free(str);
-    return NULL;
-  }
-
-  str[line_count-2] = '\0'; // remove new line from fgets
-  return str;
-}
-
 bool save_string_to_binary_file(FILE *file, char *str) {
   if (!file) return false;
   unsigned int size = (str) ? strlen(str)+1 : 0;
@@ -129,7 +108,7 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
   if (!load_file || !reached_eof || !old_todo_list) return false;
   bool ret = true;
 
-  char *line;
+  String_builder line = str_new();
   char *atribute = NULL;
   Todo *new_todo = NULL;
   Todo *old_todo = NULL;
@@ -141,27 +120,26 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
     STATE_EXIT
   } state = NO_STATE;
 
-  while ( state != STATE_EXIT && (line = read_line(load_file)) ) {
+  while ( state != STATE_EXIT && (str_read_line(load_file, &line)) ) {
     // Finished reading ToDo
-    if (!strcmp(line, "")) {
-      free(line);
+    if (str_is_empty(line)) {
       state = STATE_EXIT;
       break;
     }
 
     unsigned int indentation = 0;
-    while (cstr_starts_with(line + indentation * strlen(EXPORT_FILE_INDENTATION), EXPORT_FILE_INDENTATION)) indentation++;
+    while (cstr_starts_with(str_to_cstr(line) + indentation * strlen(EXPORT_FILE_INDENTATION), EXPORT_FILE_INDENTATION)) indentation++;
 
     Input line_input = {
-      .input = line,
+      .input = str_to_cstr(line),
       .cursor = indentation * strlen(EXPORT_FILE_INDENTATION),
-      .length = strlen(line)
+      .length = str_length(line)
     };
     atribute = next_token(&line_input, ' ');
 
 
     if (!indentation && !strcmp(atribute, "--")) {
-      free(line);
+      str_clean(&line);
       free(atribute);
       continue;
     }
@@ -181,7 +159,7 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
         if (!indentation && !strcmp(atribute, "todo")) {
           // Rewind what it read and break out of the function because it's
           // reading the next todo, and this function only reads one ToDo
-          fseek(load_file, -1 * (strlen(line) + 1 /* \n */), SEEK_CUR);
+          fseek(load_file, -1 * (str_length(line) + 1 /* \n */), SEEK_CUR);
           state = STATE_EXIT;
           break;
 
@@ -275,7 +253,7 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
     }
 
     free(atribute); atribute = NULL;
-    free(line); line = NULL;
+    str_clean(&line);
   }
 
   if (state == NO_STATE) {
@@ -292,6 +270,8 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
     if (old_todo->notes && !new_todo->notes) remove_todo_notes(old_todo);
     free_todo(old_todo);
   }
+
+  str_free(&line);
   return ret;
 }
 

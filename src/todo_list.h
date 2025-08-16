@@ -29,8 +29,6 @@ void free_todo(Todo *node);
 bool remove_todo_notes(Todo *todo);
 Todo *create_todo(char *id);
 
-char *read_line(FILE *f);
-
 // DB
 bool save_string_to_binary_file(FILE *file, char *str);
 bool load_string_from_binary_file(FILE *file, char **str);
