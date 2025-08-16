@@ -457,7 +457,7 @@ Action_return action_remove_todo(Input *input) {
 
   if (!remove_todo_notes(todo)) {
     list_insert_at(&todo_list, todo, pos-1);
-    return ACTION_RETURN(RETURN_ERROR, "Unable to remove the ToDo's notes file (inside ~/" CONFIG_PATH NOTES_FOLDER ")");
+    return ACTION_RETURN(RETURN_ERROR, "Unable to remove the ToDo's notes file");
   }
 
   free_todo(todo);

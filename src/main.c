@@ -90,8 +90,10 @@ bool load_paths() {
   idea_state.lock_filepath = strdup(str_to_cstr(sb));
   str_clean(&sb);
 
-  if (!str_append_from_shell_variable(&sb, "HOME")) return false;
-  str_append_to_path(&sb, CONFIG_PATH);
+  if (!str_append_from_shell_variable(&sb, "IDEA_CONFIG_PATH")) {
+    if (!str_append_from_shell_variable(&sb, "HOME")) return false;
+    str_append_to_path(&sb, CONFIG_PATH);
+  }
   idea_state.config_path = strdup(str_to_cstr(sb));
 
   str_append_to_path(&sb, NOTES_FOLDER);
