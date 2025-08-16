@@ -429,7 +429,7 @@ Action_return action_add_at_todo(Input *input) {
   if (!pos_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
   unsigned int pos = atoi(pos_str);
   free(pos_str);
-  if (pos == 0 || pos > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid position");
+  if (pos == 0 || pos > list_size(todo_list)+1) return ACTION_RETURN(RETURN_ERROR, "Invalid position");
 
   char *data = next_token(input, 0);
   if (!data) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
