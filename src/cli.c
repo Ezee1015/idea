@@ -202,7 +202,10 @@ Action_return action_execute_commands(Input *input) {
   unsigned int line_nr = 1;
   String_builder line = str_new();
   while ( (str_read_line(cmds_file, &line)) ) {
-    if (str_is_empty(line)) continue;
+    if (str_is_empty(line)) {
+      line_nr++;
+      continue;
+    }
 
     Action_return result;
     NESTED_ACTION(result = cli_parse_input(str_to_cstr(line)), result);
