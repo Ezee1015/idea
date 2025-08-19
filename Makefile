@@ -1,6 +1,6 @@
 BUILD_FOLDER := build
 FLAGS := -Wall -Wextra -lncurses -ggdb
-VERSION_FLAG := -DCOMMIT="\"$(shell git log -1 --format="%h | %s")\""
+VERSION_FLAG := -DCOMMIT="\"$(shell git log -1 --format='%h | %s' | sed 's/"//g')\""
 
 IDEA_EXEC_NAME  := idea
 IDEA_EXEC := $(BUILD_FOLDER)/$(IDEA_EXEC_NAME)
