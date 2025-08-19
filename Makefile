@@ -1,6 +1,6 @@
 BUILD_FOLDER := build
 FLAGS := -Wall -Wextra -lncurses -ggdb
-AVOID_CODE_INJECTION := sed 's/\\/\\\\\\\\/g; s/"/\\\\\\\"/g'
+AVOID_CODE_INJECTION := sed 's/\\/\\\\\\\\/g; s/\"/\\\\\\\"/g'
 VERSION_FLAG := -DCOMMIT="\"$(shell git log -1 --format='%h | %s' | $(AVOID_CODE_INJECTION))\""
 
 IDEA_EXEC_NAME  := idea
