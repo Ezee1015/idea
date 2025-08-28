@@ -2,7 +2,7 @@
 A simple To-Do App written in C that fits my needs
 
 ## Compilation
-Requirements: `ncurses`
+Requirements: `ncurses`, `sed`
 
 - Available `make` commands
     - `make`: Compile
