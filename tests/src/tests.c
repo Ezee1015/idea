@@ -26,6 +26,7 @@ Tests_state state = {
   .logs_path = NULL,
 
   .log = false,
+  .valgrind = false,
 };
 
 // Lines of the export/state file that should not be compared,
@@ -203,27 +204,41 @@ exit:
   return ret;
 }
 
-char *result_to_cstr(Result r) {
-  switch (r) {
-    case RESULT_NOT_TESTED: return ANSI_YELLOW CASE_UNTESTED ANSI_RESET;
-    case RESULT_PASSED: return ANSI_GREEN CASE_PASSED ANSI_RESET;
-    case RESULT_FAILED: return ANSI_RED CASE_FAILED ANSI_RESET;
-    case RESULT_NOT_SPECIFIED: return ANSI_GRAY CASE_NOT_SPECIFIED ANSI_RESET;
+char *result_to_cstr(Case r) {
+  switch (r.result) {
+    case RESULT_NOT_TESTED:
+      if (r.memory_leak) abort();
+      return ANSI_YELLOW CASE_UNTESTED ANSI_RESET;
+
+    case RESULT_NOT_SPECIFIED:
+      if (r.memory_leak) abort();
+      return ANSI_GRAY CASE_NOT_SPECIFIED ANSI_RESET;
+
+    case RESULT_PASSED:
+      return (r.memory_leak)
+             ? ANSI_YELLOW CASE_LEAK   ANSI_RESET
+             : ANSI_GREEN  CASE_PASSED ANSI_RESET;
+
+    case RESULT_FAILED:
+      return (r.memory_leak)
+             ? ANSI_RED CASE_LEAK   ANSI_RESET
+             : ANSI_RED CASE_FAILED ANSI_RESET;
   }
   return NULL;
 }
 
 void print_results_header(unsigned int test_length) {
-  char *results_name[] = {
-    "Import state",
+  char *cases_name[] = {
+    "Import initial state",
     "Expected Return",
+    "Export final state",
     "Expected State",
     "Clear"
   };
 
   // From https://github.com/bext-lang/b/blob/c6a21ba4c87ff1c304543c74dd910de34edad445/src/btest.rs#L228
-  for (unsigned int i = 0; i < sizeof(results_name)/sizeof(char *); i++) {
-      char *test_name = results_name[i];
+  for (unsigned int i = 0; i < sizeof(cases_name)/sizeof(char *); i++) {
+      char *test_name = cases_name[i];
       printf("%*s", test_length + CASE_LENGTH / 2 + 1, "");
       for (unsigned int x = 0; x < i; x++) printf("│%*s", CASE_LENGTH, "");
       printf("┌─ %s\n", test_name);
@@ -231,19 +246,21 @@ void print_results_header(unsigned int test_length) {
 }
 
 void print_results(Test test, unsigned int test_name_length) {
-  printf("%*s %s %s %s %s\n",
+  printf("%*s %s %s %s %s %s\n",
          test_name_length, test.name,
          result_to_cstr(test.results.state_applied),
          result_to_cstr(test.results.expected_return),
+         result_to_cstr(test.results.state_exported),
          result_to_cstr(test.results.expected_state),
          result_to_cstr(test.results.clear_after_test));
 }
 
-char *run_test_generate_base_command() {
+char *run_test_generate_base_command(bool valgrind) {
   String_builder base_cmd = str_new();
   str_append(&base_cmd, "IDEA_CONFIG_PATH=\"");
   str_append(&base_cmd, state.idea_config_path);
   str_append(&base_cmd, "\" ");
+  if (valgrind) str_append(&base_cmd, VALGRIND_CMD " ");
   str_append(&base_cmd, state.repo_path);
   str_append_to_path(&base_cmd, state.idea_path);
   str_append(&base_cmd, " ");
@@ -267,10 +284,10 @@ bool run_test_execute(char *test_name, String_builder *cmd, int *ret) {
 
     str_append(cmd, " >> \"");
     str_append_str(cmd, log_path);
-    str_append(cmd, "\"");
+    str_append(cmd, "\" 2>&1");
     str_free(&log_path);
   } else {
-    str_append(cmd, " > /dev/null");
+    str_append(cmd, " > /dev/null 2>&1");
   }
 
   int system_ret = system(str_to_cstr(*cmd));
@@ -279,7 +296,15 @@ bool run_test_execute(char *test_name, String_builder *cmd, int *ret) {
   return true;
 }
 
-bool run_test_import_state(char *base_cmd, Test *test) {
+void add_result_to_test(Case *r, int ret, int expected_ret, bool valgrind) {
+  if (valgrind) {
+    r->memory_leak = (ret == VALGRIND_LEAK_EXIT_CODE);
+  } else {
+    r->result = (ret == expected_ret) ? RESULT_PASSED : RESULT_FAILED;
+  }
+}
+
+bool run_test_import_state(char *base_cmd, Test *test, bool valgrind) {
   String_builder cmd = str_new();
   str_append(&cmd, base_cmd);
   str_append(&cmd, "\"import_no_diff ");
@@ -288,9 +313,12 @@ bool run_test_import_state(char *base_cmd, Test *test) {
   str_append(&cmd, ".idea\"");
 
   int cmd_ret;
-  bool ok = (run_test_execute(test->name, &cmd, &cmd_ret) && cmd_ret == 0);
+  bool ok = run_test_execute(test->name, &cmd, &cmd_ret);
   str_free(&cmd);
-  return ok;
+  if (!ok) return false;
+
+  add_result_to_test(&test->results.state_applied, cmd_ret, 0, valgrind);
+  return true;
 }
 
 bool run_test_generate_command(char *base_cmd, Test *test, String_builder *cmd) {
@@ -309,7 +337,7 @@ bool run_test_generate_command(char *base_cmd, Test *test, String_builder *cmd) 
   return true;
 }
 
-bool run_test_export_state(char *test_name, char *base_cmd) {
+bool run_test_export_state(Test *test, char *base_cmd, bool valgrind) {
   String_builder cmd = str_new();
   str_append(&cmd, base_cmd);
   str_append(&cmd, "\"export ");
@@ -317,22 +345,27 @@ bool run_test_export_state(char *test_name, char *base_cmd) {
   str_append(&cmd, "\" ");
 
   int cmd_ret;
-  bool ok = (run_test_execute(test_name, &cmd, &cmd_ret) && cmd_ret == 0);
+  bool ok = run_test_execute(test->name, &cmd, &cmd_ret);
   str_free(&cmd);
-  return ok;
+  if (!ok) return false;
+
+  add_result_to_test(&test->results.state_exported, cmd_ret, 0, valgrind);
+  return true;
 }
 
-bool run_test_clear_all(char *test_name, char *base_cmd) {
+bool run_test_clear_all(Test *test, char *base_cmd, bool valgrind) {
   String_builder cmd = str_new();
   str_append(&cmd, base_cmd);
   str_append(&cmd, "\"clear all\"");
 
   int cmd_ret;
-  bool ok = (run_test_execute(test_name, &cmd, &cmd_ret) && cmd_ret == 0);
+  bool ok = run_test_execute(test->name, &cmd, &cmd_ret);
   str_free(&cmd);
   if (!ok) return false;
 
-  return ok;
+
+  add_result_to_test(&test->results.clear_after_test, cmd_ret, 0, valgrind);
+  return true;
 }
 
 bool run_test_compare_state(Test *test, const char *state_path, bool *same_state) {
@@ -396,24 +429,23 @@ bool run_test_compare_state(Test *test, const char *state_path, bool *same_state
   return true;
 }
 
-void run_test(Test *test) {
+void run_test(Test *test, bool valgrind) {
   String_builder cmd_test = str_new();
-  char *base_cmd = run_test_generate_base_command();
+  char *base_cmd = run_test_generate_base_command(valgrind);
 
-  if (test->state) {
-    test->results.state_applied = (run_test_import_state(base_cmd, test))
-                                  ? RESULT_PASSED
-                                  : RESULT_FAILED;
-
-    if (test->results.state_applied == RESULT_FAILED) {
-      printf("Error importing the state\n");
-      goto exit;
-    }
-  } else {
-    test->results.state_applied = RESULT_NOT_SPECIFIED;
+  if (!run_test_import_state(base_cmd, test, valgrind)) {
+    printf("An error occurred while importing the state\n");
+    goto exit;
   }
 
-  if (!list_is_empty(test->instructions)) {
+  if (test->results.state_applied.result != RESULT_PASSED) {
+    printf("Importing the state failed\n");
+    goto exit;
+  }
+
+  if (list_is_empty(test->instructions)) {
+      test->results.expected_return.result = RESULT_NOT_SPECIFIED;
+  } else {
     if (!run_test_generate_command(base_cmd, test, &cmd_test)) {
       printf("No instruction was specified\n");
       goto exit;
@@ -421,33 +453,34 @@ void run_test(Test *test) {
 
     int cmd_test_ret;
     if (!run_test_execute(test->name, &cmd_test, &cmd_test_ret)) {
-      printf("Error executing the instructions\n");
+      printf("An error occurred while executing the commands\n");
       goto exit;
     }
 
-    test->results.expected_return = (cmd_test_ret == test->expected_return)
-                                    ? RESULT_PASSED
-                                    : RESULT_FAILED;
-  } else {
-    test->results.expected_return = RESULT_NOT_SPECIFIED;
+    add_result_to_test(&test->results.expected_return, cmd_test_ret, test->expected_return, valgrind);
+    if (test->results.expected_return.result != RESULT_PASSED) {
+      printf("Executing the commands failed\n");
+      goto exit;
+    }
   }
 
-  if (!run_test_export_state(test->name, base_cmd)) {
-    printf("Unable to export the state\n");
+  if (!run_test_export_state(test, base_cmd, valgrind)) {
+    printf("An error occurred while exporting the state\n");
+    goto exit;
+  }
+
+  if (test->results.state_exported.result != RESULT_PASSED) {
+    printf("Exporting the state failed\n");
     goto exit;
   }
 
   bool same_state;
   if (!run_test_compare_state(test, state.idea_export_path, &same_state)) goto exit;
-  test->results.expected_state = (same_state) ? RESULT_PASSED : RESULT_FAILED;
+  test->results.expected_state.result = (same_state) ? RESULT_PASSED : RESULT_FAILED;
 
 exit:
-  if (run_test_clear_all(test->name, base_cmd)) {
-    test->results.clear_after_test = RESULT_PASSED;
-  } else {
-    printf("Unable to clear all the ToDos");
-    test->results.clear_after_test = RESULT_FAILED;
-  }
+  if (!run_test_clear_all(test, base_cmd, valgrind) || test->results.clear_after_test.result != RESULT_PASSED)
+    printf("Unable to clear all the ToDos\n");
 
   free(base_cmd);
   str_free(&cmd_test);
@@ -522,16 +555,30 @@ void free_state() {
   if (state.idea_export_path) free(state.idea_export_path);
 }
 
+bool is_valgrind_available() {
+  int ret = system("command -v valgrind >/dev/null 2>&1");
+  return (ret != -1 && WIFEXITED(ret) && ret == 0);
+}
+
 bool parse_args(int argc, char *argv[], int *ret) {
   for (int i=1; i < argc; i++) {
     if (!strcmp(argv[i], "-l")) {
       state.log = true;
+
+    } else if (!strcmp(argv[i], "-v")) {
+      state.valgrind = true;
+      if (!is_valgrind_available()) {
+        printf("Unable to find valgrind\n");
+        *ret = 1;
+        return false;
+      }
 
     } else if (!strcmp(argv[i], "-h")) {
       printf("Commands:\n");
       printf("\t-h\tPrint help\n");
       printf("\t-l\tEnable logs: dump al the commands and it's output\n");
       printf("\t-p\tSpecify the path to the idea repository directory\n");
+      printf("\t-v\tRun checks with valgrind too\n");
       return false;
 
     } else if (!strcmp(argv[i], "-p")) {
@@ -574,6 +621,7 @@ int main(int argc, char *argv[]) {
   printf("Config:\n");
   printf("- Repo path: %s\n", state.repo_path);
   printf("- Logs: %s\n", (state.log) ? state.logs_path : "Disabled");
+  printf("- Valgrind check: %s\n", (state.valgrind) ? "Enabled" : "Disabled");
   printf("\n");
 
   if (!get_tests(&tests)) {
@@ -595,7 +643,8 @@ int main(int argc, char *argv[]) {
   iterator = list_iterator_create(tests);
   while (list_iterator_next(&iterator)) {
     Test *test = list_iterator_element(iterator);
-    run_test(test);
+    run_test(test, false);
+    if (state.valgrind) run_test(test, true);
     print_results(*test, test_name_length);
   }
 
