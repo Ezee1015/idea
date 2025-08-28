@@ -1,0 +1,377 @@
+-- This is a list of tests to run. Every tests is separated by an empty line.
+--
+-- Available instructions are:
+--   - '--':                        Just a comment
+--
+--   - 'name:':                     Specify the name of the test
+--
+--   - 'initial_state:':            Specify the state in which idea should start with.
+--                                  You have to provide the NAME of a file (without '.idea'
+--                                  extension nor the path)
+--                                  These are located inside tests/states/initial
+--
+--   - 'command:':                  The command to run. There can be multiple 'command'
+--                                  instructions inside a single test
+--
+--   - 'return:':                   The return value of idea after running the test.
+--                                  By default the expected return value is 0.
+--
+--   - 'state_unchanged'            Indicates that the test should have the same final state as
+--                                  the initial state. It's implicitly declared when the return
+--                                  value != 0
+--
+-- When idea finishes executing the commands, it exports its current state to a temporary
+-- file and compares it with the expected final state file.
+--   - If 'state_unchanged' flag is enabled (because the commands executed
+--     should not modify the database) or the expected return value of idea is
+--     different than 0 (and all the commands executed should be reverted), it will
+--     check the final state is the same as the initial
+--
+--   - If idea finished successfully it will search the expected final state inside tests/states/final
+--     directory with the name of the test + ".idea".
+--
+-- TIP: If I want the program to crash (return 1) in purpose, I surround the conflictive
+-- command in correct commands to test that the changes are not saved and the backup
+-- system is working correctly
+
+-- ----------
+-- CLEAR
+-- ----------
+-- It's used in every test to clean all, so no need to test this command further
+
+-- ----------
+-- IMPORT
+-- ----------
+-- I can't test it, because it requires user interaction
+
+-- ----------
+-- EXECUTE
+-- ----------
+
+-- I'm not sure if I want to test this... I would need to create a "script" directory just to test this
+
+-- ------------------------
+-- IMPORT_NO_DIFF & EXPORT
+-- ------------------------
+
+name: import_and_export_empty_state
+initial_state: empty_state
+return: 0
+state_unchanged
+
+name: import_and_export_basic_state
+initial_state: 5_basic_todos
+return: 0
+state_unchanged
+
+-- ----------
+-- ADD
+-- ----------
+name: add_from_empty_state
+initial_state: empty_state
+command: add testing 1
+command: add test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test
+command: add I'd just like to interject for a moment. What you're refering to as Linux, is in fact, GNU/Linux, or as I've recently taken to calling it, GNU plus Linux. Linux is not an operating system unto itself, but rather another free component of a fully functioning GNU system made useful by the GNU corelibs, shell utilities and vital system components comprising a full OS as defined by POSIX.
+command: add Many computer users run a modified version of the GNU system every day, without realizing it. Through a peculiar turn of events, the version of GNU which is widely used today is often called Linux, and many of its users are not aware that it is basically the GNU system, developed by the GNU Project.
+command: add There really is a Linux, and these people are using it, but it is just a part of the system they use. Linux is the kernel: the program in the system that allocates the machine's resources to the other programs that you run. The kernel is an essential part of an operating system, but useless by itself; it can only function in the context of a complete operating system. Linux is normally used in combination with the GNU operating system: the whole system is basically GNU with Linux added, or GNU/Linux. All the so-called Linux distributions are really distributions of GNU/Linux!
+return: 0
+
+name: add_from_basic_state
+initial_state: 5_basic_todos
+command: add testing 1
+command: add test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test
+command: add I'd just like to interject for a moment. What you're refering to as Linux, is in fact, GNU/Linux, or as I've recently taken to calling it, GNU plus Linux. Linux is not an operating system unto itself, but rather another free component of a fully functioning GNU system made useful by the GNU corelibs, shell utilities and vital system components comprising a full OS as defined by POSIX.
+command: add Many computer users run a modified version of the GNU system every day, without realizing it. Through a peculiar turn of events, the version of GNU which is widely used today is often called Linux, and many of its users are not aware that it is basically the GNU system, developed by the GNU Project.
+command: add There really is a Linux, and these people are using it, but it is just a part of the system they use. Linux is the kernel: the program in the system that allocates the machine's resources to the other programs that you run. The kernel is an essential part of an operating system, but useless by itself; it can only function in the context of a complete operating system. Linux is normally used in combination with the GNU operating system: the whole system is basically GNU with Linux added, or GNU/Linux. All the so-called Linux distributions are really distributions of GNU/Linux!
+return: 0
+
+name: add_nothing_from_empty_state
+initial_state: empty_state
+command: add test test test test test test test test test test test test
+command: add
+command: add testing 1
+return: 1
+
+name: add_nothing_from_basic_state
+initial_state: 5_basic_todos
+command: add test test test test test test test test test test test test
+command: add
+command: add testing 1
+return: 1
+
+-- ----------
+-- ADD_AT
+-- ----------
+name: add_at_0_from_empty_state_error
+initial_state: empty_state
+command: add_at 1 Just a tests
+command: add_at 0 Another tests
+command: add_at 3 Why not another?
+return: 1
+
+name: add_at_last+1_from_empty_state_error
+initial_state: empty_state
+command: add_at 1 Just a tests
+command: add_at 3 Another tests
+command: add_at 3 Why not another?
+return: 1
+
+name: add_at_0_from_basic_state_error
+initial_state: 5_basic_todos
+command: add_at 1 Just a tests
+command: add_at 0 Another tests
+command: add_at 3 Why not another?
+return: 1
+
+name: add_at_last+1_from_basic_state_error
+initial_state: 5_basic_todos
+command: add_at 1 Just a tests
+command: add_at 8 Another tests
+command: add_at 3 Why not another?
+return: 1
+
+name: add_at_pos_from_empty_state
+initial_state: empty_state
+command: add_at 1 Just a tests
+command: add_at 1 Another tests
+command: add_at 3 Why not another?
+command: add_at 2 One more, just to be sure
+return: 0
+
+name: add_at_pos_from_basic_state
+initial_state: 5_basic_todos
+command: add_at 1 In the start
+command: add_at 3 In the middle
+command: add_at 8 But, in the end
+command: add_at 9 It doesn't even matter
+return: 0
+
+-- ----------
+-- MOVE
+-- ----------
+
+name: move_from_0
+initial_state: 5_basic_todos
+command: move 1 2
+command: move 0 1
+command: move 4 3
+return: 1
+
+name: move_to_0
+initial_state: 5_basic_todos
+command: move 1 2
+command: move 1 0
+command: move 4 3
+return: 1
+
+name: move_from_last+1
+initial_state: 5_basic_todos
+command: move 1 2
+command: move 6 3
+command: move 4 3
+return: 1
+
+name: move_to_last+1
+initial_state: 5_basic_todos
+command: move 1 2
+command: move 3 6
+command: move 4 3
+return: 1
+
+name: move_in_empty_state
+initial_state: empty_state
+command: move 1 1
+return: 1
+
+name: move_first_to_first
+initial_state: 5_basic_todos
+command: move 1 1
+return: 0
+state_unchanged
+
+name: move_first_to_middle
+initial_state: 5_basic_todos
+command: move 1 3
+return: 0
+
+name: move_first_to_last
+initial_state: 5_basic_todos
+command: move 1 5
+return: 0
+
+name: move_middle_to_first
+initial_state: 5_basic_todos
+command: move 3 1
+return: 0
+
+name: move_middle_to_middle
+initial_state: 5_basic_todos
+command: move 3 3
+return: 0
+state_unchanged
+
+name: move_middle_to_last
+initial_state: 5_basic_todos
+command: move 3 5
+return: 0
+
+name: move_last_to_first
+initial_state: 5_basic_todos
+command: move 5 1
+return: 0
+
+name: move_last_to_middle
+initial_state: 5_basic_todos
+command: move 5 3
+return: 0
+
+name: move_last_to_last
+initial_state: 5_basic_todos
+command: move 5 5
+return: 0
+state_unchanged
+
+-- ----------
+-- EDIT
+-- ----------
+
+name: edit_todo
+initial_state: 5_basic_todos
+command: edit 3 I’d just like to interject for a moment. What you’re refering to as Linux, is in fact, GNU/Linux 😮, or as I’ve recently taken to calling it, GNU plus Linux. Linux is not an operating system unto itself, but rather another free component of a fully functioning GNU system made useful by the GNU corelibs, shell utilities and vital system components comprising a full OS as defined by POSIX. Many computer users run a modified version of the GNU system every day, without realizing it. Through a peculiar turn of events, the version of GNU which is widely used today is often called Linux, and many of its users are not aware that it is basically the GNU system, developed by the GNU Project. There really is a Linux, and these people are using it, but it is just a part of the system they use. Linux is the kernel: the program in the system that allocates the machine’s resources to the other programs that you run. The kernel is an essential part of an operating system, but useless by itself; it can only function in the context of a complete operating system. Linux is normally used in combination with the GNU operating system: the whole system is basically GNU with Linux added, or GNU/Linux. All the so-called Linux distributions are really distributions of GNU/Linux!
+return: 0
+
+name: edit_todo_0
+initial_state: 5_basic_todos
+command: edit 1 This should work
+command: edit 0 This is out of bounds
+command: edit 2 This should not be reached
+return: 1
+
+name: edit_todo_last+1
+initial_state: 5_basic_todos
+command: edit 1 This should work
+command: edit 6 This is out of bounds
+command: edit 2 This should not be reached
+return: 1
+
+name: edit_todo_empty_state
+initial_state: empty_state
+command: edit 1 This should not work
+return: 1
+
+name: edit_todo_empty_name
+initial_state: 5_basic_todos
+command: edit 1
+return: 1
+
+name: edit_todo_empty_name
+initial_state: 5_basic_todos
+command: edit 1
+return: 1
+
+-- ----------
+-- NOTES_REMOVE
+-- ----------
+
+-- I can't test if the notes file was in fact removed. I can only test if the
+-- program finishes successfully and the ToDo is no longer linked to that file
+
+name: notes_remove
+initial_state: 5_basic_todos
+command: notes_remove 3
+return: 0
+
+name: notes_remove_in_todo_with_empty_notes
+initial_state: 5_basic_todos
+command: notes_remove 4
+return: 0
+
+name: notes_remove_in_todo_with_no_notes
+initial_state: 5_basic_todos
+command: notes_remove 3
+command: notes_remove 2
+command: notes_remove 4
+return: 1
+
+name: notes_remove_in_empty_state
+initial_state: empty_state
+command: notes_remove 1
+return: 1
+
+-- ----------
+-- LIST
+-- ----------
+
+name: list_empty_state
+initial_state: empty_state
+command: list
+return: 0
+state_unchanged
+
+name: list_basic_state
+initial_state: 5_basic_todos
+command: list
+return: 0
+state_unchanged
+
+-- ----------
+-- REMOVE
+-- ----------
+
+name: remove_in_empty_state
+initial_state: empty_state
+command: remove 1
+return: 1
+
+name: remove_0
+initial_state: 5_basic_todos
+command: add test 1
+command: add test 2
+command: rm 0
+command: add test 3
+return: 1
+
+name: remove_last+1
+initial_state: 5_basic_todos
+command: add test 1
+command: add test 2
+command: rm 8
+command: add test 3
+return: 1
+
+name: remove_first
+initial_state: 5_basic_todos
+command: rm 1
+return: 0
+
+name: remove_last
+initial_state: 5_basic_todos
+command: rm 5
+return: 0
+
+name: remove_middle
+initial_state: 5_basic_todos
+command: rm 3
+return: 0
+
+-- --------------------
+-- Mixing operations
+-- --------------------
+
+name: mixing_basic_operations
+initial_state: empty_state
+command: add testing 1
+command: add testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest
+command: add eror
+command: add testing 2
+command: edit 3 fix error
+command: mv 2 3
+command: rm 1
+command: add_at 1 testing 3
+command: list
+command: add_at 5 testing final
+command: add_at 3 testing 4
+command: edit 6 testing never ends
+command: add nothing
+command: rm 7
+return: 0

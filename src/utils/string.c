@@ -138,3 +138,7 @@ bool str_read_line(FILE *f, String_builder *str) {
 
   return read;
 }
+
+bool str_equals(String_builder sb1, String_builder sb2) {
+  return (sb1.len == sb2.len && !strcmp(sb1.s, sb2.s));
+}

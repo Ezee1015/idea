@@ -42,4 +42,6 @@ void str_clean(String_builder *str);
 
 bool str_read_line(FILE *f, String_builder *str);
 
+bool str_equals(String_builder sb1, String_builder sb2);
+
 #endif // STRINGS_H

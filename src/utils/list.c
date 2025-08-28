@@ -3,21 +3,7 @@
 #include "list.h"
 
 void list_append(List *list, void *element) {
-  if (!list) abort();
-  if (!element) abort();
-
-  List_node *node = malloc(sizeof(List_node));
-  node->pointer = element;
-  node->next = NULL;
-
-  if (!list->last) {
-    list->last = list->head = node;
-  } else {
-    list->last->next = node;
-    list->last = node;
-  }
-
-  list->count += 1;
+  list_insert_at(list, element, list->count);
 }
 
 List_node *list_node_get(List list, unsigned int pos) {
@@ -41,16 +27,21 @@ void list_insert_at(List *list, void *element, unsigned int pos) {
 
   List_node *node = malloc(sizeof(List_node));
   node->pointer = element;
+  node->next = NULL;
 
   if (pos == 0) {
     node->next = list->head;
     list->head = node;
+    if (list_is_empty(*list)) list->last = node;
+  } else if (pos == list->count) {
+    list->last->next = node;
+    list->last = node;
   } else {
     List_node *prev_node = list_node_get(*list, pos-1);
-    if (pos == list->count) list->last = node;
     node->next = prev_node->next;
     prev_node->next = node;
   }
+
   list->count++;
 }
 
@@ -59,7 +50,7 @@ unsigned int list_size(List list) {
 }
 
 bool list_is_empty(List list) {
-  return (!list.head);
+  return (!list.count);
 }
 
 void *list_remove(List *list, unsigned int pos) {

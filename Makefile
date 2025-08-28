@@ -7,8 +7,10 @@ IDEA_EXEC_NAME  := idea
 IDEA_EXEC := $(BUILD_FOLDER)/$(IDEA_EXEC_NAME)
 IDEA_CFILES := $(wildcard src/*.c) $(wildcard src/utils/*.c)
 
+TESTS_EXEC := $(BUILD_FOLDER)/tests
+TESTS_CFILES := $(wildcard tests/src/*.c) $(wildcard src/utils/*.c) src/parser.c
 
-all: $(IDEA_EXEC)
+all: $(IDEA_EXEC) $(TESTS_EXEC)
 
 $(IDEA_EXEC): $(IDEA_CFILES)
 	mkdir -p $(BUILD_FOLDER)
@@ -17,6 +19,7 @@ $(IDEA_EXEC): $(IDEA_CFILES)
 .PHONY = clean
 clean:
 	rm $(IDEA_EXEC)
+	rm $(TESTS_EXEC)
 
 .PHONY = run
 run:
@@ -29,3 +32,15 @@ install: $(IDEA_EXEC)
 .PHONY = uninstall
 uninstall: $(IDEA_EXEC)
 	sudo rm /usr/local/bin/$(IDEA_EXEC_NAME)
+
+$(TESTS_EXEC): $(TESTS_CFILES)
+	mkdir -p $(BUILD_FOLDER)
+	gcc $(TESTS_CFILES) -o $(TESTS_EXEC) $(FLAGS)
+
+.PHONY = test
+test: $(TESTS_EXEC) $(IDEA_EXEC)
+	./$(TESTS_EXEC)
+
+.PHONY = test_log
+test_log: $(TESTS_EXEC) $(IDEA_EXEC)
+	./$(TESTS_EXEC) -l

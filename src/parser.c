@@ -11,6 +11,7 @@ char *next_token(Input *input, char divider) {
   while (i <= input->length && input->input[i] != divider) i++;
 
   unsigned int read = i - input->cursor;
+  if (read == 0) return NULL;
   char *token = malloc(read + 1);
   memcpy(token, input->input + input->cursor, read);
   token[read] = '\0';

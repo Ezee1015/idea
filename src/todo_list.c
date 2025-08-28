@@ -525,7 +525,7 @@ Action_return action_notes_todo_remove(Input *input) {
   if (pos == 0 || pos > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid position");
   Todo *todo = list_get(todo_list, pos-1);
 
-  if (!todo->notes) return ACTION_RETURN(RETURN_INFO, "The todo doesn't have a notes file");
+  if (!todo->notes) return ACTION_RETURN(RETURN_ERROR, "The todo doesn't have a notes file");
   if (!remove_todo_notes(todo)) return ACTION_RETURN(RETURN_ERROR, "Unable to remove the notes");
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
