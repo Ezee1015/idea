@@ -121,11 +121,7 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
   } state = NO_STATE;
 
   while ( state != STATE_EXIT && (str_read_line(load_file, &line)) ) {
-    // Finished reading ToDo
-    if (str_is_empty(line)) {
-      state = STATE_EXIT;
-      break;
-    }
+    if (str_is_empty(line)) continue;
 
     unsigned int indentation = 0;
     while (cstr_starts_with(str_to_cstr(line) + indentation * strlen(EXPORT_FILE_INDENTATION), EXPORT_FILE_INDENTATION)) indentation++;
@@ -159,7 +155,7 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
         if (!indentation && !strcmp(atribute, "todo")) {
           // Rewind what it read and break out of the function because it's
           // reading the next todo, and this function only reads one ToDo
-          fseek(load_file, -1 * (str_length(line) + 1 /* \n */), SEEK_CUR);
+          fseek(load_file, -1 * ((int) str_length(line) + 1 /* \n */), SEEK_CUR);
           state = STATE_EXIT;
           break;
 
