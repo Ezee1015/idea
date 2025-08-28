@@ -581,10 +581,18 @@ int main(int argc, char *argv[]) {
     goto exit;
   }
 
-  const unsigned int test_name_length = 40;
+  const int padding = 5;
+  unsigned int test_name_length = 0;
+  List_iterator iterator = list_iterator_create(tests);
+  while (list_iterator_next(&iterator)) {
+    Test *test = list_iterator_element(iterator);
+    const unsigned int length = strlen(test->name) + padding;
+    if (length > test_name_length) test_name_length = length;
+  }
+
   print_results_header(test_name_length);
 
-  List_iterator iterator = list_iterator_create(tests);
+  iterator = list_iterator_create(tests);
   while (list_iterator_next(&iterator)) {
     Test *test = list_iterator_element(iterator);
     run_test(test);
