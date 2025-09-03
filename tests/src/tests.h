@@ -16,7 +16,17 @@
 #define MACRO_INT_TO_STR(n) MACRO_STR(n)
 
 #define VALGRIND_LEAK_EXIT_CODE 255 // Some random number
-#define VALGRIND_CMD "valgrind --leak-check=full --errors-for-leak-kinds=all --error-exitcode=" MACRO_INT_TO_STR(VALGRIND_LEAK_EXIT_CODE)
+#define VALGRIND_CMD "valgrind --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all --error-exitcode=" MACRO_INT_TO_STR(VALGRIND_LEAK_EXIT_CODE)
+
+// X macro. References:
+// - https://www.youtube.com/watch?v=PgDqBZFir1A
+// - https://en.wikipedia.org/wiki/X_macro
+#define CASES() \
+  X(import_initial_state) \
+  X(expected_return) \
+  X(export_final_state) \
+  X(expected_final_state) \
+  X(clear_after_test)
 
 typedef struct {
   char *idea_config_path;
@@ -47,11 +57,9 @@ typedef struct {
 } Case;
 
 typedef struct {
-  Case state_applied;
-  Case expected_return;
-  Case state_exported;
-  Case expected_state;
-  Case clear_after_test;
+#define X(s) Case s;
+  CASES()
+#undef X
 } Test_result;
 
 typedef struct {
@@ -76,14 +84,12 @@ char *result_to_cstr(Case r);
 void print_results_header(unsigned int test_length);
 void print_results(Test test, unsigned int test_name_length);
 
-void add_result_to_test(Case *r, int ret, int expected_ret, bool valgrind);
+#define X(s) bool run_test_case_##s(Test *t, char *base_cmd, bool valgrind);
+  CASES()
+#undef X
+
 char *run_test_generate_base_command(bool valgrind);
 bool run_test_execute(char *test_name, String_builder *cmd, int *ret);
-bool run_test_import_state(char *base_cmd, Test *test, bool valgrind);
-bool run_test_generate_command(char *base_cmd, Test *test, String_builder *cmd);
-bool run_test_export_state(Test *test, char *base_cmd, bool valgrind);
-bool run_test_clear_all(Test *test, char *base_cmd, bool valgrind);
-bool run_test_compare_state(Test *test, const char *state_path, bool *same_state);
 void run_test(Test *test, bool valgrind);
 
 bool create_dir_if_not_exists(char *dir_path);

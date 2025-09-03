@@ -229,11 +229,9 @@ char *result_to_cstr(Case r) {
 
 void print_results_header(unsigned int test_length) {
   char *cases_name[] = {
-    "Import initial state",
-    "Expected Return",
-    "Export final state",
-    "Expected State",
-    "Clear"
+#define X(s) #s,
+  CASES()
+#undef X
   };
 
   // From https://github.com/bext-lang/b/blob/c6a21ba4c87ff1c304543c74dd910de34edad445/src/btest.rs#L228
@@ -241,18 +239,26 @@ void print_results_header(unsigned int test_length) {
       char *test_name = cases_name[i];
       printf("%*s", test_length + CASE_LENGTH / 2 + 1, "");
       for (unsigned int x = 0; x < i; x++) printf("│%*s", CASE_LENGTH, "");
-      printf("┌─ %s\n", test_name);
+      printf("┌─ ");
+
+      // Pretty print the test case name
+      putchar(*test_name - 32); // capitalize the first letter
+      while ( *(++test_name) != '\0' ) {
+        if (*test_name == '_') putchar(' ');
+        else putchar(*test_name);
+      }
+      putchar('\n');
   }
 }
 
 void print_results(Test test, unsigned int test_name_length) {
-  printf("%*s %s %s %s %s %s\n",
-         test_name_length, test.name,
-         result_to_cstr(test.results.state_applied),
-         result_to_cstr(test.results.expected_return),
-         result_to_cstr(test.results.state_exported),
-         result_to_cstr(test.results.expected_state),
-         result_to_cstr(test.results.clear_after_test));
+  printf("%*s", test_name_length, test.name);
+
+#define X(s) printf(" %s", result_to_cstr(test.results.s));
+  CASES()
+#undef X
+
+  printf("\n");
 }
 
 char *run_test_generate_base_command(bool valgrind) {
@@ -296,48 +302,70 @@ bool run_test_execute(char *test_name, String_builder *cmd, int *ret) {
   return true;
 }
 
-void add_result_to_test(Case *r, int ret, int expected_ret, bool valgrind) {
-  if (valgrind) {
-    r->memory_leak = (ret == VALGRIND_LEAK_EXIT_CODE);
-  } else {
-    r->result = (ret == expected_ret) ? RESULT_PASSED : RESULT_FAILED;
-  }
-}
-
-bool run_test_import_state(char *base_cmd, Test *test, bool valgrind) {
+bool run_test_case_import_initial_state(Test *t, char *base_cmd, bool valgrind) {
   String_builder cmd = str_new();
   str_append(&cmd, base_cmd);
   str_append(&cmd, "\"import_no_diff ");
   str_append(&cmd, state.initial_states_path);
-  str_append_to_path(&cmd, test->state);
+  str_append_to_path(&cmd, t->state);
   str_append(&cmd, ".idea\"");
 
   int cmd_ret;
-  bool ok = run_test_execute(test->name, &cmd, &cmd_ret);
+  bool ok = run_test_execute(t->name, &cmd, &cmd_ret);
   str_free(&cmd);
-  if (!ok) return false;
+  if (!ok) {
+    printf("An error occurred while importing the state\n");
+    return false;
+  }
 
-  add_result_to_test(&test->results.state_applied, cmd_ret, 0, valgrind);
-  return true;
-}
+  if (valgrind) t->results.import_initial_state.memory_leak = (cmd_ret == VALGRIND_LEAK_EXIT_CODE);
+  else t->results.import_initial_state.result = (cmd_ret == 0) ? RESULT_PASSED : RESULT_FAILED;
 
-bool run_test_generate_command(char *base_cmd, Test *test, String_builder *cmd) {
-  str_append(cmd, base_cmd);
-  if (list_is_empty(test->instructions)) return false;
-
-  List_iterator iterator = list_iterator_create(test->instructions);
-  while (list_iterator_next(&iterator)) {
-    char *instruction = list_iterator_element(iterator);
-
-    str_append(cmd, "\"");
-    str_append(cmd, instruction);
-    str_append(cmd, "\" ");
+  if (t->results.import_initial_state.result != RESULT_PASSED) {
+    printf("Importing the initial state failed\n");
+    return false;
   }
 
   return true;
 }
 
-bool run_test_export_state(Test *test, char *base_cmd, bool valgrind) {
+bool run_test_case_expected_return(Test *t, char *base_cmd, bool valgrind) {
+  if (list_is_empty(t->instructions)) {
+      t->results.expected_return.result = RESULT_NOT_SPECIFIED;
+      return true;
+  }
+
+  String_builder cmd = str_new();
+  List_iterator iterator = list_iterator_create(t->instructions);
+  str_append(&cmd, base_cmd);
+  while (list_iterator_next(&iterator)) {
+    char *instruction = list_iterator_element(iterator);
+
+    str_append(&cmd, "\"");
+    str_append(&cmd, instruction);
+    str_append(&cmd, "\" ");
+  }
+
+  int cmd_ret;
+  bool ok = run_test_execute(t->name, &cmd, &cmd_ret);
+  str_free(&cmd);
+  if (!ok) {
+    printf("An error occurred while executing the commands\n");
+    return false;
+  }
+
+  if (valgrind) t->results.expected_return.memory_leak = (cmd_ret == VALGRIND_LEAK_EXIT_CODE);
+  else t->results.expected_return.result = (cmd_ret == t->expected_return) ? RESULT_PASSED : RESULT_FAILED;
+
+  if (t->results.expected_return.result != RESULT_PASSED) {
+    printf("Executing the commands failed\n");
+    return false;
+  }
+
+  return true;
+}
+
+bool run_test_case_export_final_state(Test *t, char *base_cmd, bool valgrind) {
   String_builder cmd = str_new();
   str_append(&cmd, base_cmd);
   str_append(&cmd, "\"export ");
@@ -345,46 +373,44 @@ bool run_test_export_state(Test *test, char *base_cmd, bool valgrind) {
   str_append(&cmd, "\" ");
 
   int cmd_ret;
-  bool ok = run_test_execute(test->name, &cmd, &cmd_ret);
+  bool ok = run_test_execute(t->name, &cmd, &cmd_ret);
   str_free(&cmd);
-  if (!ok) return false;
+  if (!ok) {
+    printf("An error occurred while exporting the state\n");
+    return false;
+  }
 
-  add_result_to_test(&test->results.state_exported, cmd_ret, 0, valgrind);
+  if (valgrind) t->results.export_final_state.memory_leak = (cmd_ret == VALGRIND_LEAK_EXIT_CODE);
+  else t->results.export_final_state.result = (cmd_ret == 0) ? RESULT_PASSED : RESULT_FAILED;
+
+  if (t->results.export_final_state.result != RESULT_PASSED) {
+    printf("Exporting the state failed\n");
+    return false;
+  }
+
   return true;
 }
 
-bool run_test_clear_all(Test *test, char *base_cmd, bool valgrind) {
-  String_builder cmd = str_new();
-  str_append(&cmd, base_cmd);
-  str_append(&cmd, "\"clear all\"");
+bool run_test_case_expected_final_state(Test *t, char *base_cmd, bool valgrind) {
+  (void) base_cmd;
 
-  int cmd_ret;
-  bool ok = run_test_execute(test->name, &cmd, &cmd_ret);
-  str_free(&cmd);
-  if (!ok) return false;
+  if (valgrind) return true;
 
-
-  add_result_to_test(&test->results.clear_after_test, cmd_ret, 0, valgrind);
-  return true;
-}
-
-bool run_test_compare_state(Test *test, const char *state_path, bool *same_state) {
-  FILE *state_file = fopen(state_path, "r");
+  FILE *state_file = fopen(state.idea_export_path, "r");
   if (!state_file) {
-    printf("Unable to open the state file (%s)!\n", state_path);
+    printf("Unable to open the state file (%s)!\n", state.idea_export_path);
     return false;
   }
 
   String_builder exp_state_path = str_new();
-  if (test->expect_state_unchanged) {
+  if (t->expect_state_unchanged) {
     str_append(&exp_state_path, state.initial_states_path);
-    str_append_to_path(&exp_state_path, test->state);
-    str_append(&exp_state_path, ".idea");
+    str_append_to_path(&exp_state_path, t->state);
   } else {
     str_append(&exp_state_path, state.final_states_path);
-    str_append_to_path(&exp_state_path, test->name);
-    str_append(&exp_state_path, ".idea");
+    str_append_to_path(&exp_state_path, t->name);
   }
+  str_append(&exp_state_path, ".idea");
   FILE *exp_state_file = fopen(str_to_cstr(exp_state_path), "r");
   if (!exp_state_file) {
     fclose(state_file);
@@ -425,65 +451,62 @@ bool run_test_compare_state(Test *test, const char *state_path, bool *same_state
   str_free(&line_state);
   str_free(&line_exp_state);
 
-  *same_state = !(read_state || read_exp_state);
+  bool same_state = !(read_state || read_exp_state);
+  t->results.expected_final_state.result = (same_state) ? RESULT_PASSED : RESULT_FAILED;
+
+  return true;
+}
+
+bool run_test_case_clear_after_test(Test *t, char *base_cmd, bool valgrind) {
+  String_builder cmd = str_new();
+  str_append(&cmd, base_cmd);
+  str_append(&cmd, "\"clear all\"");
+
+  int cmd_ret;
+  bool ok = run_test_execute(t->name, &cmd, &cmd_ret);
+  str_free(&cmd);
+  if (!ok) {
+    printf("An error occurred while clearing the ToDos\n");
+    return false;
+  }
+
+  if (valgrind) t->results.clear_after_test.memory_leak = (cmd_ret == VALGRIND_LEAK_EXIT_CODE);
+  else t->results.clear_after_test.result = (cmd_ret == 0) ? RESULT_PASSED : RESULT_FAILED;
+
+  if (t->results.clear_after_test.result != RESULT_PASSED) {
+    printf("Unable to clear all the ToDos\n");
+    return false;
+  }
+
   return true;
 }
 
 void run_test(Test *test, bool valgrind) {
-  String_builder cmd_test = str_new();
+
   char *base_cmd = run_test_generate_base_command(valgrind);
 
-  if (!run_test_import_state(base_cmd, test, valgrind)) {
-    printf("An error occurred while importing the state\n");
-    goto exit;
-  }
+  if (valgrind) {
+    #define should_test(s) (test->results.s.result != RESULT_NOT_SPECIFIED && test->results.s.result != RESULT_NOT_TESTED)
+    #define X(s) if (should_test(s)) run_test_case_##s(test, base_cmd, valgrind);
 
-  if (test->results.state_applied.result != RESULT_PASSED) {
-    printf("Importing the state failed\n");
-    goto exit;
-  }
+      CASES()
 
-  if (list_is_empty(test->instructions)) {
-      test->results.expected_return.result = RESULT_NOT_SPECIFIED;
+    #undef X
+    #undef should_test
   } else {
-    if (!run_test_generate_command(base_cmd, test, &cmd_test)) {
-      printf("No instruction was specified\n");
-      goto exit;
-    }
+    #define X(s) if (!run_test_case_##s(test, base_cmd, valgrind)) goto exit;
 
-    int cmd_test_ret;
-    if (!run_test_execute(test->name, &cmd_test, &cmd_test_ret)) {
-      printf("An error occurred while executing the commands\n");
-      goto exit;
-    }
+      CASES()
 
-    add_result_to_test(&test->results.expected_return, cmd_test_ret, test->expected_return, valgrind);
-    if (test->results.expected_return.result != RESULT_PASSED) {
-      printf("Executing the commands failed\n");
-      goto exit;
-    }
+    #undef X
   }
-
-  if (!run_test_export_state(test, base_cmd, valgrind)) {
-    printf("An error occurred while exporting the state\n");
-    goto exit;
-  }
-
-  if (test->results.state_exported.result != RESULT_PASSED) {
-    printf("Exporting the state failed\n");
-    goto exit;
-  }
-
-  bool same_state;
-  if (!run_test_compare_state(test, state.idea_export_path, &same_state)) goto exit;
-  test->results.expected_state.result = (same_state) ? RESULT_PASSED : RESULT_FAILED;
 
 exit:
-  if (!run_test_clear_all(test, base_cmd, valgrind) || test->results.clear_after_test.result != RESULT_PASSED)
-    printf("Unable to clear all the ToDos\n");
+  // Try to clean the mess if something went wrong
+  if (test->results.clear_after_test.result == RESULT_NOT_TESTED)
+    run_test_case_clear_after_test(test, base_cmd, false);
 
   free(base_cmd);
-  str_free(&cmd_test);
 }
 
 bool initialize_and_create_log_dir() {
