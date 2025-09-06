@@ -641,10 +641,12 @@ int main(int argc, char *argv[]) {
     goto exit;
   }
 
+  puts(ANSI_GRAY);
   printf("Config:\n");
   printf("- Repo path: %s\n", state.repo_path);
   printf("- Logs: %s\n", (state.log) ? state.logs_path : "Disabled");
   printf("- Valgrind check: %s\n", (state.valgrind) ? "Enabled" : "Disabled");
+  puts(ANSI_RESET);
   printf("\n");
 
   if (!get_tests(&tests)) {
