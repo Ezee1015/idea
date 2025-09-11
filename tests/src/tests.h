@@ -18,6 +18,18 @@
 #define VALGRIND_LEAK_EXIT_CODE 255 // Some random number
 #define VALGRIND_CMD "valgrind --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all --error-exitcode=" MACRO_INT_TO_STR(VALGRIND_LEAK_EXIT_CODE)
 
+#define APPEND_TO_MESSAGES(msg) do { \
+    String_builder __sb = str_new(); \
+    str_append(&__sb, "- " ANSI_GRAY "Test " ANSI_RESET); \
+    str_append(&__sb, t->name); \
+    str_append(&__sb, "\n  " ANSI_GRAY "failed in " ANSI_RESET); \
+    str_append(&__sb, __FUNCTION__); \
+    str_append(&__sb, "().\n  " ANSI_GRAY "Reason: " ANSI_RESET); \
+    str_append(&__sb, msg); \
+    str_append(&__sb, "\n"); \
+    list_append(messages, str_to_cstr(__sb)); \
+  } while (0);
+
 // X macro. References:
 // - https://www.youtube.com/watch?v=PgDqBZFir1A
 // - https://en.wikipedia.org/wiki/X_macro
@@ -84,13 +96,13 @@ char *result_to_cstr(Case r);
 void print_results_header(unsigned int test_length);
 void print_results(Test test, unsigned int test_name_length);
 
-#define X(s) bool run_test_case_##s(Test *t, char *base_cmd, bool valgrind);
+#define X(s) bool run_test_case_##s(Test *t, List *messages, char *base_cmd, bool valgrind);
   CASES()
 #undef X
 
 char *run_test_generate_base_command(bool valgrind);
 bool run_test_execute(char *test_name, String_builder *cmd, int *ret);
-void run_test(Test *test, bool valgrind);
+void run_test(Test *test, List *messages, bool valgrind);
 
 bool create_dir_if_not_exists(char *dir_path);
 bool initialize_paths();

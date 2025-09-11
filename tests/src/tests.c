@@ -281,7 +281,7 @@ bool run_test_execute(char *test_name, String_builder *cmd, int *ret) {
     str_append(&log_path, ".txt");
     FILE *log = fopen(str_to_cstr(log_path), "a");
     if (!log) {
-      printf("Unable to open log: %s!\n", str_to_cstr(log_path));
+      // printf("Unable to open log: %s!\n", str_to_cstr(log_path));
       str_free(&log_path);
       return false;
     }
@@ -302,7 +302,7 @@ bool run_test_execute(char *test_name, String_builder *cmd, int *ret) {
   return true;
 }
 
-bool run_test_case_import_initial_state(Test *t, char *base_cmd, bool valgrind) {
+bool run_test_case_import_initial_state(Test *t, List *messages, char *base_cmd, bool valgrind) {
   String_builder cmd = str_new();
   str_append(&cmd, base_cmd);
   str_append(&cmd, "\"import_no_diff ");
@@ -314,7 +314,7 @@ bool run_test_case_import_initial_state(Test *t, char *base_cmd, bool valgrind) 
   bool ok = run_test_execute(t->name, &cmd, &cmd_ret);
   str_free(&cmd);
   if (!ok) {
-    printf("An error occurred while importing the state\n");
+    APPEND_TO_MESSAGES("An error occurred while importing the state");
     return false;
   }
 
@@ -322,14 +322,14 @@ bool run_test_case_import_initial_state(Test *t, char *base_cmd, bool valgrind) 
   else t->results.import_initial_state.result = (cmd_ret == 0) ? RESULT_PASSED : RESULT_FAILED;
 
   if (t->results.import_initial_state.result != RESULT_PASSED) {
-    printf("Importing the initial state failed\n");
+    APPEND_TO_MESSAGES("Importing the initial state failed");
     return false;
   }
 
   return true;
 }
 
-bool run_test_case_expected_return(Test *t, char *base_cmd, bool valgrind) {
+bool run_test_case_expected_return(Test *t, List *messages, char *base_cmd, bool valgrind) {
   if (list_is_empty(t->instructions)) {
       t->results.expected_return.result = RESULT_NOT_SPECIFIED;
       return true;
@@ -350,7 +350,7 @@ bool run_test_case_expected_return(Test *t, char *base_cmd, bool valgrind) {
   bool ok = run_test_execute(t->name, &cmd, &cmd_ret);
   str_free(&cmd);
   if (!ok) {
-    printf("An error occurred while executing the commands\n");
+    APPEND_TO_MESSAGES("An error occurred while executing the commands");
     return false;
   }
 
@@ -358,14 +358,14 @@ bool run_test_case_expected_return(Test *t, char *base_cmd, bool valgrind) {
   else t->results.expected_return.result = (cmd_ret == t->expected_return) ? RESULT_PASSED : RESULT_FAILED;
 
   if (t->results.expected_return.result != RESULT_PASSED) {
-    printf("Executing the commands failed\n");
+    APPEND_TO_MESSAGES("Executing the commands failed");
     return false;
   }
 
   return true;
 }
 
-bool run_test_case_export_final_state(Test *t, char *base_cmd, bool valgrind) {
+bool run_test_case_export_final_state(Test *t, List *messages, char *base_cmd, bool valgrind) {
   String_builder cmd = str_new();
   str_append(&cmd, base_cmd);
   str_append(&cmd, "\"export ");
@@ -376,7 +376,7 @@ bool run_test_case_export_final_state(Test *t, char *base_cmd, bool valgrind) {
   bool ok = run_test_execute(t->name, &cmd, &cmd_ret);
   str_free(&cmd);
   if (!ok) {
-    printf("An error occurred while exporting the state\n");
+    APPEND_TO_MESSAGES("An error occurred while exporting the state");
     return false;
   }
 
@@ -384,21 +384,27 @@ bool run_test_case_export_final_state(Test *t, char *base_cmd, bool valgrind) {
   else t->results.export_final_state.result = (cmd_ret == 0) ? RESULT_PASSED : RESULT_FAILED;
 
   if (t->results.export_final_state.result != RESULT_PASSED) {
-    printf("Exporting the state failed\n");
+    APPEND_TO_MESSAGES("Exporting the state failed");
     return false;
   }
 
   return true;
 }
 
-bool run_test_case_expected_final_state(Test *t, char *base_cmd, bool valgrind) {
+bool run_test_case_expected_final_state(Test *t, List *messages, char *base_cmd, bool valgrind) {
   (void) base_cmd;
 
   if (valgrind) return true;
 
   FILE *state_file = fopen(state.idea_export_path, "r");
   if (!state_file) {
-    printf("Unable to open the state file (%s)!\n", state.idea_export_path);
+    String_builder sb = str_new();
+    str_append(&sb, "Unable to open the state file (");
+    str_append(&sb, state.idea_export_path);
+    str_append(&sb, ")!\n");
+    APPEND_TO_MESSAGES(str_to_cstr(sb));
+    str_free(&sb);
+
     return false;
   }
 
@@ -414,7 +420,14 @@ bool run_test_case_expected_final_state(Test *t, char *base_cmd, bool valgrind) 
   FILE *exp_state_file = fopen(str_to_cstr(exp_state_path), "r");
   if (!exp_state_file) {
     fclose(state_file);
-    printf("Unable to open the expected state file (%s)!\n", str_to_cstr(exp_state_path));
+
+    String_builder sb = str_new();
+    str_append(&sb, "Unable to open the expected state file (");
+    str_append(&sb, str_to_cstr(exp_state_path));
+    str_append(&sb, ")!\n");
+    APPEND_TO_MESSAGES(str_to_cstr(sb));
+    str_free(&sb);
+
     str_free(&exp_state_path);
     return false;
   }
@@ -434,7 +447,14 @@ bool run_test_case_expected_final_state(Test *t, char *base_cmd, bool valgrind) 
     }
 
     if (comparable_line && !str_equals(line_state, line_exp_state)) {
-      printf("State differs: \n    - Actual:   %s\n    - Expected: %s\n", str_to_cstr(line_state), str_to_cstr(line_exp_state));
+      String_builder sb = str_new();
+      str_append(&sb, "State differs:\n\t- Actual:   ");
+      str_append_str(&sb, line_state);
+      str_append(&sb, "\n\t- Expected: ");
+      str_append_str(&sb, line_exp_state);
+      APPEND_TO_MESSAGES(str_to_cstr(sb));
+      str_free(&sb);
+
       break;
     }
 
@@ -457,7 +477,7 @@ bool run_test_case_expected_final_state(Test *t, char *base_cmd, bool valgrind) 
   return true;
 }
 
-bool run_test_case_clear_after_test(Test *t, char *base_cmd, bool valgrind) {
+bool run_test_case_clear_after_test(Test *t, List *messages, char *base_cmd, bool valgrind) {
   String_builder cmd = str_new();
   str_append(&cmd, base_cmd);
   str_append(&cmd, "\"clear all\"");
@@ -466,7 +486,7 @@ bool run_test_case_clear_after_test(Test *t, char *base_cmd, bool valgrind) {
   bool ok = run_test_execute(t->name, &cmd, &cmd_ret);
   str_free(&cmd);
   if (!ok) {
-    printf("An error occurred while clearing the ToDos\n");
+    APPEND_TO_MESSAGES("An error occurred while clearing the ToDos");
     return false;
   }
 
@@ -474,27 +494,27 @@ bool run_test_case_clear_after_test(Test *t, char *base_cmd, bool valgrind) {
   else t->results.clear_after_test.result = (cmd_ret == 0) ? RESULT_PASSED : RESULT_FAILED;
 
   if (t->results.clear_after_test.result != RESULT_PASSED) {
-    printf("Unable to clear all the ToDos\n");
+    APPEND_TO_MESSAGES("Unable to clear all the ToDos");
     return false;
   }
 
   return true;
 }
 
-void run_test(Test *test, bool valgrind) {
+void run_test(Test *test, List *messages, bool valgrind) {
 
   char *base_cmd = run_test_generate_base_command(valgrind);
 
   if (valgrind) {
     #define should_test(s) (test->results.s.result != RESULT_NOT_SPECIFIED && test->results.s.result != RESULT_NOT_TESTED)
-    #define X(s) if (should_test(s)) run_test_case_##s(test, base_cmd, valgrind);
+    #define X(s) if (should_test(s)) run_test_case_##s(test, messages, base_cmd, valgrind);
 
       CASES()
 
     #undef X
     #undef should_test
   } else {
-    #define X(s) if (!run_test_case_##s(test, base_cmd, valgrind)) goto exit;
+    #define X(s) if (!run_test_case_##s(test, messages, base_cmd, valgrind)) goto exit;
 
       CASES()
 
@@ -504,7 +524,7 @@ void run_test(Test *test, bool valgrind) {
 exit:
   // Try to clean the mess if something went wrong
   if (test->results.clear_after_test.result == RESULT_NOT_TESTED)
-    run_test_case_clear_after_test(test, base_cmd, false);
+    run_test_case_clear_after_test(test, messages, base_cmd, false);
 
   free(base_cmd);
 }
@@ -632,6 +652,7 @@ bool parse_args(int argc, char *argv[], int *ret) {
 
 int main(int argc, char *argv[]) {
   List tests = list_new();
+  List messages = list_new();
 
   int ret = 0;
   if (!parse_args(argc, argv, &ret)) goto exit;
@@ -668,13 +689,21 @@ int main(int argc, char *argv[]) {
   iterator = list_iterator_create(tests);
   while (list_iterator_next(&iterator)) {
     Test *test = list_iterator_element(iterator);
-    run_test(test, false);
-    if (state.valgrind) run_test(test, true);
+    run_test(test, &messages, false);
+    if (state.valgrind) run_test(test, &messages, true);
     print_results(*test, test_name_length);
+  }
+
+  if (!list_is_empty(messages)) printf(ANSI_GRAY "\n\nInformation:\n\n" ANSI_RESET);
+  iterator = list_iterator_create(messages);
+  while (list_iterator_next(&iterator)) {
+    char *message = list_iterator_element(iterator);
+    printf("%s\n", message);
   }
 
 exit:
   list_destroy(&tests, (void (*)(void *))free_test);
+  list_destroy(&messages, (void (*)(void *))free);
   free_state();
   return ret;
 }
