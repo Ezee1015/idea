@@ -18,10 +18,10 @@
 #define VALGRIND_LEAK_EXIT_CODE 255 // Some random number
 #define VALGRIND_CMD "valgrind --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all --error-exitcode=" MACRO_INT_TO_STR(VALGRIND_LEAK_EXIT_CODE)
 
-#define APPEND_TO_MESSAGES(msg) do { \
+#define APPEND_TO_MESSAGES(test, msg) do { \
     String_builder __sb = str_new(); \
     str_append(&__sb, "- " ANSI_GRAY "Test " ANSI_RESET); \
-    str_append(&__sb, t->name); \
+    str_append(&__sb, test->name); \
     str_append(&__sb, "\n  " ANSI_GRAY "failed in " ANSI_RESET); \
     str_append(&__sb, __FUNCTION__); \
     str_append(&__sb, "().\n  " ANSI_GRAY "Reason: " ANSI_RESET); \

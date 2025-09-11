@@ -314,7 +314,7 @@ bool run_test_case_import_initial_state(Test *t, List *messages, char *base_cmd,
   bool ok = run_test_execute(t->name, &cmd, &cmd_ret);
   str_free(&cmd);
   if (!ok) {
-    APPEND_TO_MESSAGES("An error occurred while importing the state");
+    APPEND_TO_MESSAGES(t, "An error occurred while importing the state");
     return false;
   }
 
@@ -322,7 +322,7 @@ bool run_test_case_import_initial_state(Test *t, List *messages, char *base_cmd,
   else t->results.import_initial_state.result = (cmd_ret == 0) ? RESULT_PASSED : RESULT_FAILED;
 
   if (t->results.import_initial_state.result != RESULT_PASSED) {
-    APPEND_TO_MESSAGES("Importing the initial state failed");
+    APPEND_TO_MESSAGES(t, "Importing the initial state failed");
     return false;
   }
 
@@ -350,7 +350,7 @@ bool run_test_case_expected_return(Test *t, List *messages, char *base_cmd, bool
   bool ok = run_test_execute(t->name, &cmd, &cmd_ret);
   str_free(&cmd);
   if (!ok) {
-    APPEND_TO_MESSAGES("An error occurred while executing the commands");
+    APPEND_TO_MESSAGES(t, "An error occurred while executing the commands");
     return false;
   }
 
@@ -358,7 +358,7 @@ bool run_test_case_expected_return(Test *t, List *messages, char *base_cmd, bool
   else t->results.expected_return.result = (cmd_ret == t->expected_return) ? RESULT_PASSED : RESULT_FAILED;
 
   if (t->results.expected_return.result != RESULT_PASSED) {
-    APPEND_TO_MESSAGES("Executing the commands failed");
+    APPEND_TO_MESSAGES(t, "Executing the commands failed");
     return false;
   }
 
@@ -376,7 +376,7 @@ bool run_test_case_export_final_state(Test *t, List *messages, char *base_cmd, b
   bool ok = run_test_execute(t->name, &cmd, &cmd_ret);
   str_free(&cmd);
   if (!ok) {
-    APPEND_TO_MESSAGES("An error occurred while exporting the state");
+    APPEND_TO_MESSAGES(t, "An error occurred while exporting the state");
     return false;
   }
 
@@ -384,7 +384,7 @@ bool run_test_case_export_final_state(Test *t, List *messages, char *base_cmd, b
   else t->results.export_final_state.result = (cmd_ret == 0) ? RESULT_PASSED : RESULT_FAILED;
 
   if (t->results.export_final_state.result != RESULT_PASSED) {
-    APPEND_TO_MESSAGES("Exporting the state failed");
+    APPEND_TO_MESSAGES(t, "Exporting the state failed");
     return false;
   }
 
@@ -402,7 +402,7 @@ bool run_test_case_expected_final_state(Test *t, List *messages, char *base_cmd,
     str_append(&sb, "Unable to open the state file (");
     str_append(&sb, state.idea_export_path);
     str_append(&sb, ")!\n");
-    APPEND_TO_MESSAGES(str_to_cstr(sb));
+    APPEND_TO_MESSAGES(t, str_to_cstr(sb));
     str_free(&sb);
 
     return false;
@@ -425,7 +425,7 @@ bool run_test_case_expected_final_state(Test *t, List *messages, char *base_cmd,
     str_append(&sb, "Unable to open the expected state file (");
     str_append(&sb, str_to_cstr(exp_state_path));
     str_append(&sb, ")!\n");
-    APPEND_TO_MESSAGES(str_to_cstr(sb));
+    APPEND_TO_MESSAGES(t, str_to_cstr(sb));
     str_free(&sb);
 
     str_free(&exp_state_path);
@@ -452,7 +452,7 @@ bool run_test_case_expected_final_state(Test *t, List *messages, char *base_cmd,
       str_append_str(&sb, line_state);
       str_append(&sb, "\n\t- Expected: ");
       str_append_str(&sb, line_exp_state);
-      APPEND_TO_MESSAGES(str_to_cstr(sb));
+      APPEND_TO_MESSAGES(t, str_to_cstr(sb));
       str_free(&sb);
 
       break;
@@ -486,7 +486,7 @@ bool run_test_case_clear_after_test(Test *t, List *messages, char *base_cmd, boo
   bool ok = run_test_execute(t->name, &cmd, &cmd_ret);
   str_free(&cmd);
   if (!ok) {
-    APPEND_TO_MESSAGES("An error occurred while clearing the ToDos");
+    APPEND_TO_MESSAGES(t, "An error occurred while clearing the ToDos");
     return false;
   }
 
@@ -494,7 +494,7 @@ bool run_test_case_clear_after_test(Test *t, List *messages, char *base_cmd, boo
   else t->results.clear_after_test.result = (cmd_ret == 0) ? RESULT_PASSED : RESULT_FAILED;
 
   if (t->results.clear_after_test.result != RESULT_PASSED) {
-    APPEND_TO_MESSAGES("Unable to clear all the ToDos");
+    APPEND_TO_MESSAGES(t, "Unable to clear all the ToDos");
     return false;
   }
 
@@ -502,6 +502,21 @@ bool run_test_case_clear_after_test(Test *t, List *messages, char *base_cmd, boo
 }
 
 void run_test(Test *test, List *messages, bool valgrind) {
+  if (valgrind) {
+    String_builder log_path = str_new();
+    str_append(&log_path, state.logs_path);
+    str_append_to_path(&log_path, test->name);
+    str_append(&log_path, ".txt");
+    FILE *log = fopen(str_to_cstr(log_path), "a");
+    str_free(&log_path);
+    if (!log) {
+      APPEND_TO_MESSAGES(test, "Unable to open the log file!");
+      return;
+    }
+
+    fprintf(log, "\n========================== VALGRIND CHECK ==========================\n\n");
+    fclose(log);
+  }
 
   char *base_cmd = run_test_generate_base_command(valgrind);
 
