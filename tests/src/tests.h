@@ -93,8 +93,8 @@ void free_test(Test *test);
 bool get_tests(List *tests);
 
 char *result_to_cstr(Case r);
-void print_results_header(unsigned int test_length);
-void print_results(Test test, unsigned int test_name_length);
+void print_results_header(FILE *output, unsigned int test_length);
+void print_results(FILE *output, Test test, unsigned int test_name_length);
 
 #define X(s) bool run_test_case_##s(Test *t, List *messages, char *base_cmd, bool valgrind);
   CASES()

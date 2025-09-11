@@ -227,7 +227,7 @@ char *result_to_cstr(Case r) {
   return NULL;
 }
 
-void print_results_header(unsigned int test_length) {
+void print_results_header(FILE *output, unsigned int test_length) {
   char *cases_name[] = {
 #define X(s) #s,
   CASES()
@@ -237,28 +237,28 @@ void print_results_header(unsigned int test_length) {
   // From https://github.com/bext-lang/b/blob/c6a21ba4c87ff1c304543c74dd910de34edad445/src/btest.rs#L228
   for (unsigned int i = 0; i < sizeof(cases_name)/sizeof(char *); i++) {
       char *test_name = cases_name[i];
-      printf("%*s", test_length + CASE_LENGTH / 2 + 1, "");
-      for (unsigned int x = 0; x < i; x++) printf("│%*s", CASE_LENGTH, "");
-      printf("┌─ ");
+      fprintf(output, "%*s", test_length + CASE_LENGTH / 2 + 1, "");
+      for (unsigned int x = 0; x < i; x++) fprintf(output, "│%*s", CASE_LENGTH, "");
+      fprintf(output, "┌─ ");
 
       // Pretty print the test case name
-      putchar(*test_name - 32); // capitalize the first letter
+      fputc(*test_name - 32, output); // capitalize the first letter
       while ( *(++test_name) != '\0' ) {
-        if (*test_name == '_') putchar(' ');
-        else putchar(*test_name);
+        if (*test_name == '_') fputc(' ', output);
+        else fputc(*test_name, output);
       }
-      putchar('\n');
+      fputc('\n', output);
   }
 }
 
-void print_results(Test test, unsigned int test_name_length) {
-  printf("%*s", test_name_length, test.name);
+void print_results(FILE *output, Test test, unsigned int test_name_length) {
+  fprintf(output, "%*s", test_name_length, test.name);
 
-#define X(s) printf(" %s", result_to_cstr(test.results.s));
+#define X(s) fprintf(output, " %s", result_to_cstr(test.results.s));
   CASES()
 #undef X
 
-  printf("\n");
+  fprintf(output, "\n");
 }
 
 char *run_test_generate_base_command(bool valgrind) {
@@ -684,14 +684,30 @@ int main(int argc, char *argv[]) {
     if (length > test_name_length) test_name_length = length;
   }
 
-  print_results_header(test_name_length);
+  FILE *log = NULL;
+  if (state.log) {
+    String_builder log_path = str_new();
+    str_append(&log_path, state.logs_path);
+    str_append_to_path(&log_path, "final_results.txt");
+    log = fopen(str_to_cstr(log_path), "w");
+    str_free(&log_path);
+    if (!log) {
+      ret = 1;
+      goto exit;
+    }
+
+    print_results_header(log, test_name_length);
+  }
+
+  print_results_header(stdout, test_name_length);
 
   iterator = list_iterator_create(tests);
   while (list_iterator_next(&iterator)) {
     Test *test = list_iterator_element(iterator);
     run_test(test, &messages, false);
     if (state.valgrind) run_test(test, &messages, true);
-    print_results(*test, test_name_length);
+    print_results(stdout, *test, test_name_length);
+    if (state.log) print_results(log, *test, test_name_length);
   }
 
   if (!list_is_empty(messages)) printf(ANSI_GRAY "\n\nInformation:\n\n" ANSI_RESET);
@@ -704,6 +720,7 @@ int main(int argc, char *argv[]) {
 exit:
   list_destroy(&tests, (void (*)(void *))free_test);
   list_destroy(&messages, (void (*)(void *))free);
+  if (log) fclose(log);
   free_state();
   return ret;
 }
