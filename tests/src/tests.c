@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 #include <sys/stat.h>
 
 #include "../../src/cli.h"
@@ -17,6 +18,7 @@ Tests_state state = {
   .idea_config_path = NULL,
   .idea_export_path = NULL,
   .idea_path = "build/idea",
+  .idea_lock_filepath = NULL,
 
   .repo_path = NULL,
 
@@ -273,15 +275,20 @@ char *run_test_generate_base_command(bool valgrind) {
   return str_to_cstr(base_cmd);
 }
 
-bool run_test_execute(char *test_name, String_builder *cmd, int *ret) {
+bool run_test_execute(Test *test, List *messages, String_builder *cmd, int *ret) {
   if (state.log) {
     String_builder log_path = str_new();
     str_append(&log_path, state.logs_path);
-    str_append_to_path(&log_path, test_name);
+    str_append_to_path(&log_path, test->name);
     str_append(&log_path, ".txt");
     FILE *log = fopen(str_to_cstr(log_path), "a");
     if (!log) {
-      // printf("Unable to open log: %s!\n", str_to_cstr(log_path));
+      String_builder sb = str_new();
+      str_append(&sb, "Unable to open log: ");
+      str_append_str(&sb, log_path);
+      APPEND_TO_MESSAGES(test, str_to_cstr(sb));
+      str_free(&sb);
+
       str_free(&log_path);
       return false;
     }
@@ -297,6 +304,15 @@ bool run_test_execute(char *test_name, String_builder *cmd, int *ret) {
   }
 
   int system_ret = system(str_to_cstr(*cmd));
+
+  if (access(state.idea_lock_filepath, F_OK) == 0) {
+    if (remove(state.idea_lock_filepath) == 0) {
+      APPEND_TO_MESSAGES(test, "The lock file was still present after the execution, it had to be removed!");
+    } else {
+      APPEND_TO_MESSAGES(test, "The lock file was still present after the execution and couldn't be removed!");
+    }
+  }
+
   if (system_ret == -1 || !WIFEXITED(system_ret)) return false;
   *ret = WEXITSTATUS(system_ret);
   return true;
@@ -311,12 +327,9 @@ bool run_test_case_import_initial_state(Test *t, List *messages, char *base_cmd,
   str_append(&cmd, ".idea\"");
 
   int cmd_ret;
-  bool ok = run_test_execute(t->name, &cmd, &cmd_ret);
+  bool ok = run_test_execute(t, messages, &cmd, &cmd_ret);
   str_free(&cmd);
-  if (!ok) {
-    APPEND_TO_MESSAGES(t, "An error occurred while importing the state");
-    return false;
-  }
+  if (!ok) return false;
 
   if (valgrind) t->results.import_initial_state.memory_leak = (cmd_ret == VALGRIND_LEAK_EXIT_CODE);
   else t->results.import_initial_state.result = (cmd_ret == 0) ? RESULT_PASSED : RESULT_FAILED;
@@ -347,12 +360,9 @@ bool run_test_case_expected_return(Test *t, List *messages, char *base_cmd, bool
   }
 
   int cmd_ret;
-  bool ok = run_test_execute(t->name, &cmd, &cmd_ret);
+  bool ok = run_test_execute(t, messages, &cmd, &cmd_ret);
   str_free(&cmd);
-  if (!ok) {
-    APPEND_TO_MESSAGES(t, "An error occurred while executing the commands");
-    return false;
-  }
+  if (!ok) return false;
 
   if (valgrind) t->results.expected_return.memory_leak = (cmd_ret == VALGRIND_LEAK_EXIT_CODE);
   else t->results.expected_return.result = (cmd_ret == t->expected_return) ? RESULT_PASSED : RESULT_FAILED;
@@ -373,12 +383,9 @@ bool run_test_case_export_final_state(Test *t, List *messages, char *base_cmd, b
   str_append(&cmd, "\" ");
 
   int cmd_ret;
-  bool ok = run_test_execute(t->name, &cmd, &cmd_ret);
+  bool ok = run_test_execute(t, messages, &cmd, &cmd_ret);
   str_free(&cmd);
-  if (!ok) {
-    APPEND_TO_MESSAGES(t, "An error occurred while exporting the state");
-    return false;
-  }
+  if (!ok) return false;
 
   if (valgrind) t->results.export_final_state.memory_leak = (cmd_ret == VALGRIND_LEAK_EXIT_CODE);
   else t->results.export_final_state.result = (cmd_ret == 0) ? RESULT_PASSED : RESULT_FAILED;
@@ -483,12 +490,9 @@ bool run_test_case_clear_after_test(Test *t, List *messages, char *base_cmd, boo
   str_append(&cmd, "\"clear all\"");
 
   int cmd_ret;
-  bool ok = run_test_execute(t->name, &cmd, &cmd_ret);
+  bool ok = run_test_execute(t, messages, &cmd, &cmd_ret);
   str_free(&cmd);
-  if (!ok) {
-    APPEND_TO_MESSAGES(t, "An error occurred while clearing the ToDos");
-    return false;
-  }
+  if (!ok) return false;
 
   if (valgrind) t->results.clear_after_test.memory_leak = (cmd_ret == VALGRIND_LEAK_EXIT_CODE);
   else t->results.clear_after_test.result = (cmd_ret == 0) ? RESULT_PASSED : RESULT_FAILED;
@@ -599,6 +603,11 @@ bool initialize_paths() {
   state.idea_export_path = strdup(str_to_cstr(path));
   str_clean(&path);
 
+  if (!str_append_from_shell_variable(&path, "TMPDIR")) return false;
+  str_append_to_path(&path, "idea.lock");
+  state.idea_lock_filepath = strdup(str_to_cstr(path));
+  str_clean(&path);
+
   str_free(&path);
   if (state.log && !initialize_and_create_log_dir()) return false;
   return true;
@@ -609,6 +618,7 @@ void free_state() {
   if (state.initial_states_path) free(state.initial_states_path);
   if (state.final_states_path) free(state.final_states_path);
   if (state.logs_path) free(state.logs_path);
+  if (state.idea_lock_filepath) free(state.idea_lock_filepath);
   if (state.idea_config_path) free(state.idea_config_path);
   if (state.idea_export_path) free(state.idea_export_path);
 }

@@ -22,9 +22,9 @@
     String_builder __sb = str_new(); \
     str_append(&__sb, "- " ANSI_GRAY "Test " ANSI_RESET); \
     str_append(&__sb, test->name); \
-    str_append(&__sb, "\n  " ANSI_GRAY "failed in " ANSI_RESET); \
+    str_append(&__sb, "\n  " ANSI_GRAY "in the function " ANSI_RESET); \
     str_append(&__sb, __FUNCTION__); \
-    str_append(&__sb, "().\n  " ANSI_GRAY "Reason: " ANSI_RESET); \
+    str_append(&__sb, "()\n  " ANSI_GRAY "added this message: " ANSI_RESET); \
     str_append(&__sb, msg); \
     str_append(&__sb, "\n"); \
     list_append(messages, str_to_cstr(__sb)); \
@@ -44,6 +44,7 @@ typedef struct {
   char *idea_config_path;
   char *idea_export_path;
   char *idea_path;
+  char *idea_lock_filepath;
 
   char *repo_path;
 
@@ -101,7 +102,7 @@ void print_results(FILE *output, Test test, unsigned int test_name_length);
 #undef X
 
 char *run_test_generate_base_command(bool valgrind);
-bool run_test_execute(char *test_name, String_builder *cmd, int *ret);
+bool run_test_execute(Test *test, List *messages, String_builder *cmd, int *ret);
 void run_test(Test *test, List *messages, bool valgrind);
 
 bool create_dir_if_not_exists(char *dir_path);
