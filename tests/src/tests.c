@@ -484,6 +484,48 @@ bool run_test_case_expected_final_state(Test *t, List *messages, char *base_cmd,
   return true;
 }
 
+bool is_dir_empty(char *path) {
+  DIR *dir = opendir(path);
+  if (!dir) return false;
+
+  int n = 0;
+  while (n <= 2 && readdir(dir)) n++;
+
+  closedir(dir);
+  return (n <= 2);
+}
+
+bool is_config_clean(Test* t, List *messages) {
+  // Check if the notes directory is empty
+  String_builder sb = str_new();
+  str_append(&sb, state.idea_config_path);
+  str_append_to_path(&sb, "notes");
+  bool notes_dir_empty = is_dir_empty(str_to_cstr(sb));
+  str_clean(&sb);
+  if (!notes_dir_empty) {
+    APPEND_TO_MESSAGES(t, "There's still notes inside the notes directory!");
+    return false;
+  }
+
+  // Check if list of ToDos is empty
+  str_append(&sb, state.idea_config_path);
+  str_append_to_path(&sb, SAVE_FILENAME);
+  FILE *todos = fopen(str_to_cstr(sb), "r");
+  str_free(&sb);
+  if (!todos) {
+    APPEND_TO_MESSAGES(t, "Unable to open the ToDo list to see if it's empty");
+    return false;
+  }
+  unsigned int elements = list_peek_element_count_from_bfile(todos);
+  fclose(todos);
+  if (elements != 0) {
+    APPEND_TO_MESSAGES(t, "There's still elements inside the ToDo list file");
+    return false;
+  }
+
+  return true;
+}
+
 bool run_test_case_clear_after_test(Test *t, List *messages, char *base_cmd, bool valgrind) {
   String_builder cmd = str_new();
   str_append(&cmd, base_cmd);
@@ -493,6 +535,11 @@ bool run_test_case_clear_after_test(Test *t, List *messages, char *base_cmd, boo
   bool ok = run_test_execute(t, messages, &cmd, &cmd_ret);
   str_free(&cmd);
   if (!ok) return false;
+
+  if (!is_config_clean(t, messages)) {
+    t->results.clear_after_test.result = RESULT_FAILED;
+    return false;
+  }
 
   if (valgrind) t->results.clear_after_test.memory_leak = (cmd_ret == VALGRIND_LEAK_EXIT_CODE);
   else t->results.clear_after_test.result = (cmd_ret == 0) ? RESULT_PASSED : RESULT_FAILED;
