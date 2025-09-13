@@ -46,6 +46,8 @@ bool list_save_to_bfile(List list, bool (*save_element_to_bfile)(FILE *, void *)
 
 bool list_load_from_bfile(List *list, void *(*read_element_from_bfile)(FILE *), FILE *file);
 
+unsigned int list_peek_element_count_from_bfile(FILE *file);
+
 List_iterator list_iterator_create(List list);
 
 bool list_iterator_finished(List_iterator iterator);

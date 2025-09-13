@@ -125,6 +125,16 @@ bool list_load_from_bfile(List *list, void *(*read_element_from_bfile)(FILE *), 
   return true;
 }
 
+unsigned int list_peek_element_count_from_bfile(FILE *file) {
+  if (!file) abort();
+
+  unsigned int elements;
+  if (!fread(&elements, sizeof(unsigned int), 1, file)) return -1;
+  if (fseek(file, -1 * sizeof(unsigned int), SEEK_CUR)) return -1;
+
+  return elements;
+}
+
 List_iterator list_iterator_create(List list) {
   return (List_iterator){
     .current = NULL,
