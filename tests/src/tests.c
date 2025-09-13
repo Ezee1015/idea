@@ -725,6 +725,7 @@ bool parse_args(int argc, char *argv[], int *ret) {
 int main(int argc, char *argv[]) {
   List tests = list_new();
   List messages = list_new();
+  FILE *log = NULL;
 
   int ret = 0;
   if (!parse_args(argc, argv, &ret)) goto exit;
@@ -756,7 +757,6 @@ int main(int argc, char *argv[]) {
     if (length > test_name_length) test_name_length = length;
   }
 
-  FILE *log = NULL;
   if (state.log) {
     String_builder log_path = str_new();
     str_append(&log_path, state.logs_path);
