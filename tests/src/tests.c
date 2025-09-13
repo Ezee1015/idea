@@ -553,7 +553,7 @@ bool run_test_case_clear_after_test(Test *t, List *messages, char *base_cmd, boo
 }
 
 void run_test(Test *test, List *messages, bool valgrind) {
-  if (valgrind) {
+  if (state.log && valgrind) {
     String_builder log_path = str_new();
     str_append(&log_path, state.logs_path);
     str_append_to_path(&log_path, test->name);
