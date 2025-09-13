@@ -225,6 +225,9 @@ char *result_to_cstr(Case r) {
       return (r.memory_leak)
              ? ANSI_RED CASE_LEAK   ANSI_RESET
              : ANSI_RED CASE_FAILED ANSI_RESET;
+
+    case RESULT_COUNT:
+      abort();
   }
   return NULL;
 }
@@ -261,6 +264,49 @@ void print_results(FILE *output, Test test, unsigned int test_name_length) {
 #undef X
 
   fprintf(output, "\n");
+}
+
+void collect_statistics(Statistics *stats, Test *t) {
+#define X(s) do { \
+    stats->count++; \
+    stats->results[t->results.s.result]++; \
+    if (t->results.s.memory_leak) { \
+      switch (t->results.s.result) { \
+        case RESULT_FAILED: stats->bad_mem_leaks++;  break; \
+        case RESULT_PASSED: stats->good_mem_leaks++; break; \
+        default: abort(); \
+      } \
+    } \
+  } while (0);
+
+  CASES()
+
+#undef X
+}
+
+void print_statistics(Statistics stats) {
+  printf(ANSI_GRAY"\nStatistics: " ANSI_RESET "%d test cases\n", stats.count);
+
+  for (int i=0; i<RESULT_COUNT; i++) {
+    Case c = { .result = i };
+    if (stats.results[i]) {
+      printf("  - %s %d test cases ", result_to_cstr(c), stats.results[i]);
+      switch ((Result_type) i) {
+        case RESULT_NOT_TESTED:    printf("could not be tested\n"); break;
+        case RESULT_FAILED:        printf("failed\n"); break;
+        case RESULT_PASSED:        printf("passed\n"); break;
+        case RESULT_NOT_SPECIFIED: printf("were not specified to be run\n"); break;
+        case RESULT_COUNT:         abort();
+      }
+    }
+  }
+
+  putchar('\n');
+  if (stats.good_mem_leaks)
+    printf("  - " ANSI_YELLOW CASE_LEAK ANSI_RESET " %d test cases finished with memory leaks, but still passed the test case\n", stats.good_mem_leaks);
+
+  if (stats.bad_mem_leaks)
+    printf("  - " ANSI_RED CASE_LEAK ANSI_RESET " %d test cases finished with memory leaks and failed the test case\n", stats.bad_mem_leaks);
 }
 
 char *run_test_generate_base_command(bool valgrind) {
@@ -773,6 +819,8 @@ int main(int argc, char *argv[]) {
 
   print_results_header(stdout, test_name_length);
 
+  Statistics stats = {0};
+
   iterator = list_iterator_create(tests);
   while (list_iterator_next(&iterator)) {
     Test *test = list_iterator_element(iterator);
@@ -780,9 +828,12 @@ int main(int argc, char *argv[]) {
     if (state.valgrind) run_test(test, &messages, true);
     print_results(stdout, *test, test_name_length);
     if (state.log) print_results(log, *test, test_name_length);
+    collect_statistics(&stats, test);
   }
 
-  if (!list_is_empty(messages)) printf(ANSI_GRAY "\n\nInformation:\n\n" ANSI_RESET);
+  print_statistics(stats);
+
+  if (!list_is_empty(messages)) printf(ANSI_GRAY "\nInformation:\n\n" ANSI_RESET);
   iterator = list_iterator_create(messages);
   while (list_iterator_next(&iterator)) {
     char *message = list_iterator_element(iterator);

@@ -62,7 +62,15 @@ typedef enum {
   RESULT_FAILED,
   RESULT_PASSED,
   RESULT_NOT_SPECIFIED,
+  RESULT_COUNT
 } Result_type;
+
+typedef struct {
+  unsigned int count;
+  unsigned int results[RESULT_COUNT];
+  unsigned int good_mem_leaks;
+  unsigned int bad_mem_leaks;
+} Statistics;
 
 typedef struct {
   Result_type result;
