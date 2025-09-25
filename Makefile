@@ -40,7 +40,3 @@ $(TESTS_EXEC): $(TESTS_CFILES)
 .PHONY = test
 test: $(TESTS_EXEC) $(IDEA_EXEC)
 	./$(TESTS_EXEC)
-
-.PHONY = test_log
-test_log: $(TESTS_EXEC) $(IDEA_EXEC)
-	./$(TESTS_EXEC) -l
