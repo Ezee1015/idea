@@ -114,26 +114,46 @@ void free_paths() {
 }
 
 int main(int argc, char *argv[]) {
-  int ret;
-  if (!load_paths()) { ret = 1; goto exit; }
-  if (!lock_file())  { ret = 1; goto exit; }
-  if (!load_file())  { ret = 1; goto exit; }
+  enum {
+    RET_CODE_SUCCESS,
+    RET_CODE_PATH_ERROR,
+    RET_CODE_LOCK_ERROR,
+    RET_CODE_LOAD_FILE_ERROR,
+    RET_CODE_SAVE_FILE_ERROR,
+    RET_CODE_UNLOCK_ERROR,
+    RET_CODE_TUI_ERROR,
+    RET_CODE_CLI_ERROR,
+  } ret;
 
-  if (argc == 1) {
-    // TUI Version
-    ret = window_app();
+  if (!load_paths()) {
+    free_paths();
+    return RET_CODE_PATH_ERROR;
+  }
+
+  if (!lock_file())  {
+    free_paths();
+    return RET_CODE_LOCK_ERROR;
+  }
+
+  if (load_file()) {
+    if (argc == 1) {
+      // TUI Version
+      ret = (window_app()) ? RET_CODE_SUCCESS : RET_CODE_TUI_ERROR;
+    } else {
+      // CLI Version
+      argv++; argc--;
+      ret = (parse_commands_cli(argv, argc)) ? RET_CODE_SUCCESS : RET_CODE_CLI_ERROR;
+    }
   } else {
-    // CLI Version
-    argv++; argc--;
-    ret = (parse_commands_cli(argv, argc)) ? 0 : 1;
+    ret = RET_CODE_LOAD_FILE_ERROR;
   }
 
-
-exit:
-  if (todo_list_modified && ret == 0) {
-    if (!save_file()) ret = 1;
+  if (ret == RET_CODE_SUCCESS && todo_list_modified) {
+    if (!save_file()) ret = RET_CODE_SAVE_FILE_ERROR;
   }
-  if (!unlock_file()) ret = 1;
+
+  if (!unlock_file()) ret = RET_CODE_UNLOCK_ERROR;
+
   list_destroy(&todo_list, (void (*)(void *))free_todo);
   free_paths();
   return ret;

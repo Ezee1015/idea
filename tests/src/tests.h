@@ -29,15 +29,15 @@
     list_append(messages, str_to_cstr(str_create(                    \
             "- " ANSI_GRAY "Test" ANSI_RESET " %s\n"                 \
             "  " ANSI_GRAY "in the function" ANSI_RESET " %s()\n"    \
-            "  " ANSI_GRAY "added this message:" ANSI_RESET " %s\n", \
-            test->name, __FUNCTION__, fmt, __VA_ARGS__ )));
+            "  " ANSI_GRAY "added this message: " ANSI_RESET fmt "\n", \
+            test->name, __FUNCTION__, __VA_ARGS__ )));
 
 // X macro. References:
 // - https://www.youtube.com/watch?v=PgDqBZFir1A
 // - https://en.wikipedia.org/wiki/X_macro
 #define CASES() \
   X(import_initial_state) \
-  X(expected_return) \
+  X(execution) \
   X(export_final_state) \
   X(expected_final_state) \
   X(clear_after_test)
@@ -91,7 +91,7 @@ typedef struct {
 
   List instructions;
 
-  int expected_return;
+  bool should_fail_execution;
   bool expect_state_unchanged;
 
   Test_result results;

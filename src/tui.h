@@ -16,6 +16,6 @@ typedef struct {
 void message(char *title, char *msg);
 
 void draw_window(void);
-int window_app(void);
+bool window_app(void);
 
 #endif // TUI_H

@@ -143,7 +143,7 @@ bool get_tests(List *tests) {
 
       list_append(&test->instructions, next_token(&input_line, 0));
 
-    } else if (!strcmp(tag, "return:")) {
+    } else if (!strcmp(tag, "should_fail")) {
       free(tag);
 
       if (!test) {
@@ -152,10 +152,14 @@ bool get_tests(List *tests) {
         goto exit;
       }
 
-      char *return_value_str = next_token(&input_line, 0);
-      test->expected_return = atoi(return_value_str);
-      if (test->expected_return) test->expect_state_unchanged = true;
-      free(return_value_str);
+      if (test->should_fail_execution) {
+        printf("%s:%d: [ERROR] Should fail already provided!\n", state.tests_filepath, line_nr);
+        ret = false;
+        goto exit;
+      }
+
+      test->should_fail_execution = true;
+      test->expect_state_unchanged = true;
 
     } else if (!strcmp(tag, "state_unchanged")) {
       free(tag);
@@ -369,9 +373,9 @@ bool run_test_case_import_initial_state(Test *t, List *messages, char *base_cmd,
   return true;
 }
 
-bool run_test_case_expected_return(Test *t, List *messages, char *base_cmd, bool valgrind) {
+bool run_test_case_execution(Test *t, List *messages, char *base_cmd, bool valgrind) {
   if (list_is_empty(t->instructions)) {
-      t->results.expected_return.result = RESULT_NOT_SPECIFIED;
+      t->results.execution.result = RESULT_NOT_SPECIFIED;
       return true;
   }
 
@@ -387,10 +391,14 @@ bool run_test_case_expected_return(Test *t, List *messages, char *base_cmd, bool
   str_free(&cmd);
   if (!ok) return false;
 
-  if (valgrind) t->results.expected_return.memory_leak = (cmd_ret == VALGRIND_LEAK_EXIT_CODE);
-  else t->results.expected_return.result = (cmd_ret == t->expected_return) ? RESULT_PASSED : RESULT_FAILED;
+  if (valgrind) {
+    t->results.execution.memory_leak = (cmd_ret == VALGRIND_LEAK_EXIT_CODE);
+  } else {
+    bool expected_return = (!t->should_fail_execution) ? (cmd_ret == 0) : (cmd_ret != 0);
+    t->results.execution.result = (expected_return) ? RESULT_PASSED : RESULT_FAILED;
+  }
 
-  if (t->results.expected_return.result != RESULT_PASSED) {
+  if (t->results.execution.result != RESULT_PASSED) {
     APPEND_TO_MESSAGES(t, "Executing the commands failed");
     return false;
   }

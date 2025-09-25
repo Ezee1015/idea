@@ -37,7 +37,7 @@ void message(char *title, char *msg) {
   draw_window();
 }
 
-int window_app(void) {
+bool window_app(void) {
   WINDOW *win = initscr();
   curs_set(0);
 
@@ -96,7 +96,7 @@ int window_app(void) {
             if (action_return.message && strcmp(action_return.message, ""))
               message("ERROR. Aborting...", action_return.message);
             endwin();
-            return 1;
+            return false;
         }
       }
 
@@ -109,5 +109,5 @@ int window_app(void) {
     if (ret != OK && ret != KEY_RESIZE) abort();
   } while ( strcmp(input, "q") );
 
-  return (endwin() == ERR);
+  return (endwin() != ERR);
 }
