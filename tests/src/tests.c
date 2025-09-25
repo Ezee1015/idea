@@ -310,40 +310,27 @@ void print_statistics(Statistics stats) {
 }
 
 char *run_test_generate_base_command(bool valgrind) {
-  String_builder base_cmd = str_new();
-  str_append(&base_cmd, "IDEA_CONFIG_PATH=\"");
-  str_append(&base_cmd, state.idea_config_path);
-  str_append(&base_cmd, "\" ");
-  if (valgrind) str_append(&base_cmd, VALGRIND_CMD " ");
-  str_append(&base_cmd, state.repo_path);
-  str_append_to_path(&base_cmd, state.idea_path);
-  str_append(&base_cmd, " ");
+  String_builder base_cmd = str_create("IDEA_CONFIG_PATH=\"%s\" %s %s/%s",
+                                       state.idea_config_path,
+                                       (valgrind) ? VALGRIND_CMD : "",
+                                       state.repo_path,
+                                       state.idea_path);
   return str_to_cstr(base_cmd);
 }
 
 bool run_test_execute(Test *test, List *messages, String_builder *cmd, int *ret) {
   if (state.log) {
-    String_builder log_path = str_new();
-    str_append(&log_path, state.logs_path);
-    str_append_to_path(&log_path, test->name);
-    str_append(&log_path, ".txt");
+    String_builder log_path = str_create("%s/%s.txt", state.logs_path, test->name);
     FILE *log = fopen(str_to_cstr(log_path), "a");
     if (!log) {
-      String_builder sb = str_new();
-      str_append(&sb, "Unable to open log: ");
-      str_append_str(&sb, log_path);
-      APPEND_TO_MESSAGES(test, str_to_cstr(sb));
-      str_free(&sb);
-
+      APPEND_WITH_FORMAT_TO_MESSAGES(test, "Unable to open log: %s", str_to_cstr(log_path));
       str_free(&log_path);
       return false;
     }
     fprintf(log, "-----> Running: %s\n", str_to_cstr(*cmd));
     fclose(log);
 
-    str_append(cmd, " >> \"");
-    str_append_str(cmd, log_path);
-    str_append(cmd, "\" 2>&1");
+    str_append_with_format(cmd, " >> \"%s\" 2>&1", str_to_cstr(log_path));
     str_free(&log_path);
   } else {
     str_append(cmd, " > /dev/null 2>&1");
@@ -365,13 +352,7 @@ bool run_test_execute(Test *test, List *messages, String_builder *cmd, int *ret)
 }
 
 bool run_test_case_import_initial_state(Test *t, List *messages, char *base_cmd, bool valgrind) {
-  String_builder cmd = str_new();
-  str_append(&cmd, base_cmd);
-  str_append(&cmd, "\"import_no_diff ");
-  str_append(&cmd, state.initial_states_path);
-  str_append_to_path(&cmd, t->state);
-  str_append(&cmd, ".idea\"");
-
+  String_builder cmd = str_create("%s \"import_no_diff %s/%s.idea\"", base_cmd, state.initial_states_path, t->state);
   int cmd_ret;
   bool ok = run_test_execute(t, messages, &cmd, &cmd_ret);
   str_free(&cmd);
@@ -394,15 +375,11 @@ bool run_test_case_expected_return(Test *t, List *messages, char *base_cmd, bool
       return true;
   }
 
-  String_builder cmd = str_new();
+  String_builder cmd = str_create("%s", base_cmd);
   List_iterator iterator = list_iterator_create(t->instructions);
-  str_append(&cmd, base_cmd);
   while (list_iterator_next(&iterator)) {
     char *instruction = list_iterator_element(iterator);
-
-    str_append(&cmd, "\"");
-    str_append(&cmd, instruction);
-    str_append(&cmd, "\" ");
+    str_append_with_format(&cmd, " \"%s\"", instruction);
   }
 
   int cmd_ret;
@@ -422,11 +399,7 @@ bool run_test_case_expected_return(Test *t, List *messages, char *base_cmd, bool
 }
 
 bool run_test_case_export_final_state(Test *t, List *messages, char *base_cmd, bool valgrind) {
-  String_builder cmd = str_new();
-  str_append(&cmd, base_cmd);
-  str_append(&cmd, "\"export ");
-  str_append(&cmd, state.idea_export_path);
-  str_append(&cmd, "\" ");
+  String_builder cmd = str_create("%s \"export %s\"", base_cmd, state.idea_export_path);
 
   int cmd_ret;
   bool ok = run_test_execute(t, messages, &cmd, &cmd_ret);
@@ -451,36 +424,17 @@ bool run_test_case_expected_final_state(Test *t, List *messages, char *base_cmd,
 
   FILE *state_file = fopen(state.idea_export_path, "r");
   if (!state_file) {
-    String_builder sb = str_new();
-    str_append(&sb, "Unable to open the state file (");
-    str_append(&sb, state.idea_export_path);
-    str_append(&sb, ")!\n");
-    APPEND_TO_MESSAGES(t, str_to_cstr(sb));
-    str_free(&sb);
-
+    APPEND_WITH_FORMAT_TO_MESSAGES(t, "Unable to open the state file (%s)!", state.idea_export_path);
     return false;
   }
 
-  String_builder exp_state_path = str_new();
-  if (t->expect_state_unchanged) {
-    str_append(&exp_state_path, state.initial_states_path);
-    str_append_to_path(&exp_state_path, t->state);
-  } else {
-    str_append(&exp_state_path, state.final_states_path);
-    str_append_to_path(&exp_state_path, t->name);
-  }
-  str_append(&exp_state_path, ".idea");
+  String_builder exp_state_path = (t->expect_state_unchanged)
+                                  ? str_create("%s/%s.idea", state.initial_states_path, t->state)
+                                  : str_create("%s/%s.idea", state.final_states_path, t->name);
   FILE *exp_state_file = fopen(str_to_cstr(exp_state_path), "r");
   if (!exp_state_file) {
     fclose(state_file);
-
-    String_builder sb = str_new();
-    str_append(&sb, "Unable to open the expected state file (");
-    str_append(&sb, str_to_cstr(exp_state_path));
-    str_append(&sb, ")!\n");
-    APPEND_TO_MESSAGES(t, str_to_cstr(sb));
-    str_free(&sb);
-
+    APPEND_WITH_FORMAT_TO_MESSAGES(t, "Unable to open the expected state file (%s)!", str_to_cstr(exp_state_path));
     str_free(&exp_state_path);
     return false;
   }
@@ -500,14 +454,7 @@ bool run_test_case_expected_final_state(Test *t, List *messages, char *base_cmd,
     }
 
     if (comparable_line && !str_equals(line_state, line_exp_state)) {
-      String_builder sb = str_new();
-      str_append(&sb, "State differs:\n\t- Actual:   ");
-      str_append_str(&sb, line_state);
-      str_append(&sb, "\n\t- Expected: ");
-      str_append_str(&sb, line_exp_state);
-      APPEND_TO_MESSAGES(t, str_to_cstr(sb));
-      str_free(&sb);
-
+      APPEND_WITH_FORMAT_TO_MESSAGES(t, "State differs:\n\t- Actual:   %s\n\t- Expected: %s", line_state, line_exp_state);
       break;
     }
 
@@ -543,19 +490,16 @@ bool is_dir_empty(char *path) {
 
 bool is_config_clean(Test* t, List *messages) {
   // Check if the notes directory is empty
-  String_builder sb = str_new();
-  str_append(&sb, state.idea_config_path);
-  str_append_to_path(&sb, "notes");
+  String_builder sb = str_create("%s/notes", state.idea_config_path);
   bool notes_dir_empty = is_dir_empty(str_to_cstr(sb));
-  str_clean(&sb);
+  str_free(&sb);
   if (!notes_dir_empty) {
     APPEND_TO_MESSAGES(t, "There's still notes inside the notes directory!");
     return false;
   }
 
   // Check if list of ToDos is empty
-  str_append(&sb, state.idea_config_path);
-  str_append_to_path(&sb, SAVE_FILENAME);
+  sb = str_create("%s/" SAVE_FILENAME, state.idea_config_path);
   FILE *todos = fopen(str_to_cstr(sb), "r");
   str_free(&sb);
   if (!todos) {
@@ -573,9 +517,7 @@ bool is_config_clean(Test* t, List *messages) {
 }
 
 bool run_test_case_clear_after_test(Test *t, List *messages, char *base_cmd, bool valgrind) {
-  String_builder cmd = str_new();
-  str_append(&cmd, base_cmd);
-  str_append(&cmd, "\"clear all\"");
+  String_builder cmd = str_create("%s \"clear all\"", base_cmd);
 
   int cmd_ret;
   bool ok = run_test_execute(t, messages, &cmd, &cmd_ret);
@@ -600,10 +542,7 @@ bool run_test_case_clear_after_test(Test *t, List *messages, char *base_cmd, boo
 
 void run_test(Test *test, List *messages, bool valgrind) {
   if (state.log && valgrind) {
-    String_builder log_path = str_new();
-    str_append(&log_path, state.logs_path);
-    str_append_to_path(&log_path, test->name);
-    str_append(&log_path, ".txt");
+    String_builder log_path = str_create("%s/%s.txt", state.logs_path, test->name);
     FILE *log = fopen(str_to_cstr(log_path), "a");
     str_free(&log_path);
     if (!log) {
@@ -642,66 +581,39 @@ exit:
 }
 
 bool initialize_and_create_log_dir() {
-  String_builder path = str_new();
-  str_append(&path, state.repo_path);
-  str_append_to_path(&path, "tests/logs");
-  if (!create_dir_if_not_exists(str_to_cstr(path))) return false;
-
   time_t t = time(NULL);
   struct tm *tm = localtime(&t);
 
-  str_append_to_path(&path, "");
-  str_append_uint(&path, tm->tm_year+1900);
-  str_append(&path, "-");
-  str_append_uint(&path, tm->tm_mon+1);
-  str_append(&path, "-");
-  str_append_uint(&path, tm->tm_mday);
-  str_append(&path, " ");
-  str_append_uint(&path, tm->tm_hour);
-  str_append(&path, ":");
-  str_append_uint(&path, tm->tm_min);
-  str_append(&path, ":");
-  str_append_uint(&path, tm->tm_sec);
+  String_builder path = str_create("%s/tests/logs", state.repo_path);
+  if (!create_dir_if_not_exists(str_to_cstr(path))) return false;
+
+  str_append_with_format(&path, "/%u-%u-%u %u:%u:%u",
+                                tm->tm_year+1900,
+                                tm->tm_mon+1,
+                                tm->tm_mday,
+                                tm->tm_hour,
+                                tm->tm_min,
+                                tm->tm_sec);
 
   state.logs_path = str_to_cstr(path);
   return create_dir_if_not_exists(str_to_cstr(path));
 }
 
 bool initialize_paths() {
-  if (!state.repo_path) state.repo_path = "./";
+  String_builder tmp = str_new();
+  if (!str_append_from_shell_variable(&tmp, "TMPDIR")) return false;
+  char *tmp_path = str_to_cstr(tmp);
 
-  String_builder path = str_new();
-  str_append(&path, state.repo_path);
-  str_append_to_path(&path, "tests/tests");
-  state.tests_filepath = strdup(str_to_cstr(path));
-  str_clean(&path);
+  if (!state.repo_path) state.repo_path = ".";
 
-  str_append(&path, state.repo_path);
-  str_append_to_path(&path, "tests/states/initial");
-  state.initial_states_path = strdup(str_to_cstr(path));
-  str_clean(&path);
+  state.tests_filepath      = str_to_cstr(str_create("%s/tests/tests", state.repo_path));
+  state.initial_states_path = str_to_cstr(str_create("%s/tests/states/initial", state.repo_path));
+  state.final_states_path   = str_to_cstr(str_create("%s/tests/states/final", state.repo_path));
+  state.idea_config_path    = str_to_cstr(str_create("%s/idea_tests", tmp_path));
+  state.idea_export_path    = str_to_cstr(str_create("%s/idea_tests_export.idea", tmp_path));
+  state.idea_lock_filepath  = str_to_cstr(str_create("%s/idea.lock", tmp_path));
 
-  str_append(&path, state.repo_path);
-  str_append_to_path(&path, "tests/states/final");
-  state.final_states_path = strdup(str_to_cstr(path));
-  str_clean(&path);
-
-  if (!str_append_from_shell_variable(&path, "TMPDIR")) return false;
-  str_append_to_path(&path, "idea_tests");
-  state.idea_config_path = strdup(str_to_cstr(path));
-  str_clean(&path);
-
-  if (!str_append_from_shell_variable(&path, "TMPDIR")) return false;
-  str_append_to_path(&path, "idea_tests_export.idea");
-  state.idea_export_path = strdup(str_to_cstr(path));
-  str_clean(&path);
-
-  if (!str_append_from_shell_variable(&path, "TMPDIR")) return false;
-  str_append_to_path(&path, "idea.lock");
-  state.idea_lock_filepath = strdup(str_to_cstr(path));
-  str_clean(&path);
-
-  str_free(&path);
+  str_free(&tmp);
   if (state.log && !initialize_and_create_log_dir()) return false;
   return true;
 }
@@ -756,6 +668,11 @@ bool parse_args(int argc, char *argv[], int *ret) {
       }
 
       state.repo_path = argv[++i];
+      if (state.repo_path[strlen(state.repo_path)-1] == '/') {
+        printf("ERROR: Paths to directories should not end with '/'\n");
+        *ret = 1;
+        return false;
+      }
 
     } else {
       printf("Unrecognized arg (%dº): %s\n", i, argv[i]);
@@ -804,9 +721,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (state.log) {
-    String_builder log_path = str_new();
-    str_append(&log_path, state.logs_path);
-    str_append_to_path(&log_path, "final_results.txt");
+    String_builder log_path = str_create("%s/final_results.txt", state.logs_path);
     log = fopen(str_to_cstr(log_path), "w");
     str_free(&log_path);
     if (!log) {

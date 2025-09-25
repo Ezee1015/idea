@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "string.h"
 
@@ -37,8 +38,57 @@ void _str_append(String_builder *str, const char *cstr, unsigned int cstr_length
   unsigned int new_length = str->len + cstr_length;
   _str_resize_if_necessary(str, new_length);
 
-  strcat(str->s, cstr);
+  strcpy(str->s + str->len, cstr);
   str->len = new_length;
+}
+
+void _str_append_fmt(String_builder *sb, const char *fmt, va_list args) {
+  unsigned int i = 0;
+  bool finished = false;
+  while (!finished) {
+    switch (fmt[i]){
+      case '%':
+        switch (fmt[i+1]) {
+          case '\0': finished = true; break;
+          case '%': str_append(sb, "%"); break;
+          case 'u': str_append_uint(sb, va_arg(args, unsigned int)); break;
+          case 's': str_append(sb, va_arg(args, char *)); break;
+          case 'd': str_append_int(sb, va_arg(args, int)); break;
+          case 'l': // %ld
+            if (fmt[i+2] != 'd') abort();
+            str_append_long(sb, va_arg(args, long));
+            i++;
+            break;
+
+          default: abort();
+        }
+        i++;
+        break;
+
+      case '\0': finished = true; break;
+
+      default: str_append(sb, (char[2]){fmt[i], '\0'}); break;
+    }
+    i++;
+  }
+}
+
+String_builder str_create(const char *fmt, ...) {
+  String_builder sb = str_new();
+
+  va_list args;
+  va_start(args, fmt);
+  _str_append_fmt(&sb, fmt, args);
+  va_end(args);
+
+  return sb;
+}
+
+void str_append_with_format(String_builder *sb, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  _str_append_fmt(sb, fmt, args);
+  va_end(args);
 }
 
 bool str_append_from_shell_variable(String_builder *str, const char *variable) {
@@ -67,19 +117,49 @@ void str_append_c(String_builder *str, char c) {
   _str_append(str, cstr, 1);
 }
 
+void str_append_int(String_builder *str, int n) {
+  unsigned int n_length = (n <= 0) ? 1 : 0;
+  int aux = (n > 0) ? n : -1 * n;
+  while (aux > 0) {
+    aux /= 10;
+    n_length++;
+  }
+
+  unsigned int new_length = str->len + n_length;
+  _str_resize_if_necessary(str, new_length);
+
+  sprintf(str->s + str->len, "%d", n);
+  str->len = new_length;
+}
+
+void str_append_long(String_builder *str, long n) {
+  unsigned int n_length = (n <= 0) ? 1 : 0;
+  long aux = (n > 0) ? n : -1 * n;
+  while (aux > 0) {
+    aux /= 10;
+    n_length++;
+  }
+
+  unsigned int new_length = str->len + n_length;
+  _str_resize_if_necessary(str, new_length);
+
+  sprintf(str->s + str->len, "%ld", n);
+  str->len = new_length;
+}
+
 void str_append_uint(String_builder *str, unsigned int n) {
-  unsigned int n_cstr_size = (!n) ? 1 : 0;
+  unsigned int n_length = (n == 0) ? 1 : 0;
   unsigned int aux = n;
   while (aux > 0) {
     aux /= 10;
-    n_cstr_size++;
+    n_length++;
   }
 
-  char *n_cstr = malloc(n_cstr_size+1);
-  if (!n_cstr) abort();
-  sprintf(n_cstr, "%d", n);
-  _str_append(str, n_cstr, n_cstr_size);
-  free(n_cstr);
+  unsigned int new_length = str->len + n_length;
+  _str_resize_if_necessary(str, new_length);
+
+  sprintf(str->s + str->len, "%u", n);
+  str->len = new_length;
 }
 
 void str_replace(String_builder *str, unsigned int index, const char *replace_cstr) {

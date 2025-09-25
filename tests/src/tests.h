@@ -18,17 +18,19 @@
 #define VALGRIND_LEAK_EXIT_CODE 255 // Some random number
 #define VALGRIND_CMD "valgrind --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all --error-exitcode=" MACRO_INT_TO_STR(VALGRIND_LEAK_EXIT_CODE)
 
-#define APPEND_TO_MESSAGES(test, msg) do { \
-    String_builder __sb = str_new(); \
-    str_append(&__sb, "- " ANSI_GRAY "Test " ANSI_RESET); \
-    str_append(&__sb, test->name); \
-    str_append(&__sb, "\n  " ANSI_GRAY "in the function " ANSI_RESET); \
-    str_append(&__sb, __FUNCTION__); \
-    str_append(&__sb, "()\n  " ANSI_GRAY "added this message: " ANSI_RESET); \
-    str_append(&__sb, msg); \
-    str_append(&__sb, "\n"); \
-    list_append(messages, str_to_cstr(__sb)); \
-  } while (0);
+#define APPEND_TO_MESSAGES(test, msg) \
+    list_append(messages, str_to_cstr(str_create(                    \
+            "- " ANSI_GRAY "Test" ANSI_RESET " %s\n"                 \
+            "  " ANSI_GRAY "in the function" ANSI_RESET " %s()\n"    \
+            "  " ANSI_GRAY "added this message:" ANSI_RESET " %s\n", \
+            test->name, __FUNCTION__, msg )));
+
+#define APPEND_WITH_FORMAT_TO_MESSAGES(test, fmt, ...) \
+    list_append(messages, str_to_cstr(str_create(                    \
+            "- " ANSI_GRAY "Test" ANSI_RESET " %s\n"                 \
+            "  " ANSI_GRAY "in the function" ANSI_RESET " %s()\n"    \
+            "  " ANSI_GRAY "added this message:" ANSI_RESET " %s\n", \
+            test->name, __FUNCTION__, fmt, __VA_ARGS__ )));
 
 // X macro. References:
 // - https://www.youtube.com/watch?v=PgDqBZFir1A

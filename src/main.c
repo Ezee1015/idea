@@ -79,26 +79,28 @@ bool parse_commands_cli(char *commands[], int count) {
 bool load_paths() {
   String_builder sb = str_new();
   if (!str_append_from_shell_variable(&sb, "TMPDIR")) return false;
-  idea_state.tmp_path = strdup(str_to_cstr(sb));
+  idea_state.tmp_path = str_to_cstr(sb);
 
-  str_append_to_path(&sb, BACKUP_NAME);
-  idea_state.backup_filepath = strdup(str_to_cstr(sb));
-  str_clean(&sb);
+  sb = str_create("%s/" BACKUP_NAME, idea_state.tmp_path);
+  idea_state.backup_filepath = str_to_cstr(sb);
 
-  str_append(&sb, idea_state.tmp_path);
-  str_append_to_path(&sb, LOCK_FILENAME);
-  idea_state.lock_filepath = strdup(str_to_cstr(sb));
-  str_clean(&sb);
+  sb = str_create("%s/" LOCK_FILENAME, idea_state.tmp_path);
+  idea_state.lock_filepath = str_to_cstr(sb);
 
-  if (!str_append_from_shell_variable(&sb, "IDEA_CONFIG_PATH")) {
+  sb = str_new();
+  if (str_append_from_shell_variable(&sb, "IDEA_CONFIG_PATH")) {
+    if (str_to_cstr(sb)[str_length(sb)-1] == '/') {
+      printf("IDEA_CONFIG_PATH can't end with '/'\n");
+      return false;
+    }
+  } else {
     if (!str_append_from_shell_variable(&sb, "HOME")) return false;
-    str_append_to_path(&sb, CONFIG_PATH);
+    str_append(&sb, "/" CONFIG_PATH);
   }
-  idea_state.config_path = strdup(str_to_cstr(sb));
+  idea_state.config_path = str_to_cstr(sb);
 
-  str_append_to_path(&sb, NOTES_FOLDER);
-  idea_state.notes_path = strdup(str_to_cstr(sb));
-  str_free(&sb);
+  sb = str_create("%s/" NOTES_DIRNAME, idea_state.config_path);
+  idea_state.notes_path = str_to_cstr(sb);
 
   return true;
 }

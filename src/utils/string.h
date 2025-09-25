@@ -21,12 +21,18 @@ void str_append_to_path(String_builder *str, char *rel_path);
 
 void str_append(String_builder *str, const char *cstr);
 
+void str_append_with_format(String_builder *sb, const char *fmt, ...);
+
+String_builder str_create(const char *fmt, ...);
+
 // str_dst and str_src SHOULD NOT be the same String_builder
 void str_append_str(String_builder *str_dst, const String_builder str_src);
 
-void str_append_c(String_builder *str, char c);
+void str_append_int(String_builder *str, int n);
 
 void str_append_uint(String_builder *str, unsigned int n);
+
+void str_append_long(String_builder *str, long n);
 
 void str_replace(String_builder *str, unsigned int index, const char *replace_cstr);
 

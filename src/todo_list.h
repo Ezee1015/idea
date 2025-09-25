@@ -10,10 +10,10 @@
 #define EXPORT_FILE_INDENTATION " │"
 
 #define LOCK_FILENAME "idea.lock"
-#define CONFIG_PATH ".config/idea/"
-#define NOTES_FOLDER "notes/"
-#define NOTES_EXTENSION ".md"
-#define SAVE_FILENAME "idea.bin"
+#define CONFIG_PATH ".config/idea"
+#define NOTES_DIRNAME "notes"
+#define NOTES_EXTENSION "md"
+#define SAVE_FILENAME "todos.bin"
 
 typedef struct {
   char *id;

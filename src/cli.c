@@ -30,9 +30,7 @@ bool clone_text_file(char *origin_path, char *clone_path) {
 }
 
 bool create_backup() {
-  String_builder instruction = str_new();
-  str_append(&instruction, "export ");
-  str_append(&instruction, idea_state.backup_filepath);
+  String_builder instruction = str_create("export %s", idea_state.backup_filepath);
 
   Action_return result;
   NESTED_ACTION(result = cli_parse_input(str_to_cstr(instruction)), result);
@@ -56,9 +54,7 @@ bool create_backup() {
 }
 
 bool restore_backup() {
-  String_builder instruction = str_new();
-  str_append(&instruction, "import_no_diff ");
-  str_append(&instruction, idea_state.backup_filepath);
+  String_builder instruction = str_create("import_no_diff %s", idea_state.backup_filepath);
 
   Action_return result;
   NESTED_ACTION(result = cli_parse_input(str_to_cstr(instruction)), result);
@@ -256,17 +252,9 @@ Action_return action_import_todo_no_diff(Input *input) {
 Action_return action_import_todo(Input *input) {
   Action_return result = ACTION_RETURN(RETURN_SUCCESS, "");
 
-  String_builder base_path = str_new();
-  str_append(&base_path, idea_state.tmp_path);
-  str_append_to_path(&base_path, "local_without_changes.idea");
-
-  String_builder local_path = str_new();
-  str_append(&local_path, idea_state.tmp_path);
-  str_append_to_path(&local_path, "local.idea");
-
-  String_builder external_path = str_new();
-  str_append(&external_path, idea_state.tmp_path);
-  str_append_to_path(&external_path, "external.idea");
+  String_builder base_path     = str_create("%s/local_without_changes.idea", idea_state.tmp_path);
+  String_builder local_path    = str_create("%s/local.idea", idea_state.tmp_path);
+  String_builder external_path = str_create("%s/external.idea", idea_state.tmp_path);
 
   char *import_path = next_token(input, '\0');
   if (!import_path) {
@@ -281,9 +269,7 @@ Action_return action_import_todo(Input *input) {
   }
 
   // Generate the "local" file -that contains the actual database- (to diff it with the external file)
-  String_builder instruction = str_new();
-  str_append(&instruction, "export ");
-  str_append_str(&instruction, local_path);
+  String_builder instruction = str_create("export %s", str_to_cstr(local_path));
 
   Action_return function_return;
   NESTED_ACTION(function_return = cli_parse_input(str_to_cstr(instruction)), function_return);
@@ -307,10 +293,7 @@ Action_return action_import_todo(Input *input) {
   // Execute the diff tool to get the changes the user wants.
   // The diff tool has to save the final version of the file
   // in /tmp/local.idea for idea to execute them.
-  str_append(&instruction, DIFFTOOL_CMD " ");
-  str_append_str(&instruction, local_path);
-  str_append(&instruction, " ");
-  str_append_str(&instruction, external_path);
+  instruction = str_create(DIFFTOOL_CMD " %s %s", local_path, str_to_cstr(external_path));
   int system_ret = system(str_to_cstr(instruction));
   str_free(&instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) != 0)) {
@@ -320,10 +303,7 @@ Action_return action_import_todo(Input *input) {
 
   // Show the user the changes in the commands that are going to be executed
   printf("Diff of the database commands:\n\n");
-  str_append(&instruction, DIFF_CMD " ");
-  str_append_str(&instruction, base_path);
-  str_append(&instruction, " ");
-  str_append_str(&instruction, local_path);
+  instruction = str_create(DIFF_CMD " %s %s", str_to_cstr(base_path), str_to_cstr(local_path));
   system_ret = system(str_to_cstr(instruction));
   str_free(&instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) == 2)) {
@@ -374,11 +354,7 @@ Action_return notes_todo(Input *input) {
     todo_list_modified = true;
   }
 
-  String_builder instruction = str_new();
-  str_append(&instruction, TEXT_EDITOR " '");
-  str_append(&instruction, idea_state.notes_path);
-  str_append_to_path(&instruction, todo->id);
-  str_append(&instruction, ".md'");
+  String_builder instruction = str_create(TEXT_EDITOR " '%s/%s." NOTES_EXTENSION "'", idea_state.notes_path, todo->id);
 
   int system_ret = system(str_to_cstr(instruction));
   str_free(&instruction);

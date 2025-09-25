@@ -19,15 +19,8 @@ unsigned int instance_todo_counter = 0; // Counter of ToDos created by the curre
 char *generate_unique_todo_id() {
   char hostname[256];
   if (gethostname(hostname, sizeof(hostname)) == -1) return NULL;
-  char time_cstr[50];
-  snprintf(time_cstr, 50, "%ld", time(NULL));
 
-  String_builder id_builder = str_new();
-  str_append(&id_builder, hostname);
-  str_append(&id_builder, "-");
-  str_append(&id_builder, time_cstr);
-  str_append(&id_builder, "-");
-  str_append_uint(&id_builder, ++instance_todo_counter);
+  String_builder id_builder = str_create("%s-%ld-%d", hostname, time(NULL), ++instance_todo_counter);
   return str_to_cstr(id_builder);
 }
 
@@ -40,11 +33,7 @@ void free_todo(Todo *todo) {
 bool remove_todo_notes(Todo *todo) {
   if (!todo->notes) return true;
 
-  String_builder path = str_new();
-  str_append(&path, idea_state.notes_path);
-  str_append_to_path(&path, todo->id);
-  str_append(&path, NOTES_EXTENSION);
-
+  String_builder path = str_create("%s/%s." NOTES_EXTENSION, idea_state.notes_path, todo->id);
   int remove_ret = remove(str_to_cstr(path));
   str_free(&path);
   if (remove_ret == -1) return false;
@@ -198,11 +187,7 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
             break;
           }
 
-          String_builder path = str_new();
-          str_append(&path, idea_state.notes_path);
-          str_append_to_path(&path, new_todo->id);
-          str_append(&path, NOTES_EXTENSION);
-
+          String_builder path = str_create("%s/%s." NOTES_EXTENSION, idea_state.notes_path, new_todo->id);
           todo_notes = fopen(str_to_cstr(path), "w");
           str_free(&path);
           if (!todo_notes) { ret = false; state = STATE_EXIT; break; }
@@ -275,11 +260,7 @@ bool save_todo_notes_to_text_file(FILE *save_file, Todo *todo) {
   if (!todo || !save_file) return false;
   if (!todo->notes) return true;
 
-  String_builder path = str_new();
-  str_append(&path, idea_state.notes_path);
-  str_append_to_path(&path, todo->id);
-  str_append(&path, NOTES_EXTENSION);
-
+  String_builder path = str_create("%s/%s." NOTES_EXTENSION, idea_state.notes_path, todo->id);
   FILE *notes = fopen(str_to_cstr(path), "r");
   str_free(&path);
   if (!notes) return false;
@@ -349,9 +330,7 @@ bool save_todo_to_text_file(FILE *file, Todo *todo) {
 }
 
 bool save_file() {
-  String_builder path = str_new();
-  str_append(&path, idea_state.config_path);
-  str_append_to_path(&path, SAVE_FILENAME);
+  String_builder path = str_create("%s/" SAVE_FILENAME, idea_state.config_path);
   FILE *save_file = fopen(str_to_cstr(path), "wb");
   str_free(&path);
   if (!save_file) return false;
@@ -393,9 +372,7 @@ bool load_file() {
 
   if (!create_dir_structure()) return false;
 
-  String_builder path = str_new();
-  str_append(&path, idea_state.config_path);
-  str_append_to_path(&path, SAVE_FILENAME);
+  String_builder path = str_create("%s/" SAVE_FILENAME, idea_state.config_path);
 
   FILE *save_file = fopen(str_to_cstr(path), "rb");
   str_free(&path);
@@ -530,10 +507,7 @@ Action_return action_notes_todo_remove(Input *input) {
 bool create_notes_todo(Todo *todo) {
   if (!todo || todo->notes) return false;
 
-  String_builder path = str_new();
-  str_append(&path, idea_state.notes_path);
-  str_append_to_path(&path, todo->id);
-  str_append(&path, NOTES_EXTENSION);
+  String_builder path = str_create("%s/%s." NOTES_EXTENSION, idea_state.notes_path, todo->id);
 
   FILE *notes = fopen(str_to_cstr(path), "w");
   str_free(&path);
