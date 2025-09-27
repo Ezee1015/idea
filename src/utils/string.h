@@ -5,49 +5,42 @@
 #include <stdbool.h>
 
 typedef struct {
-  char *s;
-  unsigned int len;
-  unsigned int size;
+  char *str;
+  unsigned int length;
+  unsigned int _size;
 } String_builder;
 
-#define str_new() (String_builder) {0}
+#define sb_new() (String_builder) {0}
 
-#define cstr_starts_with(str, start) (!strncmp(start, str, strlen(start)))
+#define cstr_starts_with(sb, start) (!strncmp(start, sb, strlen(start)))
 
-bool str_append_from_shell_variable(String_builder *str, const char *variable);
+bool sb_append_from_shell_variable(String_builder *sb, const char *variable);
 
-// Append a '/' at the end of str if it doesn't have it, and then append rel_path
-void str_append_to_path(String_builder *str, char *rel_path);
+void sb_append(String_builder *sb, const char *cstr);
 
-void str_append(String_builder *str, const char *cstr);
+void sb_append_with_format(String_builder *sb, const char *fmt, ...);
 
-void str_append_with_format(String_builder *sb, const char *fmt, ...);
+String_builder sb_create(const char *fmt, ...);
 
-String_builder str_create(const char *fmt, ...);
+// sb_dst and sb_src SHOULD NOT be the same String_builder
+void sb_append_str(String_builder *sb_dst, const String_builder sb_src);
 
-// str_dst and str_src SHOULD NOT be the same String_builder
-void str_append_str(String_builder *str_dst, const String_builder str_src);
+void sb_append_int(String_builder *sb, int n);
 
-void str_append_int(String_builder *str, int n);
+void sb_append_uint(String_builder *sb, unsigned int n);
 
-void str_append_uint(String_builder *str, unsigned int n);
+void sb_append_long(String_builder *sb, long n);
 
-void str_append_long(String_builder *str, long n);
+void sb_replace(String_builder *sb, unsigned int index, const char *replace_cstr);
 
-void str_replace(String_builder *str, unsigned int index, const char *replace_cstr);
+bool sb_is_empty(String_builder sb);
 
-unsigned int str_length(String_builder str);
+void sb_free(String_builder *sb);
 
-bool str_is_empty(String_builder str);
+void sb_clean(String_builder *sb);
 
-char *str_to_cstr(String_builder str);
+bool sb_read_line(FILE *f, String_builder *sb);
 
-void str_free(String_builder *str);
-
-void str_clean(String_builder *str);
-
-bool str_read_line(FILE *f, String_builder *str);
-
-bool str_equals(String_builder sb1, String_builder sb2);
+bool sb_equals(String_builder sb1, String_builder sb2);
 
 #endif // STRINGS_H

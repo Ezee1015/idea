@@ -20,8 +20,8 @@ char *generate_unique_todo_id() {
   char hostname[256];
   if (gethostname(hostname, sizeof(hostname)) == -1) return NULL;
 
-  String_builder id_builder = str_create("%s-%ld-%d", hostname, time(NULL), ++instance_todo_counter);
-  return str_to_cstr(id_builder);
+  String_builder id_builder = sb_create("%s-%ld-%d", hostname, time(NULL), ++instance_todo_counter);
+  return id_builder.str;
 }
 
 void free_todo(Todo *todo) {
@@ -33,9 +33,9 @@ void free_todo(Todo *todo) {
 bool remove_todo_notes(Todo *todo) {
   if (!todo->notes) return true;
 
-  String_builder path = str_create("%s/%s." NOTES_EXTENSION, idea_state.notes_path, todo->id);
-  int remove_ret = remove(str_to_cstr(path));
-  str_free(&path);
+  String_builder path = sb_create("%s/%s." NOTES_EXTENSION, idea_state.notes_path, todo->id);
+  int remove_ret = remove(path.str);
+  sb_free(&path);
   if (remove_ret == -1) return false;
 
   todo->notes = false;
@@ -97,7 +97,7 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
   if (!load_file || !reached_eof || !old_todo_list) return false;
   bool ret = true;
 
-  String_builder line = str_new();
+  String_builder line = sb_new();
   char *atribute = NULL;
   Todo *new_todo = NULL;
   Todo *old_todo = NULL;
@@ -109,22 +109,22 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
     STATE_EXIT
   } state = NO_STATE;
 
-  while ( state != STATE_EXIT && (str_read_line(load_file, &line)) ) {
-    if (str_is_empty(line)) continue;
+  while ( state != STATE_EXIT && (sb_read_line(load_file, &line)) ) {
+    if (!line.length) continue;
 
     unsigned int indentation = 0;
-    while (cstr_starts_with(str_to_cstr(line) + indentation * strlen(EXPORT_FILE_INDENTATION), EXPORT_FILE_INDENTATION)) indentation++;
+    while (cstr_starts_with(line.str + indentation * strlen(EXPORT_FILE_INDENTATION), EXPORT_FILE_INDENTATION)) indentation++;
 
     Input line_input = {
-      .input = str_to_cstr(line),
+      .input = line.str,
       .cursor = indentation * strlen(EXPORT_FILE_INDENTATION),
-      .length = str_length(line)
+      .length = line.length
     };
     atribute = next_token(&line_input, ' ');
 
 
     if (!indentation && !strcmp(atribute, "--")) {
-      str_clean(&line);
+      sb_clean(&line);
       free(atribute);
       continue;
     }
@@ -144,7 +144,7 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
         if (!indentation && !strcmp(atribute, "todo")) {
           // Rewind what it read and break out of the function because it's
           // reading the next todo, and this function only reads one ToDo
-          fseek(load_file, -1 * ((int) str_length(line) + 1 /* \n */), SEEK_CUR);
+          fseek(load_file, -1 * ((int) line.length + 1 /* \n */), SEEK_CUR);
           state = STATE_EXIT;
           break;
 
@@ -187,9 +187,9 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
             break;
           }
 
-          String_builder path = str_create("%s/%s." NOTES_EXTENSION, idea_state.notes_path, new_todo->id);
-          todo_notes = fopen(str_to_cstr(path), "w");
-          str_free(&path);
+          String_builder path = sb_create("%s/%s." NOTES_EXTENSION, idea_state.notes_path, new_todo->id);
+          todo_notes = fopen(path.str, "w");
+          sb_free(&path);
           if (!todo_notes) { ret = false; state = STATE_EXIT; break; }
           new_todo->notes = true;
           state = STATE_NOTES_CONTENT;
@@ -234,7 +234,7 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
     }
 
     free(atribute); atribute = NULL;
-    str_clean(&line);
+    sb_clean(&line);
   }
 
   if (state == NO_STATE) {
@@ -252,7 +252,7 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
     free_todo(old_todo);
   }
 
-  str_free(&line);
+  sb_free(&line);
   return ret;
 }
 
@@ -260,9 +260,9 @@ bool save_todo_notes_to_text_file(FILE *save_file, Todo *todo) {
   if (!todo || !save_file) return false;
   if (!todo->notes) return true;
 
-  String_builder path = str_create("%s/%s." NOTES_EXTENSION, idea_state.notes_path, todo->id);
-  FILE *notes = fopen(str_to_cstr(path), "r");
-  str_free(&path);
+  String_builder path = sb_create("%s/%s." NOTES_EXTENSION, idea_state.notes_path, todo->id);
+  FILE *notes = fopen(path.str, "r");
+  sb_free(&path);
   if (!notes) return false;
 
   if (fputs(EXPORT_FILE_INDENTATION "notes_content:\n" EXPORT_FILE_INDENTATION EXPORT_FILE_INDENTATION, save_file) == EOF) { fclose(notes); return false; }
@@ -330,9 +330,9 @@ bool save_todo_to_text_file(FILE *file, Todo *todo) {
 }
 
 bool save_file() {
-  String_builder path = str_create("%s/" SAVE_FILENAME, idea_state.config_path);
-  FILE *save_file = fopen(str_to_cstr(path), "wb");
-  str_free(&path);
+  String_builder path = sb_create("%s/" SAVE_FILENAME, idea_state.config_path);
+  FILE *save_file = fopen(path.str, "wb");
+  sb_free(&path);
   if (!save_file) return false;
 
   if (!list_save_to_bfile(todo_list, (bool (*)(FILE *, void *)) save_todo_to_binary_file, save_file)) {
@@ -372,10 +372,10 @@ bool load_file() {
 
   if (!create_dir_structure()) return false;
 
-  String_builder path = str_create("%s/" SAVE_FILENAME, idea_state.config_path);
+  String_builder path = sb_create("%s/" SAVE_FILENAME, idea_state.config_path);
 
-  FILE *save_file = fopen(str_to_cstr(path), "rb");
-  str_free(&path);
+  FILE *save_file = fopen(path.str, "rb");
+  sb_free(&path);
   if (!save_file) return true; // First time running it
 
   if (!list_load_from_bfile(&todo_list, load_todo_from_binary_file, save_file)) abort();
@@ -507,10 +507,10 @@ Action_return action_notes_todo_remove(Input *input) {
 bool create_notes_todo(Todo *todo) {
   if (!todo || todo->notes) return false;
 
-  String_builder path = str_create("%s/%s." NOTES_EXTENSION, idea_state.notes_path, todo->id);
+  String_builder path = sb_create("%s/%s." NOTES_EXTENSION, idea_state.notes_path, todo->id);
 
-  FILE *notes = fopen(str_to_cstr(path), "w");
-  str_free(&path);
+  FILE *notes = fopen(path.str, "w");
+  sb_free(&path);
   if (!notes) return false;
 
   bool ok = (fprintf(notes, "# %s\n\n\n", todo->name));

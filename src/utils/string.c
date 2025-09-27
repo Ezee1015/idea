@@ -13,36 +13,36 @@ int basic_pow(int base, unsigned int exp) {
   return result;
 }
 
-void _str_resize_if_necessary(String_builder *str, unsigned int new_length) {
+void _sb_resize_if_necessary(String_builder *sb, unsigned int new_length) {
   unsigned int minimum_size = new_length + 1;
-  if (minimum_size <= str->size) return;
+  if (minimum_size <= sb->_size) return;
 
   const int base = 2;
   const int minimum_exponent = 5;
-  bool is_new = (str->size == 0);
+  bool is_new = (sb->_size == 0);
 
-  if (is_new) str->size = basic_pow(base, minimum_exponent-1);
-  unsigned int new_size = str->size;
+  if (is_new) sb->_size = basic_pow(base, minimum_exponent-1);
+  unsigned int new_size = sb->_size;
   while ( (new_size *= base) < minimum_size );
-  str->s = realloc(str->s, new_size);
-  if (!str->s) abort();
+  sb->str = realloc(sb->str, new_size);
+  if (!sb->str) abort();
 
-  if (is_new) str->s[0] = '\0';
-  str->size = new_size;
+  if (is_new) sb->str[0] = '\0';
+  sb->_size = new_size;
 }
 
-void _str_append(String_builder *str, const char *cstr, unsigned int cstr_length) {
-  if (!str) abort();
+void _sb_append(String_builder *sb, const char *cstr, unsigned int cstr_length) {
+  if (!sb) abort();
   if (!cstr) abort();
 
-  unsigned int new_length = str->len + cstr_length;
-  _str_resize_if_necessary(str, new_length);
+  unsigned int new_length = sb->length + cstr_length;
+  _sb_resize_if_necessary(sb, new_length);
 
-  strcpy(str->s + str->len, cstr);
-  str->len = new_length;
+  strcpy(sb->str + sb->length, cstr);
+  sb->length = new_length;
 }
 
-void _str_append_fmt(String_builder *sb, const char *fmt, va_list args) {
+void _sb_append_fmt(String_builder *sb, const char *fmt, va_list args) {
   unsigned int i = 0;
   bool finished = false;
   while (!finished) {
@@ -50,13 +50,13 @@ void _str_append_fmt(String_builder *sb, const char *fmt, va_list args) {
       case '%':
         switch (fmt[i+1]) {
           case '\0': finished = true; break;
-          case '%': str_append(sb, "%"); break;
-          case 'u': str_append_uint(sb, va_arg(args, unsigned int)); break;
-          case 's': str_append(sb, va_arg(args, char *)); break;
-          case 'd': str_append_int(sb, va_arg(args, int)); break;
+          case '%': sb_append(sb, "%"); break;
+          case 'u': sb_append_uint(sb, va_arg(args, unsigned int)); break;
+          case 's': sb_append(sb, va_arg(args, char *)); break;
+          case 'd': sb_append_int(sb, va_arg(args, int)); break;
           case 'l': // %ld
             if (fmt[i+2] != 'd') abort();
-            str_append_long(sb, va_arg(args, long));
+            sb_append_long(sb, va_arg(args, long));
             i++;
             break;
 
@@ -67,57 +67,52 @@ void _str_append_fmt(String_builder *sb, const char *fmt, va_list args) {
 
       case '\0': finished = true; break;
 
-      default: str_append(sb, (char[2]){fmt[i], '\0'}); break;
+      default: sb_append(sb, (char[2]){fmt[i], '\0'}); break;
     }
     i++;
   }
 }
 
-String_builder str_create(const char *fmt, ...) {
-  String_builder sb = str_new();
+String_builder sb_create(const char *fmt, ...) {
+  String_builder sb = sb_new();
 
   va_list args;
   va_start(args, fmt);
-  _str_append_fmt(&sb, fmt, args);
+  _sb_append_fmt(&sb, fmt, args);
   va_end(args);
 
   return sb;
 }
 
-void str_append_with_format(String_builder *sb, const char *fmt, ...) {
+void sb_append_with_format(String_builder *sb, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  _str_append_fmt(sb, fmt, args);
+  _sb_append_fmt(sb, fmt, args);
   va_end(args);
 }
 
-bool str_append_from_shell_variable(String_builder *str, const char *variable) {
+bool sb_append_from_shell_variable(String_builder *sb, const char *variable) {
   const char *directory_path = getenv(variable);
   if (!directory_path) return false;
 
-  str_append(str, directory_path);
+  sb_append(sb, directory_path);
   return true;
 }
 
-void str_append_to_path(String_builder *str, char *rel_path) {
-  if (str->s[str->len-1] != '/') _str_append(str, "/", 1);
-  _str_append(str, rel_path, strlen(rel_path));
+void sb_append(String_builder *sb, const char *cstr) {
+  _sb_append(sb, cstr, strlen(cstr));
 }
 
-void str_append(String_builder *str, const char *cstr) {
-  _str_append(str, cstr, strlen(cstr));
+void sb_append_str(String_builder *sb_dst, const String_builder sb_src) {
+  _sb_append(sb_dst, sb_src.str, sb_src.length);
 }
 
-void str_append_str(String_builder *str_dst, const String_builder str_src) {
-  _str_append(str_dst, str_src.s, str_src.len);
-}
-
-void str_append_c(String_builder *str, char c) {
+void sb_append_c(String_builder *sb, char c) {
   char cstr[2] = {c, '\0'};
-  _str_append(str, cstr, 1);
+  _sb_append(sb, cstr, 1);
 }
 
-void str_append_int(String_builder *str, int n) {
+void sb_append_int(String_builder *sb, int n) {
   unsigned int n_length = (n <= 0) ? 1 : 0;
   int aux = (n > 0) ? n : -1 * n;
   while (aux > 0) {
@@ -125,14 +120,14 @@ void str_append_int(String_builder *str, int n) {
     n_length++;
   }
 
-  unsigned int new_length = str->len + n_length;
-  _str_resize_if_necessary(str, new_length);
+  unsigned int new_length = sb->length + n_length;
+  _sb_resize_if_necessary(sb, new_length);
 
-  sprintf(str->s + str->len, "%d", n);
-  str->len = new_length;
+  sprintf(sb->str + sb->length, "%d", n);
+  sb->length = new_length;
 }
 
-void str_append_long(String_builder *str, long n) {
+void sb_append_long(String_builder *sb, long n) {
   unsigned int n_length = (n <= 0) ? 1 : 0;
   long aux = (n > 0) ? n : -1 * n;
   while (aux > 0) {
@@ -140,14 +135,14 @@ void str_append_long(String_builder *str, long n) {
     n_length++;
   }
 
-  unsigned int new_length = str->len + n_length;
-  _str_resize_if_necessary(str, new_length);
+  unsigned int new_length = sb->length + n_length;
+  _sb_resize_if_necessary(sb, new_length);
 
-  sprintf(str->s + str->len, "%ld", n);
-  str->len = new_length;
+  sprintf(sb->str + sb->length, "%ld", n);
+  sb->length = new_length;
 }
 
-void str_append_uint(String_builder *str, unsigned int n) {
+void sb_append_uint(String_builder *sb, unsigned int n) {
   unsigned int n_length = (n == 0) ? 1 : 0;
   unsigned int aux = n;
   while (aux > 0) {
@@ -155,49 +150,41 @@ void str_append_uint(String_builder *str, unsigned int n) {
     n_length++;
   }
 
-  unsigned int new_length = str->len + n_length;
-  _str_resize_if_necessary(str, new_length);
+  unsigned int new_length = sb->length + n_length;
+  _sb_resize_if_necessary(sb, new_length);
 
-  sprintf(str->s + str->len, "%u", n);
-  str->len = new_length;
+  sprintf(sb->str + sb->length, "%u", n);
+  sb->length = new_length;
 }
 
-void str_replace(String_builder *str, unsigned int index, const char *replace_cstr) {
-  if (index >= str->len) abort();
+void sb_replace(String_builder *sb, unsigned int index, const char *replace_cstr) {
+  if (index >= sb->length) abort();
 
   unsigned int new_length = index + strlen(replace_cstr);
-  _str_resize_if_necessary(str, new_length);
+  _sb_resize_if_necessary(sb, new_length);
 
-  strcpy(str->s + index, replace_cstr);
+  strcpy(sb->str + index, replace_cstr);
 }
 
-unsigned int str_length(String_builder str) {
-  return str.len;
+bool sb_is_empty(String_builder sb) {
+  return sb.length == 0;
 }
 
-bool str_is_empty(String_builder str) {
-  return str.len == 0;
+void sb_free(String_builder *sb) {
+  sb->length = 0;
+  sb->_size = 0;
+  if (sb->str) free(sb->str);
+  sb->str = NULL;
 }
 
-char *str_to_cstr(String_builder str) {
-  return str.s;
+void sb_clean(String_builder *sb) {
+  sb->length = 0;
+  if (sb->str) sb->str[0] = '\0';
 }
 
-void str_free(String_builder *str) {
-  str->len = 0;
-  str->size = 0;
-  if (str->s) free(str->s);
-  str->s = NULL;
-}
-
-void str_clean(String_builder *str) {
-  str->len = 0;
-  if (str->s) str->s[0] = '\0';
-}
-
-bool str_read_line(FILE *f, String_builder *str) {
+bool sb_read_line(FILE *f, String_builder *sb) {
   if (!f) abort();
-  if (!str) abort();
+  if (!sb) abort();
 
   char buffer[512];
   bool read = false;
@@ -213,12 +200,13 @@ bool str_read_line(FILE *f, String_builder *str) {
 
     if (!buffer_len) break;
 
-    _str_append(str, buffer, buffer_len);
+    _sb_append(sb, buffer, buffer_len);
   }
 
   return read;
 }
 
-bool str_equals(String_builder sb1, String_builder sb2) {
-  return (sb1.len == sb2.len && !strcmp(sb1.s, sb2.s));
+bool sb_equals(String_builder sb1, String_builder sb2) {
+  return (sb1.length == sb2.length && !strcmp(sb1.str, sb2.str));
+}
 }

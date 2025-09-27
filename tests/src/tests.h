@@ -19,18 +19,18 @@
 #define VALGRIND_CMD "valgrind --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all --error-exitcode=" MACRO_INT_TO_STR(VALGRIND_LEAK_EXIT_CODE)
 
 #define APPEND_TO_MESSAGES(test, msg) \
-    list_append(messages, str_to_cstr(str_create(                    \
+    list_append(messages, sb_create(                                 \
             "- " ANSI_GRAY "Test" ANSI_RESET " %s\n"                 \
             "  " ANSI_GRAY "in the function" ANSI_RESET " %s()\n"    \
             "  " ANSI_GRAY "added this message:" ANSI_RESET " %s\n", \
-            test->name, __FUNCTION__, msg )));
+            test->name, __FUNCTION__, msg ).str);
 
 #define APPEND_WITH_FORMAT_TO_MESSAGES(test, fmt, ...) \
-    list_append(messages, str_to_cstr(str_create(                    \
-            "- " ANSI_GRAY "Test" ANSI_RESET " %s\n"                 \
-            "  " ANSI_GRAY "in the function" ANSI_RESET " %s()\n"    \
+    list_append(messages, sb_create(                                   \
+            "- " ANSI_GRAY "Test" ANSI_RESET " %s\n"                   \
+            "  " ANSI_GRAY "in the function" ANSI_RESET " %s()\n"      \
             "  " ANSI_GRAY "added this message: " ANSI_RESET fmt "\n", \
-            test->name, __FUNCTION__, __VA_ARGS__ )));
+            test->name, __FUNCTION__, __VA_ARGS__ ).str);
 
 // X macro. References:
 // - https://www.youtube.com/watch?v=PgDqBZFir1A

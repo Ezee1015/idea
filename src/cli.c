@@ -30,10 +30,10 @@ bool clone_text_file(char *origin_path, char *clone_path) {
 }
 
 bool create_backup() {
-  String_builder instruction = str_create("export %s", idea_state.backup_filepath);
+  String_builder instruction = sb_create("export %s", idea_state.backup_filepath);
 
   Action_return result;
-  NESTED_ACTION(result = cli_parse_input(str_to_cstr(instruction)), result);
+  NESTED_ACTION(result = cli_parse_input(instruction.str), result);
   bool ok;
   switch (result.type) {
     case RETURN_SUCCESS: case RETURN_INFO:
@@ -49,15 +49,15 @@ bool create_backup() {
       break;
   }
 
-  str_free(&instruction);
+  sb_free(&instruction);
   return ok;
 }
 
 bool restore_backup() {
-  String_builder instruction = str_create("import_no_diff %s", idea_state.backup_filepath);
+  String_builder instruction = sb_create("import_no_diff %s", idea_state.backup_filepath);
 
   Action_return result;
-  NESTED_ACTION(result = cli_parse_input(str_to_cstr(instruction)), result);
+  NESTED_ACTION(result = cli_parse_input(instruction.str), result);
   bool ok;
   switch (result.type) {
     case RETURN_SUCCESS: case RETURN_INFO:
@@ -73,7 +73,7 @@ bool restore_backup() {
       break;
   }
 
-  str_free(&instruction);
+  sb_free(&instruction);
   return ok;
 }
 
@@ -198,39 +198,39 @@ Action_return action_execute_commands(Input *input) {
   if (!cmds_file) return ACTION_RETURN(RETURN_ERROR, "Unable to open the import file");
 
   unsigned int line_nr = 1;
-  String_builder line = str_new();
-  while ( (str_read_line(cmds_file, &line)) ) {
-    if (str_is_empty(line)) {
+  String_builder line = sb_new();
+  while ( (sb_read_line(cmds_file, &line)) ) {
+    if (!line.length) {
       line_nr++;
       continue;
     }
 
     Action_return result;
-    NESTED_ACTION(result = cli_parse_input(str_to_cstr(line)), result);
+    NESTED_ACTION(result = cli_parse_input(line.str), result);
     switch (result.type) {
       case RETURN_SUCCESS: case RETURN_INFO:
         if (result.message && strcmp(result.message, ""))
-          PRINT_MESSAGE("Message from line %d (%s) of the commands in the file", line_nr, str_to_cstr(line));
+          PRINT_MESSAGE("Message from line %d (%s) of the commands in the file", line_nr, line.str);
         break;
 
       case RETURN_ERROR:
-        PRINT_MESSAGE("Execution of the commands in the file failed at line %d (%s)", line_nr, str_to_cstr(line));
+        PRINT_MESSAGE("Execution of the commands in the file failed at line %d (%s)", line_nr, line.str);
         fclose(cmds_file);
-        str_free(&line);
+        sb_free(&line);
         return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "Execution failed");
 
       case RETURN_ERROR_AND_EXIT:
-        PRINT_MESSAGE("Execution of the commands in the file failed at line %d (%s)", line_nr, str_to_cstr(line));
+        PRINT_MESSAGE("Execution of the commands in the file failed at line %d (%s)", line_nr, line.str);
         fclose(cmds_file);
-        str_free(&line);
+        sb_free(&line);
         return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "Execution aborted");
     }
 
-    str_clean(&line);
+    sb_clean(&line);
     line_nr++;
   }
 
-  str_free(&line);
+  sb_free(&line);
   fclose(cmds_file);
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
@@ -252,9 +252,9 @@ Action_return action_import_todo_no_diff(Input *input) {
 Action_return action_import_todo(Input *input) {
   Action_return result = ACTION_RETURN(RETURN_SUCCESS, "");
 
-  String_builder base_path     = str_create("%s/local_without_changes.idea", idea_state.tmp_path);
-  String_builder local_path    = str_create("%s/local.idea", idea_state.tmp_path);
-  String_builder external_path = str_create("%s/external.idea", idea_state.tmp_path);
+  String_builder base_path     = sb_create("%s/local_without_changes.idea", idea_state.tmp_path);
+  String_builder local_path    = sb_create("%s/local.idea", idea_state.tmp_path);
+  String_builder external_path = sb_create("%s/external.idea", idea_state.tmp_path);
 
   char *import_path = next_token(input, '\0');
   if (!import_path) {
@@ -263,17 +263,17 @@ Action_return action_import_todo(Input *input) {
   }
 
   // Clone the external file to a temporary location
-  if (!clone_text_file(import_path, str_to_cstr(external_path))) {
+  if (!clone_text_file(import_path, external_path.str)) {
     result = ACTION_RETURN(RETURN_ERROR, "Unable to copy the external file to the /tmp folder");
     goto exit;
   }
 
   // Generate the "local" file -that contains the actual database- (to diff it with the external file)
-  String_builder instruction = str_create("export %s", str_to_cstr(local_path));
+  String_builder instruction = sb_create("export %s", local_path.str);
 
   Action_return function_return;
-  NESTED_ACTION(function_return = cli_parse_input(str_to_cstr(instruction)), function_return);
-  str_free(&instruction);
+  NESTED_ACTION(function_return = cli_parse_input(instruction.str), function_return);
+  sb_free(&instruction);
   switch (function_return.type) {
       case RETURN_SUCCESS: case RETURN_INFO:
         break;
@@ -285,7 +285,7 @@ Action_return action_import_todo(Input *input) {
   // Clone the generated file (/tmp/local.idea) into (/tmp/local_without_changes.idea)
   // to compare the changes made with the diff tool (that are saved in /tmp/local.idea)
   // with the current state of the data base (/tmp/local_without_changes.idea)
-  if (!clone_text_file(str_to_cstr(local_path), str_to_cstr(base_path))) {
+  if (!clone_text_file(local_path.str, base_path.str)) {
     result = ACTION_RETURN(RETURN_ERROR, "Unable to clone the exported local database in the /tmp folder");
     goto exit;
   }
@@ -293,9 +293,9 @@ Action_return action_import_todo(Input *input) {
   // Execute the diff tool to get the changes the user wants.
   // The diff tool has to save the final version of the file
   // in /tmp/local.idea for idea to execute them.
-  instruction = str_create(DIFFTOOL_CMD " %s %s", local_path, str_to_cstr(external_path));
-  int system_ret = system(str_to_cstr(instruction));
-  str_free(&instruction);
+  instruction = sb_create(DIFFTOOL_CMD " %s %s", local_path, external_path.str);
+  int system_ret = system(instruction.str);
+  sb_free(&instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) != 0)) {
     result = ACTION_RETURN(RETURN_ERROR, "Diff tool failed");
     goto exit;
@@ -303,9 +303,9 @@ Action_return action_import_todo(Input *input) {
 
   // Show the user the changes in the commands that are going to be executed
   printf("Diff of the database commands:\n\n");
-  instruction = str_create(DIFF_CMD " %s %s", str_to_cstr(base_path), str_to_cstr(local_path));
-  system_ret = system(str_to_cstr(instruction));
-  str_free(&instruction);
+  instruction = sb_create(DIFF_CMD " %s %s", base_path.str, local_path.str);
+  system_ret = system(instruction.str);
+  sb_free(&instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) == 2)) {
     result = ACTION_RETURN(RETURN_ERROR, "Final diff failed");
     goto exit;
@@ -322,19 +322,19 @@ Action_return action_import_todo(Input *input) {
     goto exit;
   }
 
-  if (!import_file(str_to_cstr(local_path))) {
+  if (!import_file(local_path.str)) {
     result = ACTION_RETURN(RETURN_ERROR, "Import failed!");
     goto exit;
   }
   todo_list_modified = true;
 
 exit:
-  remove(str_to_cstr(base_path));
-  remove(str_to_cstr(local_path));
-  remove(str_to_cstr(external_path));
-  str_free(&base_path);
-  str_free(&local_path);
-  str_free(&external_path);
+  remove(base_path.str);
+  remove(local_path.str);
+  remove(external_path.str);
+  sb_free(&base_path);
+  sb_free(&local_path);
+  sb_free(&external_path);
 
   if (import_path) free(import_path);
   return result;
@@ -354,10 +354,10 @@ Action_return notes_todo(Input *input) {
     todo_list_modified = true;
   }
 
-  String_builder instruction = str_create(TEXT_EDITOR " '%s/%s." NOTES_EXTENSION "'", idea_state.notes_path, todo->id);
+  String_builder instruction = sb_create(TEXT_EDITOR " '%s/%s." NOTES_EXTENSION "'", idea_state.notes_path, todo->id);
 
-  int system_ret = system(str_to_cstr(instruction));
-  str_free(&instruction);
+  int system_ret = system(instruction.str);
+  sb_free(&instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) != 0)) {
     return ACTION_RETURN(RETURN_ERROR, "Text editor failed or file doesn't exist");
   }
