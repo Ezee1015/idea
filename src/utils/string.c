@@ -4,13 +4,18 @@
 
 #include "string.h"
 
+#define number_length(type, number, length) do { \
+  length = (n <= 0) ? 1 : 0;                     \
+  type __aux = (n > 0) ? n : -1 * n;             \
+  while (__aux > 0) {                            \
+    __aux /= 10;                                 \
+    length++;                                    \
+  }                                              \
+} while(0)
+
 #define _sb_append_number(type, format_specifier, number) do { \
-  unsigned int n_length = (n <= 0) ? 1 : 0;                    \
-  type aux = (n > 0) ? n : -1 * n;                             \
-  while (aux > 0) {                                            \
-    aux /= 10;                                                 \
-    n_length++;                                                \
-  }                                                            \
+  unsigned int n_length;                                       \
+  number_length(type, number, n_length);                       \
                                                                \
   unsigned int new_length = sb->length + n_length;             \
   _sb_resize_if_necessary(sb, new_length);                     \
@@ -57,32 +62,102 @@ void _sb_append(String_builder *sb, const char *cstr, unsigned int cstr_length) 
   sb->length = new_length;
 }
 
+#define pad_unsigned_number(type, number, size) do {  \
+  unsigned int __length = 0;                          \
+  number_length(type, number, __length);              \
+  int __padding_left = size - __length;               \
+  while (__padding_left > 0) {                        \
+    sb_append_char(sb, fill);                         \
+    __padding_left--;                                 \
+  }                                                   \
+} while (0)
+
+// Implemented:
+// - Left padding
+// - %u
+// - %s
+// - %d
+// - %ld
 void _sb_append_fmt(String_builder *sb, const char *fmt, va_list args) {
   unsigned int i = 0;
   bool finished = false;
+
   while (!finished) {
     switch (fmt[i]){
-      case '%':
-        switch (fmt[i+1]) {
+      case '%': {
+        i++;
+
+        unsigned size = 0;
+        char fill = ' ';
+
+        while ('0' <= fmt[i] && fmt[i] <= '9') {
+          if (size == 0 && fmt[i] == '0') fill = '0';
+          size *= 10;
+          size += fmt[i] - '0';
+          i++;
+        }
+
+        switch (fmt[i]) {
           case '\0': finished = true; break;
           case '%': sb_append(sb, "%"); break;
-          case 'u': sb_append_uint(sb, va_arg(args, unsigned int)); break;
-          case 's': sb_append(sb, va_arg(args, char *)); break;
-          case 'd': sb_append_int(sb, va_arg(args, int)); break;
-          case 'l': // %ld
-            if (fmt[i+2] != 'd') abort();
-            sb_append_long(sb, va_arg(args, long));
-            i++;
+          case 'u': {
+            unsigned int n = va_arg(args, unsigned int);
+            pad_unsigned_number(unsigned int, n, size);
+            sb_append_uint(sb, n);
             break;
+          }
+
+          case 'd': {
+            int n = va_arg(args, int);
+            if (size) {
+              if (n < 0) {
+                n *= -1;
+                size--;
+                sb_append_char(sb, '-');
+              }
+              pad_unsigned_number(int, n, size);
+            }
+            sb_append_int(sb, n);
+            break;
+          }
+
+          case 's': {
+            char *str = va_arg(args, char *);
+            int padding_left = size - strlen(str);
+            while (padding_left > 0) {
+              sb_append_char(sb, fill);
+              padding_left--;
+            }
+
+            sb_append(sb, str);
+            break;
+          }
+
+          case 'l': { // %ld
+            i++;
+            if (fmt[i] != 'd') abort();
+
+            long n = va_arg(args, long);
+            if (size) {
+              if (n < 0) {
+                n *= -1;
+                size--;
+                sb_append_char(sb, '-');
+              }
+              pad_unsigned_number(long, n, size);
+            }
+            sb_append_long(sb, n);
+            break;
+          }
 
           default: abort();
         }
-        i++;
         break;
+      }
 
       case '\0': finished = true; break;
 
-      default: sb_append(sb, (char[2]){fmt[i], '\0'}); break;
+      default: sb_append_char(sb, fmt[i]); break;
     }
     i++;
   }
@@ -137,6 +212,10 @@ void sb_append_long(String_builder *sb, long n) {
 
 void sb_append_uint(String_builder *sb, unsigned int n) {
   _sb_append_number(unsigned int, "%u", n);
+}
+
+void sb_append_char(String_builder *sb, char c) {
+  sb_append(sb, (char[2]){c, '\0'});
 }
 
 void sb_replace(String_builder *sb, unsigned int index, const char *replace_cstr) {

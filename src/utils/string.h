@@ -48,6 +48,8 @@ void sb_append_uint(String_builder *sb, unsigned int n);
 
 void sb_append_long(String_builder *sb, long n);
 
+void sb_append_char(String_builder *sb, char c);
+
 void sb_replace(String_builder *sb, unsigned int index, const char *replace_cstr);
 
 bool sb_is_empty(String_builder sb);
