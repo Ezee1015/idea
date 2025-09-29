@@ -625,7 +625,7 @@ bool initialize_and_create_log_dir() {
   String_builder path = sb_create("%s/tests/logs", state.repo_path);
   if (!create_dir_if_not_exists(path.str)) return false;
 
-  sb_append_with_format(&path, "/%u-%u-%u %u:%u:%u",
+  sb_append_with_format(&path, "/%u-%02u-%02u %02u:%02u:%02u",
                                 tm->tm_year+1900,
                                 tm->tm_mon+1,
                                 tm->tm_mday,
