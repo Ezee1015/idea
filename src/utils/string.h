@@ -14,6 +14,23 @@ typedef struct {
 
 #define cstr_starts_with(sb, start) (!strncmp(start, sb, strlen(start)))
 
+#define sb_inspect(sb) do {                                     \
+  printf("================================================\n"); \
+  printf(__FILE__ ":%d: -inside %s()- str_inspect(" #sb "):\n", __LINE__, __FUNCTION__); \
+  printf("- Internal size: %u\n", sb._size);                    \
+  printf("- Length: %u\n", sb.length);                          \
+  printf("- String: |%s|\n", sb.str);                           \
+                                                                \
+  char *aux = sb.str;                                           \
+  int i = 0;                                                    \
+  while ( *aux ) {                                              \
+    printf("          - [%d]: %c (%d)\n", i++, *aux, *aux);     \
+    aux++;                                                      \
+  }                                                             \
+                                                                \
+  printf("================================================\n"); \
+} while (0)
+
 bool sb_append_from_shell_variable(String_builder *sb, const char *variable);
 
 void sb_append(String_builder *sb, const char *cstr);

@@ -209,4 +209,3 @@ bool sb_read_line(FILE *f, String_builder *sb) {
 bool sb_equals(String_builder sb1, String_builder sb2) {
   return (sb1.length == sb2.length && !strcmp(sb1.str, sb2.str));
 }
-}
