@@ -4,6 +4,21 @@
 
 #include "string.h"
 
+#define _sb_append_number(type, format_specifier, number) do { \
+  unsigned int n_length = (n <= 0) ? 1 : 0;                    \
+  type aux = (n > 0) ? n : -1 * n;                             \
+  while (aux > 0) {                                            \
+    aux /= 10;                                                 \
+    n_length++;                                                \
+  }                                                            \
+                                                               \
+  unsigned int new_length = sb->length + n_length;             \
+  _sb_resize_if_necessary(sb, new_length);                     \
+                                                               \
+  sprintf(sb->str + sb->length, format_specifier, n);          \
+  sb->length = new_length;                                     \
+} while (0)
+
 int basic_pow(int base, unsigned int exp) {
   int result = 1;
   while (exp) {
@@ -113,48 +128,15 @@ void sb_append_c(String_builder *sb, char c) {
 }
 
 void sb_append_int(String_builder *sb, int n) {
-  unsigned int n_length = (n <= 0) ? 1 : 0;
-  int aux = (n > 0) ? n : -1 * n;
-  while (aux > 0) {
-    aux /= 10;
-    n_length++;
-  }
-
-  unsigned int new_length = sb->length + n_length;
-  _sb_resize_if_necessary(sb, new_length);
-
-  sprintf(sb->str + sb->length, "%d", n);
-  sb->length = new_length;
+  _sb_append_number(int, "%d", n);
 }
 
 void sb_append_long(String_builder *sb, long n) {
-  unsigned int n_length = (n <= 0) ? 1 : 0;
-  long aux = (n > 0) ? n : -1 * n;
-  while (aux > 0) {
-    aux /= 10;
-    n_length++;
-  }
-
-  unsigned int new_length = sb->length + n_length;
-  _sb_resize_if_necessary(sb, new_length);
-
-  sprintf(sb->str + sb->length, "%ld", n);
-  sb->length = new_length;
+  _sb_append_number(long, "%ld", n);
 }
 
 void sb_append_uint(String_builder *sb, unsigned int n) {
-  unsigned int n_length = (n == 0) ? 1 : 0;
-  unsigned int aux = n;
-  while (aux > 0) {
-    aux /= 10;
-    n_length++;
-  }
-
-  unsigned int new_length = sb->length + n_length;
-  _sb_resize_if_necessary(sb, new_length);
-
-  sprintf(sb->str + sb->length, "%u", n);
-  sb->length = new_length;
+  _sb_append_number(unsigned int, "%u", n);
 }
 
 void sb_replace(String_builder *sb, unsigned int index, const char *replace_cstr) {
