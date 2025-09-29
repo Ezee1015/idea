@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/stat.h>
 
 #include "../../src/cli.h"
@@ -15,20 +16,21 @@
 #include "tests.h"
 
 Tests_state state = {
-  .idea_config_path = NULL,
-  .idea_export_path = NULL,
   .idea_path = "build/idea",
-  .idea_lock_filepath = NULL,
 
   .repo_path = NULL,
+  .tmp_path = NULL,
 
   .tests_filepath = NULL,
   .initial_states_path = NULL,
   .final_states_path = NULL,
   .logs_path = NULL,
 
+  .max_test_name_length = 0,
+
   .log = false,
   .valgrind = false,
+  .threads = 1
 };
 
 // Lines of the export/state file that should not be compared,
@@ -236,7 +238,7 @@ char *result_to_cstr(Case r) {
   return NULL;
 }
 
-void print_results_header(FILE *output, unsigned int test_length) {
+void print_results_header(FILE *output) {
   char *cases_name[] = {
 #define X(s) #s,
   CASES()
@@ -246,7 +248,7 @@ void print_results_header(FILE *output, unsigned int test_length) {
   // From https://github.com/bext-lang/b/blob/c6a21ba4c87ff1c304543c74dd910de34edad445/src/btest.rs#L228
   for (unsigned int i = 0; i < sizeof(cases_name)/sizeof(char *); i++) {
       char *test_name = cases_name[i];
-      fprintf(output, "%*s", test_length + CASE_LENGTH / 2 + 1, "");
+      fprintf(output, "%*s", state.max_test_name_length + CASE_LENGTH / 2 + 1, "");
       for (unsigned int x = 0; x < i; x++) fprintf(output, "│%*s", CASE_LENGTH, "");
       fprintf(output, "┌─ ");
 
@@ -260,8 +262,8 @@ void print_results_header(FILE *output, unsigned int test_length) {
   }
 }
 
-void print_results(FILE *output, Test test, unsigned int test_name_length) {
-  fprintf(output, "%*s", test_name_length, test.name);
+void print_results(FILE *output, Test test) {
+  fprintf(output, "%*s", state.max_test_name_length, test.name);
 
 #define X(s) fprintf(output, " %s", result_to_cstr(test.results.s));
   CASES()
@@ -313,21 +315,21 @@ void print_statistics(Statistics stats) {
     printf("  - " ANSI_RED CASE_LEAK ANSI_RESET " %d test cases finished with memory leaks and failed the test case\n", stats.bad_mem_leaks);
 }
 
-char *run_test_generate_base_command(bool valgrind) {
+char *run_test_generate_base_command(Runner_data runner_data, bool valgrind) {
   String_builder base_cmd = sb_create("IDEA_CONFIG_PATH=\"%s\" %s %s/%s",
-                                      state.idea_config_path,
+                                      runner_data.config_path,
                                       (valgrind) ? VALGRIND_CMD : "",
                                       state.repo_path,
                                       state.idea_path);
   return base_cmd.str;
 }
 
-bool run_test_execute(Test *test, List *messages, String_builder *cmd, int *ret) {
+bool run_test_execute(Runner_data *runner_data, Test *test, String_builder *cmd, int *ret) {
   if (state.log) {
     String_builder log_path = sb_create("%s/%s.txt", state.logs_path, test->name);
     FILE *log = fopen(log_path.str, "a");
     if (!log) {
-      APPEND_WITH_FORMAT_TO_MESSAGES(test, "Unable to open log: %s", log_path.str);
+      APPEND_WITH_FORMAT_TO_MESSAGES(runner_data, "Test", test->name, "Unable to open log: %s", log_path.str);
       sb_free(&log_path);
       return false;
     }
@@ -342,23 +344,25 @@ bool run_test_execute(Test *test, List *messages, String_builder *cmd, int *ret)
 
   int system_ret = system(cmd->str);
 
-  if (access(state.idea_lock_filepath, F_OK) == 0) {
-    if (remove(state.idea_lock_filepath) == 0) {
-      APPEND_TO_MESSAGES(test, "The lock file was still present after the execution, it had to be removed!");
+  String_builder lock_filepath = sb_create("%s/" LOCK_FILENAME, runner_data->config_path);
+  if (access(lock_filepath.str, F_OK) == 0) {
+    if (remove(lock_filepath.str) == 0) {
+      APPEND_TO_MESSAGES(runner_data, "Test", test->name, "The lock file was still present after the execution, it had to be removed!");
     } else {
-      APPEND_TO_MESSAGES(test, "The lock file was still present after the execution and couldn't be removed!");
+      APPEND_TO_MESSAGES(runner_data, "Test", test->name, "The lock file was still present after the execution and couldn't be removed!");
     }
   }
+  sb_free(&lock_filepath);
 
   if (system_ret == -1 || !WIFEXITED(system_ret)) return false;
   *ret = WEXITSTATUS(system_ret);
   return true;
 }
 
-bool run_test_case_import_initial_state(Test *t, List *messages, char *base_cmd, bool valgrind) {
+bool run_test_case_import_initial_state(Runner_data *runner_data, Test *t, char *base_cmd, bool valgrind) {
   String_builder cmd = sb_create("%s \"import_no_diff %s/%s.idea\"", base_cmd, state.initial_states_path, t->state);
   int cmd_ret;
-  bool ok = run_test_execute(t, messages, &cmd, &cmd_ret);
+  bool ok = run_test_execute(runner_data, t, &cmd, &cmd_ret);
   sb_free(&cmd);
   if (!ok) return false;
 
@@ -366,14 +370,14 @@ bool run_test_case_import_initial_state(Test *t, List *messages, char *base_cmd,
   else t->results.import_initial_state.result = (cmd_ret == 0) ? RESULT_PASSED : RESULT_FAILED;
 
   if (t->results.import_initial_state.result != RESULT_PASSED) {
-    APPEND_TO_MESSAGES(t, "Importing the initial state failed");
+    APPEND_TO_MESSAGES(runner_data, "Test", t->name, "Importing the initial state failed");
     return false;
   }
 
   return true;
 }
 
-bool run_test_case_execution(Test *t, List *messages, char *base_cmd, bool valgrind) {
+bool run_test_case_execution(Runner_data *runner_data, Test *t, char *base_cmd, bool valgrind) {
   if (list_is_empty(t->instructions)) {
       t->results.execution.result = RESULT_NOT_SPECIFIED;
       return true;
@@ -387,7 +391,7 @@ bool run_test_case_execution(Test *t, List *messages, char *base_cmd, bool valgr
   }
 
   int cmd_ret;
-  bool ok = run_test_execute(t, messages, &cmd, &cmd_ret);
+  bool ok = run_test_execute(runner_data, t, &cmd, &cmd_ret);
   sb_free(&cmd);
   if (!ok) return false;
 
@@ -399,18 +403,18 @@ bool run_test_case_execution(Test *t, List *messages, char *base_cmd, bool valgr
   }
 
   if (t->results.execution.result != RESULT_PASSED) {
-    APPEND_TO_MESSAGES(t, "Executing the commands failed");
+    APPEND_TO_MESSAGES(runner_data, "Test", t->name, "Executing the commands failed");
     return false;
   }
 
   return true;
 }
 
-bool run_test_case_export_final_state(Test *t, List *messages, char *base_cmd, bool valgrind) {
-  String_builder cmd = sb_create("%s \"export %s\"", base_cmd, state.idea_export_path);
+bool run_test_case_export_final_state(Runner_data *runner_data, Test *t, char *base_cmd, bool valgrind) {
+  String_builder cmd = sb_create("%s \"export %s\"", base_cmd, runner_data->export_filepath);
 
   int cmd_ret;
-  bool ok = run_test_execute(t, messages, &cmd, &cmd_ret);
+  bool ok = run_test_execute(runner_data, t, &cmd, &cmd_ret);
   sb_free(&cmd);
   if (!ok) return false;
 
@@ -418,21 +422,21 @@ bool run_test_case_export_final_state(Test *t, List *messages, char *base_cmd, b
   else t->results.export_final_state.result = (cmd_ret == 0) ? RESULT_PASSED : RESULT_FAILED;
 
   if (t->results.export_final_state.result != RESULT_PASSED) {
-    APPEND_TO_MESSAGES(t, "Exporting the state failed");
+    APPEND_TO_MESSAGES(runner_data, "Test", t->name, "Exporting the state failed");
     return false;
   }
 
   return true;
 }
 
-bool run_test_case_expected_final_state(Test *t, List *messages, char *base_cmd, bool valgrind) {
+bool run_test_case_expected_final_state(Runner_data *runner_data, Test *t, char *base_cmd, bool valgrind) {
   (void) base_cmd;
 
   if (valgrind) return true;
 
-  FILE *state_file = fopen(state.idea_export_path, "r");
+  FILE *state_file = fopen(runner_data->export_filepath, "r");
   if (!state_file) {
-    APPEND_WITH_FORMAT_TO_MESSAGES(t, "Unable to open the state file (%s)!", state.idea_export_path);
+    APPEND_WITH_FORMAT_TO_MESSAGES(runner_data, "Test", t->name, "Unable to open the state file (%s)!", runner_data->export_filepath);
     return false;
   }
 
@@ -442,7 +446,7 @@ bool run_test_case_expected_final_state(Test *t, List *messages, char *base_cmd,
   FILE *exp_state_file = fopen(exp_state_path.str, "r");
   if (!exp_state_file) {
     fclose(state_file);
-    APPEND_WITH_FORMAT_TO_MESSAGES(t, "Unable to open the expected state file (%s)!", exp_state_path.str);
+    APPEND_WITH_FORMAT_TO_MESSAGES(runner_data, "Test", t->name, "Unable to open the expected state file (%s)!", exp_state_path.str);
     sb_free(&exp_state_path);
     return false;
   }
@@ -462,7 +466,7 @@ bool run_test_case_expected_final_state(Test *t, List *messages, char *base_cmd,
     }
 
     if (comparable_line && !sb_equals(line_state, line_exp_state)) {
-      APPEND_WITH_FORMAT_TO_MESSAGES(t, "State differs:\n\t- Actual:   %s\n\t- Expected: %s", line_state, line_exp_state);
+      APPEND_WITH_FORMAT_TO_MESSAGES(runner_data, "Test", t->name, "State differs:\n\t- Actual:   %s\n\t- Expected: %s", line_state.str, line_exp_state.str);
       break;
     }
 
@@ -496,43 +500,68 @@ bool is_dir_empty(char *path) {
   return (n <= 2);
 }
 
-bool is_config_clean(Test* t, List *messages) {
-  // Check if the notes directory is empty
-  String_builder sb = sb_create("%s/notes", state.idea_config_path);
-  bool notes_dir_empty = is_dir_empty(sb.str);
-  sb_free(&sb);
-  if (!notes_dir_empty) {
-    APPEND_TO_MESSAGES(t, "There's still notes inside the notes directory!");
-    return false;
+bool clean_directory(char *path) {
+  DIR *dir = opendir(path);
+  if (!dir) return false;
+
+  struct dirent *f = NULL;
+  while ( (f = readdir(dir)) ) {
+    if (!strcmp(f->d_name, "..") || !strcmp(f->d_name, ".")) continue;
+
+    String_builder sb = sb_create("%s/%s", path, f->d_name);
+    int ret = remove(sb.str);
+    sb_free(&sb);
+    if (ret) {
+      closedir(dir);
+      return false;
+    }
   }
 
+  closedir(dir);
+  return true;
+}
+
+bool is_config_clean(Runner_data *runner_data, Test* t) {
+  // Check if the notes directory is empty
+  String_builder sb = sb_create("%s/notes", runner_data->config_path);
+  bool notes_dir_empty = is_dir_empty(sb.str);
+  if (!notes_dir_empty) {
+    APPEND_TO_MESSAGES(runner_data, "Test", t->name, "There's still notes inside the notes directory! Trying to remove them...");
+    if (!clean_directory(sb.str)) {
+      APPEND_TO_MESSAGES(runner_data, "Test", t->name, "Unable to clear the notes directory!");
+    }
+    sb_free(&sb);
+    return false;
+  }
+  sb_free(&sb);
+
   // Check if list of ToDos is empty
-  sb = sb_create("%s/" SAVE_FILENAME, state.idea_config_path);
+  sb = sb_create("%s/" SAVE_FILENAME, runner_data->config_path);
   FILE *todos = fopen(sb.str, "r");
   sb_free(&sb);
   if (!todos) {
-    APPEND_TO_MESSAGES(t, "Unable to open the ToDo list to see if it's empty");
+    APPEND_TO_MESSAGES(runner_data, "Test", t->name, "Unable to open the ToDo list to see if it's empty");
     return false;
   }
   unsigned int elements = list_peek_element_count_from_bfile(todos);
   fclose(todos);
   if (elements != 0) {
-    APPEND_TO_MESSAGES(t, "There's still elements inside the ToDo list file");
+    APPEND_TO_MESSAGES(runner_data, "Test", t->name, "There's still elements inside the ToDo list file");
     return false;
   }
 
   return true;
 }
 
-bool run_test_case_clear_after_test(Test *t, List *messages, char *base_cmd, bool valgrind) {
+bool run_test_case_clear_after_test(Runner_data *runner_data, Test *t, char *base_cmd, bool valgrind) {
   String_builder cmd = sb_create("%s \"clear all\"", base_cmd);
 
   int cmd_ret;
-  bool ok = run_test_execute(t, messages, &cmd, &cmd_ret);
+  bool ok = run_test_execute(runner_data, t, &cmd, &cmd_ret);
   sb_free(&cmd);
   if (!ok) return false;
 
-  if (!is_config_clean(t, messages)) {
+  if (!is_config_clean(runner_data, t)) {
     t->results.clear_after_test.result = RESULT_FAILED;
     return false;
   }
@@ -541,20 +570,20 @@ bool run_test_case_clear_after_test(Test *t, List *messages, char *base_cmd, boo
   else t->results.clear_after_test.result = (cmd_ret == 0) ? RESULT_PASSED : RESULT_FAILED;
 
   if (t->results.clear_after_test.result != RESULT_PASSED) {
-    APPEND_TO_MESSAGES(t, "Unable to clear all the ToDos");
+    APPEND_TO_MESSAGES(runner_data, "Test", t->name, "Unable to clear all the ToDos");
     return false;
   }
 
   return true;
 }
 
-void run_test(Test *test, List *messages, bool valgrind) {
+void run_test(Runner_data *runner_data, Test *test, bool valgrind) {
   if (state.log && valgrind) {
     String_builder log_path = sb_create("%s/%s.txt", state.logs_path, test->name);
     FILE *log = fopen(log_path.str, "a");
     sb_free(&log_path);
     if (!log) {
-      APPEND_TO_MESSAGES(test, "Unable to open the log file!");
+      APPEND_TO_MESSAGES(runner_data, "Test", test->name, "Unable to open the log file!");
       return;
     }
 
@@ -562,18 +591,18 @@ void run_test(Test *test, List *messages, bool valgrind) {
     fclose(log);
   }
 
-  char *base_cmd = run_test_generate_base_command(valgrind);
+  char *base_cmd = run_test_generate_base_command(*runner_data, valgrind);
 
   if (valgrind) {
     #define should_test(s) (test->results.s.result != RESULT_NOT_SPECIFIED && test->results.s.result != RESULT_NOT_TESTED)
-    #define X(s) if (should_test(s)) run_test_case_##s(test, messages, base_cmd, valgrind);
+    #define X(s) if (should_test(s)) run_test_case_##s(runner_data, test, base_cmd, valgrind);
 
       CASES()
 
     #undef X
     #undef should_test
   } else {
-    #define X(s) if (!run_test_case_##s(test, messages, base_cmd, valgrind)) goto exit;
+    #define X(s) if (!run_test_case_##s(runner_data, test, base_cmd, valgrind)) goto exit;
 
       CASES()
 
@@ -583,8 +612,9 @@ void run_test(Test *test, List *messages, bool valgrind) {
 exit:
   // Try to clean the mess if something went wrong
   if (test->results.clear_after_test.result == RESULT_NOT_TESTED)
-    run_test_case_clear_after_test(test, messages, base_cmd, false);
+    run_test_case_clear_after_test(runner_data, test, base_cmd, false);
 
+  remove(runner_data->export_filepath); // Try to remove it
   free(base_cmd);
 }
 
@@ -610,30 +640,24 @@ bool initialize_and_create_log_dir() {
 bool initialize_paths() {
   String_builder tmp = sb_new();
   if (!sb_append_from_shell_variable(&tmp, "TMPDIR")) return false;
-  char *tmp_path = tmp.str;
 
   if (!state.repo_path) state.repo_path = ".";
 
+  state.tmp_path            = tmp.str;
   state.tests_filepath      = sb_create("%s/tests/tests", state.repo_path).str;
   state.initial_states_path = sb_create("%s/tests/states/initial", state.repo_path).str;
   state.final_states_path   = sb_create("%s/tests/states/final", state.repo_path).str;
-  state.idea_config_path    = sb_create("%s/idea_tests", tmp_path).str;
-  state.idea_export_path    = sb_create("%s/idea_tests_export.idea", tmp_path).str;
-  state.idea_lock_filepath  = sb_create("%s/idea.lock", tmp_path).str;
 
-  sb_free(&tmp);
   if (state.log && !initialize_and_create_log_dir()) return false;
   return true;
 }
 
 void free_state() {
+  if (state.tmp_path) free(state.tmp_path);
   if (state.tests_filepath) free(state.tests_filepath);
   if (state.initial_states_path) free(state.initial_states_path);
   if (state.final_states_path) free(state.final_states_path);
   if (state.logs_path) free(state.logs_path);
-  if (state.idea_lock_filepath) free(state.idea_lock_filepath);
-  if (state.idea_config_path) free(state.idea_config_path);
-  if (state.idea_export_path) free(state.idea_export_path);
 }
 
 bool is_valgrind_available() {
@@ -660,6 +684,7 @@ bool parse_args(int argc, char *argv[], int *ret) {
       printf("\t-l\tEnable logs: dump al the commands and it's output\n");
       printf("\t-p\tSpecify the path to the idea repository directory\n");
       printf("\t-v\tRun checks with valgrind too\n");
+      printf("\t-j\tRun checks with the specified amount of threads\n");
       return false;
 
     } else if (!strcmp(argv[i], "-p")) {
@@ -682,6 +707,23 @@ bool parse_args(int argc, char *argv[], int *ret) {
         return false;
       }
 
+    } else if (!strcmp(argv[i], "-j")) {
+      if (i == argc-1) {
+        printf("The amount of threads is not provided!\n");
+        *ret = 1;
+        return false;
+      }
+
+      i++;
+      int t = atoi(argv[i]);
+      if (t < 1) {
+        printf("The amount of threads has to be a positive number!\n");
+        *ret = 1;
+        return false;
+      }
+
+      state.threads = t;
+
     } else {
       printf("Unrecognized arg (%dº): %s\n", i, argv[i]);
 
@@ -693,10 +735,88 @@ bool parse_args(int argc, char *argv[], int *ret) {
   return true;
 }
 
+void *test_runner(void *t_data) {
+  Runner_data *data = (Runner_data *) t_data;
+
+  data->config_path = sb_create("%s/%ld-idea", state.tmp_path, pthread_self()).str;
+  if (!create_dir_if_not_exists(data->config_path)) abort();
+  data->export_filepath = sb_create("%s/%ld-export", state.tmp_path, pthread_self()).str;
+
+  for (unsigned int i=data->tests_range.start; i<=data->tests_range.end; i++) {
+    Test *test = list_get(data->tests, i);
+    run_test(data, test, false);
+    if (state.valgrind) run_test(data, test, true);
+
+    pthread_mutex_lock(data->m_stats);
+      collect_statistics(data->stats, test);
+    pthread_mutex_unlock(data->m_stats);
+
+    pthread_mutex_lock(data->m_log);
+      print_results(stdout, *test);
+      if (state.log) print_results(data->log_file, *test);
+    pthread_mutex_unlock(data->m_log);
+  }
+
+  // Remove config_path directory and it's associated files
+  char *files_to_remove[] = {
+    sb_create("%s/" NOTES_DIRNAME "/", data->config_path).str,
+    sb_create("%s/" SAVE_FILENAME, data->config_path).str,
+    strdup(data->config_path),
+  };
+
+  bool ok = true;
+  for (unsigned int i=0; i<sizeof(files_to_remove)/sizeof(char*); i++) {
+    if (ok && remove(files_to_remove[i])) {
+      String_builder tid = sb_create("%ld", pthread_self());
+      APPEND_WITH_FORMAT_TO_MESSAGES(data, "Thread", tid.str, "Unable to remove %s. Reason: %s\n", files_to_remove[i], strerror(errno));
+      sb_free(&tid);
+      ok = false;
+    }
+    free(files_to_remove[i]);
+  }
+
+  free(data->config_path);
+  free(data->export_filepath);
+  return NULL;
+}
+
+void print_config() {
+  printf(ANSI_GRAY "Config:\n");
+  printf("- Repo path: %s\n", state.repo_path);
+  printf("- Logs: %s\n", (state.log) ? state.logs_path : "Disabled");
+  printf("- Valgrind check: %s\n", (state.valgrind) ? "Enabled" : "Disabled");
+  printf("- Threads count: %u\n", state.threads);
+  printf(ANSI_RESET "\n");
+}
+
+void find_max_test_name_length(List tests) {
+  const int padding = 5;
+  List_iterator iterator = list_iterator_create(tests);
+  while (list_iterator_next(&iterator)) {
+    Test *test = list_iterator_element(iterator);
+    const unsigned int length = strlen(test->name) + padding;
+    if (length > state.max_test_name_length) state.max_test_name_length = length;
+  }
+}
+
+void print_messages(List messages) {
+  if (!list_is_empty(messages)) printf(ANSI_GRAY "\nInformation:\n\n" ANSI_RESET);
+  List_iterator iterator = list_iterator_create(messages);
+  while (list_iterator_next(&iterator)) {
+    char *message = list_iterator_element(iterator);
+    printf("%s\n", message);
+  }
+}
+
 int main(int argc, char *argv[]) {
   List tests = list_new();
   List messages = list_new();
   FILE *log = NULL;
+  Runner_data *threads_data = NULL;
+  pthread_t *thread_pool = NULL;
+  pthread_mutex_t m_messages; pthread_mutex_init(&m_messages, NULL);
+  pthread_mutex_t m_stats; pthread_mutex_init(&m_stats, NULL);
+  pthread_mutex_t m_log; pthread_mutex_init(&m_log, NULL);
 
   int ret = 0;
   if (!parse_args(argc, argv, &ret)) goto exit;
@@ -706,27 +826,16 @@ int main(int argc, char *argv[]) {
     goto exit;
   }
 
-  puts(ANSI_GRAY);
-  printf("Config:\n");
-  printf("- Repo path: %s\n", state.repo_path);
-  printf("- Logs: %s\n", (state.log) ? state.logs_path : "Disabled");
-  printf("- Valgrind check: %s\n", (state.valgrind) ? "Enabled" : "Disabled");
-  puts(ANSI_RESET);
-  printf("\n");
-
   if (!get_tests(&tests)) {
     ret = 1;
     goto exit;
   }
 
-  const int padding = 5;
-  unsigned int test_name_length = 0;
-  List_iterator iterator = list_iterator_create(tests);
-  while (list_iterator_next(&iterator)) {
-    Test *test = list_iterator_element(iterator);
-    const unsigned int length = strlen(test->name) + padding;
-    if (length > test_name_length) test_name_length = length;
-  }
+  if (state.threads > list_size(tests)) state.threads = list_size(tests);
+
+  print_config();
+
+  find_max_test_name_length(tests);
 
   if (state.log) {
     String_builder log_path = sb_create("%s/final_results.txt", state.logs_path);
@@ -737,36 +846,55 @@ int main(int argc, char *argv[]) {
       goto exit;
     }
 
-    print_results_header(log, test_name_length);
+    print_results_header(log);
   }
+  print_results_header(stdout);
 
-  print_results_header(stdout, test_name_length);
-
+  thread_pool = malloc(sizeof(pthread_t) * state.threads);
   Statistics stats = {0};
 
-  iterator = list_iterator_create(tests);
-  while (list_iterator_next(&iterator)) {
-    Test *test = list_iterator_element(iterator);
-    run_test(test, &messages, false);
-    if (state.valgrind) run_test(test, &messages, true);
-    print_results(stdout, *test, test_name_length);
-    if (state.log) print_results(log, *test, test_name_length);
-    collect_statistics(&stats, test);
+  const unsigned int basic_tests_count_per_thread = list_size(tests) / state.threads;
+  unsigned int additional_tests_count = list_size(tests) % state.threads;
+
+  threads_data = malloc(sizeof(Runner_data) * state.threads);
+  for (unsigned int i=0; i<state.threads; i++) {
+    threads_data[i] = (Runner_data) {
+      .messages = &messages,
+      .tests = tests,
+      .stats = &stats,
+      .log_file = log,
+      .m_messages = &m_messages,
+      .m_stats = &m_stats,
+      .m_log = &m_log,
+    };
+
+    threads_data[i].tests_range.start = (i == 0) ? 0 : threads_data[i-1].tests_range.end+1;
+    threads_data[i].tests_range.end = threads_data[i].tests_range.start + basic_tests_count_per_thread - 1; // "- 1" because the range is inclusive
+    if (additional_tests_count) {
+      threads_data[i].tests_range.end++;
+      additional_tests_count--;
+    }
   }
+
+  for (unsigned int i=0; i<state.threads; i++)
+    pthread_create(thread_pool+i, NULL, test_runner, threads_data+i);
+
+  for (unsigned int i=0; i<state.threads; i++)
+    pthread_join(thread_pool[i], NULL);
 
   print_statistics(stats);
 
-  if (!list_is_empty(messages)) printf(ANSI_GRAY "\nInformation:\n\n" ANSI_RESET);
-  iterator = list_iterator_create(messages);
-  while (list_iterator_next(&iterator)) {
-    char *message = list_iterator_element(iterator);
-    printf("%s\n", message);
-  }
+  print_messages(messages);
 
 exit:
   list_destroy(&tests, (void (*)(void *))free_test);
   list_destroy(&messages, (void (*)(void *))free);
+  pthread_mutex_destroy(&m_messages);
+  pthread_mutex_destroy(&m_stats);
+  pthread_mutex_destroy(&m_log);
   if (log) fclose(log);
+  if (thread_pool) free(thread_pool);
+  if (threads_data) free(threads_data);
   free_state();
   return ret;
 }

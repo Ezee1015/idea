@@ -81,12 +81,6 @@ bool load_paths() {
   if (!sb_append_from_shell_variable(&sb, "TMPDIR")) return false;
   idea_state.tmp_path = sb.str;
 
-  sb = sb_create("%s/" BACKUP_NAME, idea_state.tmp_path);
-  idea_state.backup_filepath = sb.str;
-
-  sb = sb_create("%s/" LOCK_FILENAME, idea_state.tmp_path);
-  idea_state.lock_filepath = sb.str;
-
   sb = sb_new();
   if (sb_append_from_shell_variable(&sb, "IDEA_CONFIG_PATH")) {
     if (sb.str[sb.length-1] == '/') {
@@ -101,6 +95,12 @@ bool load_paths() {
 
   sb = sb_create("%s/" NOTES_DIRNAME, idea_state.config_path);
   idea_state.notes_path = sb.str;
+
+  sb = sb_create("%s/" LOCK_FILENAME, idea_state.config_path);
+  idea_state.lock_filepath = sb.str;
+
+  sb = sb_create("%s/" BACKUP_NAME, idea_state.config_path);
+  idea_state.backup_filepath = sb.str;
 
   return true;
 }

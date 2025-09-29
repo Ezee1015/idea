@@ -1,6 +1,8 @@
 #ifndef TESTS_H
 #define TESTS_H
 
+#include <pthread.h>
+
 #include "../../src/utils/list.h"
 #include "../../src/utils/string.h"
 
@@ -18,19 +20,23 @@
 #define VALGRIND_LEAK_EXIT_CODE 255 // Some random number
 #define VALGRIND_CMD "valgrind --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all --error-exitcode=" MACRO_INT_TO_STR(VALGRIND_LEAK_EXIT_CODE)
 
-#define APPEND_TO_MESSAGES(test, msg) \
-    list_append(messages, sb_create(                                 \
-            "- " ANSI_GRAY "Test" ANSI_RESET " %s\n"                 \
+#define APPEND_TO_MESSAGES(runner_data, type, name, msg)             \
+    pthread_mutex_lock(runner_data->m_messages);                     \
+    list_append(runner_data->messages, sb_create(                    \
+            "- " ANSI_GRAY type ":" ANSI_RESET " %s\n"               \
             "  " ANSI_GRAY "in the function" ANSI_RESET " %s()\n"    \
             "  " ANSI_GRAY "added this message:" ANSI_RESET " %s\n", \
-            test->name, __FUNCTION__, msg ).str);
+            name, __FUNCTION__, msg ).str);                          \
+    pthread_mutex_unlock(runner_data->m_messages);
 
-#define APPEND_WITH_FORMAT_TO_MESSAGES(test, fmt, ...) \
-    list_append(messages, sb_create(                                   \
-            "- " ANSI_GRAY "Test" ANSI_RESET " %s\n"                   \
-            "  " ANSI_GRAY "in the function" ANSI_RESET " %s()\n"      \
-            "  " ANSI_GRAY "added this message: " ANSI_RESET fmt "\n", \
-            test->name, __FUNCTION__, __VA_ARGS__ ).str);
+#define APPEND_WITH_FORMAT_TO_MESSAGES(runner_data, type, name, fmt, ...)    \
+    pthread_mutex_lock(runner_data->m_messages);                             \
+    list_append(runner_data->messages, sb_create(                            \
+            "- " ANSI_GRAY type ":" ANSI_RESET " %s\n"                       \
+            "  " ANSI_GRAY "in the function" ANSI_RESET " %s()\n"            \
+            "  " ANSI_GRAY "added this message: " ANSI_RESET fmt "\n",       \
+            name, __FUNCTION__, __VA_ARGS__ ).str);                          \
+    pthread_mutex_unlock(runner_data->m_messages);
 
 // X macro. References:
 // - https://www.youtube.com/watch?v=PgDqBZFir1A
@@ -43,20 +49,21 @@
   X(clear_after_test)
 
 typedef struct {
-  char *idea_config_path;
-  char *idea_export_path;
   char *idea_path;
-  char *idea_lock_filepath;
 
   char *repo_path;
+  char *tmp_path;
 
   char *tests_filepath;
   char *initial_states_path;
   char *final_states_path;
   char *logs_path;
 
+  unsigned int max_test_name_length;
+
   bool log;
   bool valgrind;
+  unsigned int threads;
 } Tests_state;
 
 typedef enum {
@@ -97,6 +104,29 @@ typedef struct {
   Test_result results;
 } Test;
 
+typedef struct {
+  unsigned int start;
+  unsigned int end;
+} Range;
+
+typedef struct {
+  List tests;
+  Range tests_range;
+
+  List *messages;
+  pthread_mutex_t *m_messages;
+
+  Statistics *stats;
+  pthread_mutex_t *m_stats;
+
+  FILE *log_file;
+  pthread_mutex_t *m_log;
+
+  // Completed inside the thread:
+  char *config_path;
+  char *export_filepath;
+} Runner_data;
+
 void free_state();
 
 void free_test(Test *test);
@@ -104,16 +134,16 @@ void free_test(Test *test);
 bool get_tests(List *tests);
 
 char *result_to_cstr(Case r);
-void print_results_header(FILE *output, unsigned int test_length);
-void print_results(FILE *output, Test test, unsigned int test_name_length);
+void print_results_header(FILE *output);
+void print_results(FILE *output, Test test);
 
-#define X(s) bool run_test_case_##s(Test *t, List *messages, char *base_cmd, bool valgrind);
+#define X(s) bool run_test_case_##s(Runner_data *runner_data, Test *t, char *base_cmd, bool valgrind);
   CASES()
 #undef X
 
-char *run_test_generate_base_command(bool valgrind);
-bool run_test_execute(Test *test, List *messages, String_builder *cmd, int *ret);
-void run_test(Test *test, List *messages, bool valgrind);
+char *run_test_generate_base_command(Runner_data runner_data, bool valgrind);
+bool run_test_execute(Runner_data *data, Test *test, String_builder *cmd, int *ret);
+void run_test(Runner_data *runner_data, Test *test, bool valgrind);
 
 bool create_dir_if_not_exists(char *dir_path);
 bool initialize_paths();
