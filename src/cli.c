@@ -293,7 +293,7 @@ Action_return action_import_todo(Input *input) {
   // Execute the diff tool to get the changes the user wants.
   // The diff tool has to save the final version of the file
   // in /tmp/local.idea for idea to execute them.
-  instruction = sb_create(DIFFTOOL_CMD " %s %s", local_path, external_path.str);
+  instruction = sb_create("%s %s %s", DIFFTOOL_CMD, local_path.str, external_path.str);
   int system_ret = system(instruction.str);
   sb_free(&instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) != 0)) {
@@ -303,7 +303,7 @@ Action_return action_import_todo(Input *input) {
 
   // Show the user the changes in the commands that are going to be executed
   printf("Diff of the database commands:\n\n");
-  instruction = sb_create(DIFF_CMD " %s %s", base_path.str, local_path.str);
+  instruction = sb_create("%s %s %s", DIFF_CMD, base_path.str, local_path.str);
   system_ret = system(instruction.str);
   sb_free(&instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) == 2)) {
@@ -354,7 +354,7 @@ Action_return notes_todo(Input *input) {
     todo_list_modified = true;
   }
 
-  String_builder instruction = sb_create(TEXT_EDITOR " '%s/%s." NOTES_EXTENSION "'", idea_state.notes_path, todo->id);
+  String_builder instruction = sb_create("%s '%s/%s." NOTES_EXTENSION "'", TEXT_EDITOR, idea_state.notes_path, todo->id);
 
   int system_ret = system(instruction.str);
   sb_free(&instruction);
