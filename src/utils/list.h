@@ -27,7 +27,11 @@ void list_append(List *list, void *element);
 
 void list_insert_at(List *list, void *element, unsigned int pos);
 
+void list_move_chunk(List *list, unsigned int start_pos, unsigned int chunk_size, int positions_to_move);
+
 void *list_remove(List *list, unsigned int pos);
+
+void *list_remove_element(List *list, const void *element);
 
 List_node *list_node_get(List list, unsigned int pos);
 
@@ -39,6 +43,8 @@ bool list_is_empty(List list);
 
 // If free_element is NULL, it will not free the element, just the list
 void list_destroy(List *list, void (*free_element)(void *));
+
+bool list_contains(List list, const void *element);
 
 bool list_map_bool(List list, bool (*operation)(void *));
 

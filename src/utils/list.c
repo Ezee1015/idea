@@ -45,6 +45,27 @@ void list_insert_at(List *list, void *element, unsigned int pos) {
   list->count++;
 }
 
+void list_move_chunk(List *list, unsigned int start_pos, unsigned int chunk_size, int positions_to_move) {
+  if (!positions_to_move) return;
+
+  for (unsigned int i=0; i<chunk_size; i++) {
+    void *e = NULL;
+    int from = 0, to = 0;
+
+    if (positions_to_move < 0) {
+      from = start_pos + i;
+      to = start_pos + positions_to_move + i;
+    } else {
+      from = start_pos;
+      to = start_pos + chunk_size;
+    }
+
+    e = list_remove(list, from);
+    if (!e) abort();
+    list_insert_at(list, e, to);
+  }
+}
+
 unsigned int list_size(List list) {
   return list.count;
 }
@@ -75,6 +96,16 @@ void *list_remove(List *list, unsigned int pos) {
   return remove_data;
 }
 
+void *list_remove_element(List *list, const void *element) {
+  List_iterator iterator = list_iterator_create(*list);
+  while (list_iterator_next(&iterator)) {
+    if (element == list_iterator_element(iterator)) {
+      return list_remove(list, list_iterator_index(iterator));
+    }
+  }
+  return NULL;
+}
+
 bool list_map_bool(List list, bool (*operation)(void *)) {
   if (!operation) abort();
 
@@ -96,6 +127,14 @@ void list_destroy(List *list, void (*free_element)(void *)) {
 
   list->head = list->last = NULL;
   list->count = 0;
+}
+
+bool list_contains(List list, const void *element) {
+  List_iterator iterator = list_iterator_create(list);
+  while (list_iterator_next(&iterator)) {
+    if (element == list_iterator_element(iterator)) return true;
+  }
+  return false;
 }
 
 bool list_save_to_bfile(List list, bool (*save_element_to_bfile)(FILE *, void *), FILE *file) {
