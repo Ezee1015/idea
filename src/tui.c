@@ -187,12 +187,16 @@ void toggle_select_item() {
   if (!unselect_current_item()) select_current_item();
 }
 
-void next_position() {
-  if (tui_st.current_pos < list_size(todo_list)-1) tui_st.current_pos++;
+bool next_position() {
+  if (tui_st.current_pos >= list_size(todo_list)-1) return false;
+  tui_st.current_pos++;
+  return true;
 }
 
-void previous_position() {
-  if (tui_st.current_pos > 0) tui_st.current_pos--;
+bool previous_position() {
+  if (tui_st.current_pos <= 0) return false;
+  tui_st.current_pos--;
+  return true;
 }
 
 bool move_selected(int direction) { // direction should be 1 or -1
@@ -287,7 +291,12 @@ void parse_normal(bool *exit_loop) {
 
     case 'g':
       switch (tui_st.mode) {
-        case MODE_NORMAL: while (move_selected(-1));                         break;
+        case MODE_NORMAL:
+          if (!list_is_empty(tui_st.selected)) {
+            while (move_selected(-1));
+          }
+          while (previous_position());
+          break;
         case MODE_VISUAL: while (tui_st.current_pos) visual_move_cursor(-1); break;
         case MODE_COMMAND: break; // unreachable
       }
@@ -298,7 +307,12 @@ void parse_normal(bool *exit_loop) {
       if (list_is_empty(todo_list)) break;
 
       switch (tui_st.mode) {
-        case MODE_NORMAL: while (move_selected(1));                                                  break;
+        case MODE_NORMAL:
+          if (!list_is_empty(tui_st.selected)) {
+            while (move_selected(1));
+          }
+          while (next_position());
+          break;
         case MODE_VISUAL: while (tui_st.current_pos < list_size(todo_list)-1) visual_move_cursor(1); break;
         case MODE_COMMAND: break; // unreachable
       }

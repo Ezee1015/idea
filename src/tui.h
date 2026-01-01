@@ -49,10 +49,10 @@ bool is_current_item_selected();
 bool select_current_item();
 bool unselect_current_item();
 void toggle_select_item();
-void next_position();
-void previous_position();
+bool next_position();
+bool previous_position();
 bool move_selected(int direction);
-void move_cursor(int direction);
+void visual_move_cursor(int direction);
 void parse_normal(bool *exit_loop);
 
 #endif // TUI_H
