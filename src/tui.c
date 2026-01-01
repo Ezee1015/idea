@@ -408,9 +408,13 @@ bool window_app(void) {
     if (window_size.width < area_size.width) {
       erase();
       printw("Window is not width enough...");
+      char c = getch(); // This captures when the screen resize too
+      if (c == 'q') exit_loop = true;
     } else if (window_size.height < area_size.height) {
       erase();
       printw("Window is not height enough...");
+      char c = getch(); // This captures when the screen resize too
+      if (c == 'q') exit_loop = true;
     } else {
       if (old_dimension.width != window_size.width || old_dimension.height != window_size.height) {
         old_dimension.width = window_size.width;
