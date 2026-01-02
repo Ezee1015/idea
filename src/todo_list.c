@@ -370,8 +370,6 @@ bool create_dir_structure() {
 bool load_file() {
   if (!list_is_empty(todo_list)) abort();
 
-  if (!create_dir_structure()) return false;
-
   String_builder path = sb_create("%s/" SAVE_FILENAME, idea_state.config_path);
 
   FILE *save_file = fopen(path.str, "rb");

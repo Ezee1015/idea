@@ -130,6 +130,8 @@ int main(int argc, char *argv[]) {
     return RET_CODE_PATH_ERROR;
   }
 
+  if (!create_dir_structure()) return false;
+
   if (!lock_file())  {
     free_paths();
     return RET_CODE_LOCK_ERROR;
