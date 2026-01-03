@@ -487,11 +487,12 @@ void update_area_y_axis() {
   area_start.y = (window_size.height-area_size.height)/2;
 }
 
+#define GET_MINIMUM_HEIGHT() list_size(todo_list) + 2
 bool window_app(void) {
   WINDOW *win = initscr();
   curs_set(0);
 
-  Size minimum_window_size = { .width = 35, .height = list_size(todo_list) + 2 };
+  Size minimum_window_size = { .width = 35, .height = GET_MINIMUM_HEIGHT() };
   bool exit_loop = false;
 
   Size old_dimension = {0};
@@ -524,7 +525,7 @@ bool window_app(void) {
 
       if (old_todo_list_size != list_size(todo_list)) {
         old_todo_list_size = list_size(todo_list);
-        minimum_window_size.height = list_size(todo_list) + 2;
+        minimum_window_size.height = GET_MINIMUM_HEIGHT();
         update_area_y_axis();
       }
 
