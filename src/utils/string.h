@@ -12,7 +12,7 @@ typedef struct {
 
 #define sb_new() (String_builder) {0}
 
-#define cstr_starts_with(sb, start) (!strncmp(start, sb, strlen(start)))
+#define cstr_starts_with(cstr, start) (!strncmp(start, cstr, strlen(start)))
 
 #define sb_inspect(sb) do {                                     \
   printf("================================================\n"); \
