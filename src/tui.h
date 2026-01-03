@@ -41,6 +41,9 @@ void message(char *title, char *msg);
 void draw_window(void);
 bool window_app(void);
 
+void update_area_x_axis();
+void update_area_y_axis();
+
 // Command mode
 bool parse_command(WINDOW *win, bool *exit_loop);
 

@@ -393,36 +393,56 @@ void parse_normal(bool *exit_loop) {
   }
 }
 
+void update_area_x_axis() {
+  area_size.width = window_size.width/2;
+  area_start.x = (window_size.width-area_size.width)/2;
+}
+
+void update_area_y_axis() {
+  area_size.height = list_size(todo_list) + 2; // + 2 for the status line
+  area_start.y = (window_size.height-area_size.height)/2;
+}
+
 bool window_app(void) {
   WINDOW *win = initscr();
   curs_set(0);
 
   Size window_size = {0};
-  Size old_dimension = {0};
+  Size minimum_window_size = { .width = 35, .height = list_size(todo_list) + 2 };
   bool exit_loop = false;
 
+  Size old_dimension = {0};
+  unsigned int old_todo_list_size = -1; // '-1' makes it update the first start
   do {
     window_size.width = getmaxx(win);
     window_size.height = getmaxy(win);
 
-    if (window_size.width < area_size.width) {
+    if (window_size.width < minimum_window_size.width) {
       erase();
       printw("Window is not width enough...");
       char c = getch(); // This captures when the screen resize too
       if (c == 'q') exit_loop = true;
-    } else if (window_size.height < area_size.height) {
+    } else if (window_size.height < minimum_window_size.height) {
       erase();
       printw("Window is not height enough...");
       char c = getch(); // This captures when the screen resize too
       if (c == 'q') exit_loop = true;
+
     } else {
-      if (old_dimension.width != window_size.width || old_dimension.height != window_size.height) {
+      if (old_dimension.width != window_size.width) {
         old_dimension.width = window_size.width;
+        update_area_x_axis();
+      }
+
+      if (old_dimension.height != window_size.height) {
         old_dimension.height = window_size.height;
-        area_size.width = window_size.width/2;
-        area_size.height = window_size.height/2;
-        area_start.x = (window_size.width-area_size.width)/2;
-        area_start.y = (window_size.height-area_size.height)/2;
+        update_area_y_axis();
+      }
+
+      if (old_todo_list_size != list_size(todo_list)) {
+        old_todo_list_size = list_size(todo_list);
+        minimum_window_size.height = list_size(todo_list) + 2;
+        update_area_y_axis();
       }
 
       erase();
