@@ -20,6 +20,7 @@
   }                                                                                               \
 } while (0)
 
+Size window_size = {0};
 Point area_start = {0};
 Size area_size = {0};
 Tui_state tui_st = {0};
@@ -27,6 +28,7 @@ Tui_state tui_st = {0};
 void draw_window(void) {
   int status_line_height = 2;
   const char *cursor = "--> ";
+  const unsigned int cursor_length = strlen(cursor);
   const char *command = ":";
   const char *visual = "-- VISUAL --";
 
@@ -35,7 +37,7 @@ void draw_window(void) {
   }
 
   if (tui_st.mode == MODE_COMMAND) {
-    mvprintw(area_start.y, area_start.x, "%s", command);
+    mvprintw(area_start.y, area_start.x + cursor_length, "%s", command);
   }
 
   if (tui_st.mode == MODE_VISUAL) {
@@ -52,7 +54,7 @@ void draw_window(void) {
     if (is_selected) attron(A_REVERSE);
 
     mvprintw(area_start.y+index + status_line_height,
-             area_start.x,
+             area_start.x + cursor_length,
              "%d) %s", index + 1, todo->name);
 
 
@@ -62,12 +64,12 @@ void draw_window(void) {
   // Cursor
   if (list_size(todo_list)) {
     mvprintw(area_start.y + tui_st.current_pos + status_line_height,
-        area_start.x - strlen(cursor),
+        area_start.x,
         "%s", cursor);
   }
 
   if (tui_st.mode == MODE_COMMAND) {
-    move(area_start.y, area_start.x + strlen(command));
+    move(area_start.y, area_start.x + cursor_length + strlen(command));
   }
 }
 
@@ -409,7 +411,6 @@ bool window_app(void) {
   WINDOW *win = initscr();
   curs_set(0);
 
-  Size window_size = {0};
   Size minimum_window_size = { .width = 35, .height = list_size(todo_list) + 2 };
   bool exit_loop = false;
 
