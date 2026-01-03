@@ -60,9 +60,11 @@ void draw_window(void) {
   }
 
   // Cursor
-  mvprintw(area_start.y+ tui_st.current_pos + status_line_height,
-           area_start.x - strlen(cursor),
-           "%s", cursor);
+  if (list_size(todo_list)) {
+    mvprintw(area_start.y + tui_st.current_pos + status_line_height,
+        area_start.x - strlen(cursor),
+        "%s", cursor);
+  }
 
   if (tui_st.mode == MODE_COMMAND) {
     move(area_start.y, area_start.x + strlen(command));
@@ -188,13 +190,13 @@ void toggle_select_item() {
 }
 
 bool next_position() {
-  if (tui_st.current_pos >= list_size(todo_list)-1) return false;
+  if (list_size(todo_list) == 0 || tui_st.current_pos >= list_size(todo_list)-1) return false;
   tui_st.current_pos++;
   return true;
 }
 
 bool previous_position() {
-  if (tui_st.current_pos <= 0) return false;
+  if (tui_st.current_pos == 0) return false;
   tui_st.current_pos--;
   return true;
 }
