@@ -73,18 +73,98 @@ void draw_window(void) {
   }
 }
 
+void draw_rect(int y1, int x1, int y2, int x2) {
+    mvhline(y1, x1, 0, x2-x1);
+    mvhline(y2, x1, 0, x2-x1);
+    mvvline(y1, x1, 0, y2-y1);
+    mvvline(y1, x2, 0, y2-y1);
+    mvaddch(y1, x1, ACS_ULCORNER);
+    mvaddch(y2, x1, ACS_LLCORNER);
+    mvaddch(y1, x2, ACS_URCORNER);
+    mvaddch(y2, x2, ACS_LRCORNER);
+}
+
 void message(char *title, char *msg) {
-  unsigned int text_width = strlen(msg) + 6;
-  Point start_text = {
-    .x = area_start.x + (area_size.width - text_width)/2,
-    .y = area_start.y + (area_size.height - 1)/2
+  const Size padding = { .width = 3, .height = 1 };
+
+  const unsigned int line_length_limit = area_size.width - 2 /* border */ - padding.width * 2;
+  const unsigned int msg_len = strlen(msg);
+
+  unsigned int lines = 1;
+  unsigned int max_line_length = 0;
+
+  unsigned int line_length = 0;
+  for (unsigned int i=0; i<msg_len; i++) {
+    if (msg[i] == '\n' || line_length == line_length_limit) {
+      lines++;
+      line_length = 0;
+    }
+    if (msg[i] != '\n') line_length++;
+    if (line_length > max_line_length) max_line_length = line_length;
+  }
+
+  Size box_size = {
+    .width = max_line_length + padding.width * 2,
+    .height = 4 /* 2 (box borders) + 1 (title line) + 1 (title) */ + padding.height * 2 + lines,
   };
 
+  // I need to cast the subtraction to int because if the box is bigger than the
+  // area_size it would overflow the unsigned int operation between area_size
+  // and box_size and break the box.
+  Point box_start = {
+    .x = area_start.x + (int)(area_size.width - box_size.width)/2,
+    .y = area_start.y + (int)(area_size.height - box_size.height)/2
+  };
+  // Fix box_start (unsigned int) overflow
+  if (box_start.x > window_size.width) box_start.x = 0;
+  if (box_start.y > window_size.height) box_start.y = 0;
+
   erase();
-  mvprintw(start_text.y, start_text.x, "%s: %s", title, msg);
+
+  // Draw the box
+  draw_rect(
+      box_start.y,
+      box_start.x,
+      box_start.y + box_size.height - 1,
+      box_start.x + box_size.width - 1
+  );
+  // Title bar
+  mvhline(box_start.y + 2,
+          box_start.x,
+          0,
+          box_size.width - 1);
+  mvaddch(box_start.y + 2,
+          box_start.x,
+          ACS_LTEE);
+  mvaddch(box_start.y + 2,
+          box_start.x + box_size.width - 1,
+          ACS_RTEE);
+
+  mvprintw(box_start.y + 1,
+           box_start.x + (box_size.width - strlen(title))/2,
+           "%s", title);
+
+  const unsigned int start_y = box_start.y + 1 + padding.height + 2,
+                     start_x = box_start.x + padding.width;
+
+  unsigned int cur_y = start_y,
+               cur_x = start_x;
+  move(cur_y, cur_x);
+  for (unsigned int i=0; i<msg_len; i++) {
+    if (msg[i] == '\n' || (cur_x - start_x) == line_length_limit) {
+      cur_y++;
+      cur_x = start_x;
+
+      move(cur_y, cur_x);
+    }
+
+    if (msg[i] != '\n') {
+      printw("%c", msg[i]);
+      cur_x++;
+    }
+  }
+
   getch();
-  erase();
-  draw_window();
 }
 
 bool parse_command(WINDOW *win, bool *exit_loop) {

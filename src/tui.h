@@ -37,6 +37,7 @@ typedef struct {
 } Tui_state;
 
 // Window drawing
+void draw_rect(int y1, int x1, int y2, int x2);
 void message(char *title, char *msg);
 void draw_window(void);
 bool window_app(void);
