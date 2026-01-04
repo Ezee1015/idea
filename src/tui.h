@@ -36,9 +36,16 @@ typedef struct {
 
 } Tui_state;
 
+typedef enum {
+  CONFIRM_NORMAL,
+  CONFIRM_DEFAULT_YES,
+  CONFIRM_DEFAULT_NO,
+} Confirm_type;
+
 // Window drawing
 void draw_rect(int y1, int x1, int y2, int x2);
-void message(char *title, char *msg);
+char message(char *title, char *msg);
+bool confirm(char *msg, Confirm_type type);
 void draw_window(void);
 bool window_app(void);
 
@@ -56,6 +63,7 @@ void toggle_select_item();
 bool next_position();
 bool previous_position();
 bool move_selected(int direction);
+void delete_selected();
 void visual_move_cursor(int direction);
 void parse_normal(bool *exit_loop);
 

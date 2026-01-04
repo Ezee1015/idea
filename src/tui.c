@@ -5,11 +5,13 @@
 
 #include "tui.h"
 #include "utils/list.h"
+#include "utils/string.h"
 #include "todo_list.h"
 #include "parser.h"
 
 #define ESCAPE_KEY 27
 #define BACKSPACE_KEY 127
+#define ENTER_KEY 10
 
 #define APPLY_MULTIPLIER(command) do {                                                            \
   if (tui_st.command_multiplier == 0) {                                                           \
@@ -84,7 +86,7 @@ void draw_rect(int y1, int x1, int y2, int x2) {
     mvaddch(y2, x2, ACS_LRCORNER);
 }
 
-void message(char *title, char *msg) {
+char message(char *title, char *msg) {
   const Size padding = { .width = 3, .height = 1 };
 
   const unsigned int line_length_limit = area_size.width - 2 /* border */ - padding.width * 2;
@@ -164,7 +166,51 @@ void message(char *title, char *msg) {
     }
   }
 
-  getch();
+  return getch();
+}
+
+bool confirm(char *msg, Confirm_type type) {
+  const char *msg_suffix = "Confirm?";
+  String_builder confirm_msg = sb_new();
+
+  char *options = NULL;
+  switch (type) {
+    case CONFIRM_NORMAL: options = "[y/n]"; break;
+    case CONFIRM_DEFAULT_YES: options = "[Y/n]"; break;
+    case CONFIRM_DEFAULT_NO: options = "[y/N]"; break;
+  }
+
+  sb_append_with_format(&confirm_msg, "%s\n\n%s %s", msg, msg_suffix, options);
+
+  bool ret;
+  bool valid_input = false;
+  while (!valid_input) {
+    char c = message("CONFIRM", confirm_msg.str);
+
+    if (c == 'n' || c == 'N') {
+      ret = false;
+      valid_input = true;
+    } else if (c == 'y' || c == 'Y') {
+      ret = true;
+      valid_input = true;
+    } else if (c == ENTER_KEY) {
+      switch (type) {
+        case CONFIRM_NORMAL: break;
+        case CONFIRM_DEFAULT_YES:
+            ret = true;
+            valid_input = true;
+          break;
+
+        case CONFIRM_DEFAULT_NO:
+          ret = false;
+          valid_input = true;
+          break;
+      }
+    }
+  }
+
+  sb_free(&confirm_msg);
+  return ret;
 }
 
 bool parse_command(WINDOW *win, bool *exit_loop) {
@@ -281,6 +327,34 @@ bool previous_position() {
   if (tui_st.current_pos == 0) return false;
   tui_st.current_pos--;
   return true;
+}
+
+void delete_selected() {
+  if (list_is_empty(tui_st.selected)) return;
+
+  String_builder msg = sb_new();
+  sb_append(&msg, "ToDos to remove:");
+  List_iterator iterator = list_iterator_create(tui_st.selected);
+  while (list_iterator_next(&iterator)) {
+    Todo *e = list_iterator_element(iterator);
+    sb_append_with_format(&msg, "\n  - %s", e->name);
+  }
+
+  bool ok = confirm(msg.str, CONFIRM_DEFAULT_NO);
+  sb_free(&msg);
+  if (!ok) {
+    message("INFO", "Delete cancelled!");
+    return;
+  }
+
+  while (!list_is_empty(tui_st.selected)) {
+    Todo *e = list_remove(&tui_st.selected, 0);
+    list_remove_element(&todo_list, e);
+    free_todo(e);
+  }
+
+  // Reposition cursor if it's outside the bounds
+  if (tui_st.current_pos > list_size(todo_list)-1) tui_st.current_pos = list_size(todo_list)-1;
 }
 
 bool move_selected(int direction) { // direction should be 1 or -1
@@ -470,6 +544,10 @@ void parse_normal(bool *exit_loop) {
       if (tui_st.command_multiplier) tui_st.command_multiplier = 0;
       break;
 
+    case 'd':
+      if (tui_st.mode == MODE_NORMAL) delete_selected();
+      break;
+
     default:
       if (isdigit(input)) tui_st.command_multiplier = (tui_st.command_multiplier * 10) + (input-'0');
       break;
@@ -530,6 +608,7 @@ bool window_app(void) {
       }
 
       erase();
+
       draw_window();
 
       if (tui_st.mode == MODE_COMMAND) {

@@ -26,6 +26,7 @@ You can see all the available options with `./build/idea -h` or run the TUI vers
 - `K`: Move the selected ToDos up
 - `g`: Move the cursor and the selected items to the top
 - `G`: Move the cursor and the selected items to the bottom
+- `d`: Delete the selected ToDos
 - `q`: Exit idea
 - `u`: Unselect all the selected items
 - `:`: Enter command mode
