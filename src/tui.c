@@ -252,8 +252,18 @@ bool parse_command(WINDOW *win, bool *exit_loop) {
     return true;
   }
 
-  if (!strcmp(input, "q")) {
+  if (!strcmp(input, "wq")) {
     *exit_loop = true;
+    return true;
+  }
+
+  if (!strcmp(input, "q")) {
+    bool ok = confirm("Quit without saving?", CONFIRM_DEFAULT_NO);
+    if (ok) {
+      *exit_loop = true;
+      todo_list_modified = false;
+      endwin();
+    }
     return true;
   }
 

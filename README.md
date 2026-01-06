@@ -31,5 +31,9 @@ You can see all the available options with `./build/idea -h` or run the TUI vers
 - `u`: Unselect all the selected items
 - `:`: Enter command mode
 
+### TUI commands
+- `:q`: Exit the application without saving the changes
+- `:wq`: Exit and save the changes
+
 ## Help
 Each interface can implement its own commands, but you can do `help` in the interface you're using to see the available commands. For example, you can run `./build/idea help` to see the available commands for the CLI.
