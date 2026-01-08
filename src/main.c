@@ -117,6 +117,7 @@ int main(int argc, char *argv[]) {
   enum {
     RET_CODE_SUCCESS,
     RET_CODE_PATH_ERROR,
+    RET_CODE_CREATE_STRUCTURE_FAILED,
     RET_CODE_LOCK_ERROR,
     RET_CODE_LOAD_FILE_ERROR,
     RET_CODE_SAVE_FILE_ERROR,
@@ -130,7 +131,7 @@ int main(int argc, char *argv[]) {
     return RET_CODE_PATH_ERROR;
   }
 
-  if (!create_dir_structure()) return false;
+  if (!create_dir_structure()) return RET_CODE_CREATE_STRUCTURE_FAILED;
 
   if (!lock_file())  {
     free_paths();
