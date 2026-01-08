@@ -417,21 +417,35 @@ Action_return action_add_at_todo(Input *input) {
 }
 
 Action_return action_remove_todo(Input *input) {
-  char *pos_str = next_token(input, 0);
-  if (!pos_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
-  unsigned int pos = atoi(pos_str);
-  free(pos_str);
+  char *argument = next_token(input, 0);
+  if (!argument) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  unsigned int index = atoi(argument);
 
-  if (pos == 0 || pos > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid Position");
+  if (index == 0) { // It's a string, not a number
+    List_iterator iterator = list_iterator_create(todo_list);
+    while (list_iterator_next(&iterator)) {
+      const Todo *e = ((Todo *) list_iterator_element(iterator));
+      if (!strcmp(e->name, argument)) break;
+    }
 
-  Todo *todo = list_remove(&todo_list, pos-1);
+    free(argument);
+    if (list_iterator_finished(iterator)) return ACTION_RETURN(RETURN_ERROR, "Unable to find the ToDo");
+    index = list_iterator_index(iterator);
+  } else {
+    free(argument);
 
-  if (!remove_todo_notes(todo)) {
-    list_insert_at(&todo_list, todo, pos-1);
+    index--; // 1-based index to 0-based index
+    if (index > list_size(todo_list)-1) return ACTION_RETURN(RETURN_ERROR, "Invalid Position");
+  }
+
+  Todo *removed = list_remove(&todo_list, index);
+
+  if (!remove_todo_notes(removed)) {
+    list_insert_at(&todo_list, removed, index-1);
     return ACTION_RETURN(RETURN_ERROR, "Unable to remove the ToDo's notes file");
   }
 
-  free_todo(todo);
+  free_todo(removed);
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
@@ -522,7 +536,7 @@ bool create_notes_todo(Todo *todo) {
 Functionality todo_list_functionality[] = {
   { "add", "a", action_add_todo, MAN("Add a ToDo", "[name]") },
   { "add_at", "ap", action_add_at_todo, MAN("Add a ToDo in the specified position", "[index] [name]") },
-  { "remove", "rm", action_remove_todo, MAN("Remove a ToDo", "[ID]") },
+  { "remove", "rm", action_remove_todo, MAN("Remove a ToDo", "[ID]", "[name]") },
   { "move", "mv", action_move_todo, MAN("Move ToDo", "[ID]") },
   { "edit", "e", action_edit_todo, MAN("Edit a ToDo", "[ID] [new name]") },
   { "clear", NULL, action_clear_todos, MAN("Clear all ToDos", "all") },

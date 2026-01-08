@@ -304,6 +304,11 @@ initial_state: empty_state
 command: remove 1
 should_fail
 
+name: remove_in_empty_state
+initial_state: empty_state
+command: remove This todo should not exist
+should_fail
+
 name: remove_0
 initial_state: 5_basic_todos
 command: add test 1
@@ -324,13 +329,25 @@ name: remove_first
 initial_state: 5_basic_todos
 command: rm 1
 
+name: remove_first_by_name
+initial_state: 5_basic_todos
+command: rm Hello, I'm a ToDo
+
 name: remove_last
 initial_state: 5_basic_todos
 command: rm 5
 
+name: remove_last_by_name
+initial_state: 5_basic_todos
+command: rm 📘 This one 🙂 has emojis ✅
+
 name: remove_middle
 initial_state: 5_basic_todos
 command: rm 3
+
+name: remove_middle_by_name
+initial_state: 5_basic_todos
+command: rm This ToDo has a note
 
 -- --------------------
 -- Mixing operations
