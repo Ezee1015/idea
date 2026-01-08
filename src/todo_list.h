@@ -24,6 +24,7 @@ typedef struct {
 extern List todo_list;
 extern bool todo_list_modified;
 
+bool search_todo_pos_by_name_or_pos(const char *name_or_position, unsigned int *index); // `position` should be 1-based. `index` is 0-based
 char *generate_unique_todo_id();
 void free_todo(Todo *node);
 bool remove_todo_notes(Todo *todo);

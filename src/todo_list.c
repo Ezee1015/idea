@@ -16,6 +16,28 @@ List todo_list = list_new();
 bool todo_list_modified = false;
 unsigned int instance_todo_counter = 0; // Counter of ToDos created by the current instance (to avoid id collisions in the same second)
 
+bool search_todo_pos_by_name_or_pos(const char *name_or_position, unsigned int *index) { // `position` should be 1-based. `index` is 0-based
+  if (list_is_empty(todo_list)) return false;
+
+  *index = atoi(name_or_position);
+
+  if (*index == 0) { // It's a string, not a number
+    List_iterator iterator = list_iterator_create(todo_list);
+    while (list_iterator_next(&iterator)) {
+      const Todo *e = ((Todo *) list_iterator_element(iterator));
+      if (!strcmp(e->name, name_or_position)) break;
+    }
+
+    if (list_iterator_finished(iterator)) return false;
+    *index = list_iterator_index(iterator);
+  } else {
+    (*index)--; // 1-based index to 0-based index
+    if (*index > list_size(todo_list)-1) return false;
+  }
+
+  return true;
+}
+
 char *generate_unique_todo_id() {
   char hostname[256];
   if (gethostname(hostname, sizeof(hostname)) == -1) return NULL;
@@ -419,24 +441,13 @@ Action_return action_add_at_todo(Input *input) {
 Action_return action_remove_todo(Input *input) {
   char *argument = next_token(input, 0);
   if (!argument) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
-  unsigned int index = atoi(argument);
 
-  if (index == 0) { // It's a string, not a number
-    List_iterator iterator = list_iterator_create(todo_list);
-    while (list_iterator_next(&iterator)) {
-      const Todo *e = ((Todo *) list_iterator_element(iterator));
-      if (!strcmp(e->name, argument)) break;
-    }
-
+  unsigned int index;
+  if (!search_todo_pos_by_name_or_pos(argument, &index)) {
     free(argument);
-    if (list_iterator_finished(iterator)) return ACTION_RETURN(RETURN_ERROR, "Unable to find the ToDo");
-    index = list_iterator_index(iterator);
-  } else {
-    free(argument);
-
-    index--; // 1-based index to 0-based index
-    if (index > list_size(todo_list)-1) return ACTION_RETURN(RETURN_ERROR, "Invalid Position");
+    return ACTION_RETURN(RETURN_ERROR, "Unable to find the ToDo");
   }
+  free(argument); argument = NULL;
 
   Todo *removed = list_remove(&todo_list, index);
 
@@ -502,13 +513,16 @@ Action_return action_clear_todos(Input *input) {
 }
 
 Action_return action_notes_todo_remove(Input *input) {
-  char *pos_str = next_token(input, 0);
-  if (!pos_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
-  unsigned int pos = atoi(pos_str);
-  free(pos_str);
-  if (!pos) return ACTION_RETURN(RETURN_ERROR, "The given position is not a number");
-  if (pos == 0 || pos > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid position");
-  Todo *todo = list_get(todo_list, pos-1);
+  char *arg = next_token(input, 0);
+  if (!arg) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+
+  unsigned int pos;
+  if (!search_todo_pos_by_name_or_pos(arg, &pos)) {
+    free(arg);
+    return ACTION_RETURN(RETURN_ERROR, "Unable to find the ToDo");
+  }
+  Todo *todo = list_get(todo_list, pos);
+  free(arg); arg = NULL;
 
   if (!todo->notes) return ACTION_RETURN(RETURN_ERROR, "The todo doesn't have a notes file");
   if (!remove_todo_notes(todo)) return ACTION_RETURN(RETURN_ERROR, "Unable to remove the notes");
@@ -540,6 +554,6 @@ Functionality todo_list_functionality[] = {
   { "move", "mv", action_move_todo, MAN("Move ToDo", "[ID]") },
   { "edit", "e", action_edit_todo, MAN("Edit a ToDo", "[ID] [new name]") },
   { "clear", NULL, action_clear_todos, MAN("Clear all ToDos", "all") },
-  { "notes_remove", NULL, action_notes_todo_remove, MAN("Remove the notes file for the todo", "[ID]") },
+  { "notes_remove", NULL, action_notes_todo_remove, MAN("Remove the notes file for the todo", "[ID]", "[name]") },
 };
 unsigned int todo_list_functionality_count = sizeof(todo_list_functionality) / sizeof(Functionality);
