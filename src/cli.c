@@ -54,7 +54,7 @@ bool create_backup() {
 }
 
 bool restore_backup() {
-  String_builder instruction = sb_create("import_no_diff %s", idea_state.backup_filepath);
+  String_builder instruction = sb_create("import %s", idea_state.backup_filepath);
 
   Action_return result;
   NESTED_ACTION(result = cli_parse_input(instruction.str), result);

@@ -360,7 +360,7 @@ bool run_test_execute(Runner_data *runner_data, Test *test, String_builder *cmd,
 }
 
 bool run_test_case_import_initial_state(Runner_data *runner_data, Test *t, char *base_cmd, bool valgrind) {
-  String_builder cmd = sb_create("%s \"import_no_diff %s/%s.idea\"", base_cmd, state.initial_states_path, t->state);
+  String_builder cmd = sb_create("%s \"import %s/%s.idea\"", base_cmd, state.initial_states_path, t->state);
   int cmd_ret;
   bool ok = run_test_execute(runner_data, t, &cmd, &cmd_ret);
   sb_free(&cmd);
