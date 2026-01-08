@@ -112,9 +112,22 @@ bool get_tests(List *tests) {
         goto exit;
       }
 
+      char *name = next_token(&input_line, 0);
+
+      List_iterator iterator = list_iterator_create(*tests);
+      while (list_iterator_next(&iterator)) {
+        Test *t = list_iterator_element(iterator);
+        if (!strcmp(t->name, name)) {
+          printf("%s:%d: [ERROR] Already exists a test with the name of %s!\n", state.tests_filepath, line_nr, name);
+          free(name);
+          ret = false;
+          goto exit;
+        }
+      }
+
       test = malloc(sizeof(Test));
       memset(test, 0 , sizeof(Test));
-      test->name = next_token(&input_line, 0);
+      test->name = name;
       list_append(tests, test);
 
     } else if (!strcmp(tag, "initial_state:")) {

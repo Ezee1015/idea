@@ -249,11 +249,6 @@ initial_state: 5_basic_todos
 command: edit 1
 should_fail
 
-name: edit_todo_empty_name
-initial_state: 5_basic_todos
-command: edit 1
-should_fail
-
 -- ----------
 -- NOTES_REMOVE
 -- ----------
@@ -304,7 +299,7 @@ initial_state: empty_state
 command: remove 1
 should_fail
 
-name: remove_in_empty_state
+name: remove_in_empty_state_by_name
 initial_state: empty_state
 command: remove This todo should not exist
 should_fail
