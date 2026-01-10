@@ -378,7 +378,7 @@ Action_return action_version(Input *input) {
   }
 
   printf(ANSI_GRAY "Version: " ANSI_RESET COMMIT "\n");
-  printf(ANSI_GRAY "Config: "ANSI_RESET "%s\n", idea_state.config_path);
+  printf(ANSI_GRAY "Config: "ANSI_RESET "%s\n", idea_state.local_path);
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 #endif // COMMIT

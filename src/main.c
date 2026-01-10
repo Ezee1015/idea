@@ -82,24 +82,24 @@ bool load_paths() {
   idea_state.tmp_path = sb.str;
 
   sb = sb_new();
-  if (sb_append_from_shell_variable(&sb, "IDEA_CONFIG_PATH")) {
+  if (sb_append_from_shell_variable(&sb, "IDEA_LOCAL_PATH")) {
     if (sb.str[sb.length-1] == '/') {
-      printf("IDEA_CONFIG_PATH can't end with '/'\n");
+      printf("IDEA_LOCAL_PATH can't end with '/'\n");
       return false;
     }
   } else {
     if (!sb_append_from_shell_variable(&sb, "HOME")) return false;
     sb_append(&sb, "/" CONFIG_PATH);
   }
-  idea_state.config_path = sb.str;
+  idea_state.local_path = sb.str;
 
-  sb = sb_create("%s/" NOTES_DIRNAME, idea_state.config_path);
+  sb = sb_create("%s/" NOTES_DIRNAME, idea_state.local_path);
   idea_state.notes_path = sb.str;
 
-  sb = sb_create("%s/" LOCK_FILENAME, idea_state.config_path);
+  sb = sb_create("%s/" LOCK_FILENAME, idea_state.local_path);
   idea_state.lock_filepath = sb.str;
 
-  sb = sb_create("%s/" BACKUP_NAME, idea_state.config_path);
+  sb = sb_create("%s/" BACKUP_NAME, idea_state.local_path);
   idea_state.backup_filepath = sb.str;
 
   return true;
@@ -109,7 +109,7 @@ void free_paths() {
   if (idea_state.tmp_path) free(idea_state.tmp_path);
   if (idea_state.backup_filepath) free(idea_state.backup_filepath);
   if (idea_state.lock_filepath) free(idea_state.lock_filepath);
-  if (idea_state.config_path) free(idea_state.config_path);
+  if (idea_state.local_path) free(idea_state.local_path);
   if (idea_state.notes_path) free(idea_state.notes_path);
 }
 
@@ -138,7 +138,7 @@ int main(int argc, char *argv[]) {
     return RET_CODE_LOCK_ERROR;
   }
 
-  if (load_file()) {
+  if (load_todo_list()) {
     if (argc == 1) {
       // TUI Version
       ret = (window_app()) ? RET_CODE_SUCCESS : RET_CODE_TUI_ERROR;
@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (ret == RET_CODE_SUCCESS && todo_list_modified) {
-    if (!save_file()) ret = RET_CODE_SAVE_FILE_ERROR;
+    if (!save_todo_list()) ret = RET_CODE_SAVE_FILE_ERROR;
   }
 
   if (!unlock_file()) ret = RET_CODE_UNLOCK_ERROR;

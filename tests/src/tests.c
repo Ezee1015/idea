@@ -329,7 +329,7 @@ void print_statistics(Statistics stats) {
 }
 
 char *run_test_generate_base_command(Runner_data runner_data, bool valgrind) {
-  String_builder base_cmd = sb_create("IDEA_CONFIG_PATH=\"%s\" %s %s/%s",
+  String_builder base_cmd = sb_create("IDEA_LOCAL_PATH=\"%s\" %s %s/%s",
                                       runner_data.config_path,
                                       (valgrind) ? VALGRIND_CMD : "",
                                       state.repo_path,

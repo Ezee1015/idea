@@ -351,8 +351,8 @@ bool save_todo_to_text_file(FILE *file, Todo *todo) {
   return true;
 }
 
-bool save_file() {
-  String_builder path = sb_create("%s/" SAVE_FILENAME, idea_state.config_path);
+bool save_todo_list() {
+  String_builder path = sb_create("%s/" SAVE_FILENAME, idea_state.local_path);
   FILE *save_file = fopen(path.str, "wb");
   sb_free(&path);
   if (!save_file) return false;
@@ -374,7 +374,7 @@ bool create_dir_if_not_exists(char *dir_path) {
 
 bool create_dir_structure() {
   char *dirs[] = {
-    idea_state.config_path,
+    idea_state.local_path,
     idea_state.notes_path
   };
 
@@ -389,10 +389,10 @@ bool create_dir_structure() {
   return true;
 }
 
-bool load_file() {
+bool load_todo_list() {
   if (!list_is_empty(todo_list)) abort();
 
-  String_builder path = sb_create("%s/" SAVE_FILENAME, idea_state.config_path);
+  String_builder path = sb_create("%s/" SAVE_FILENAME, idea_state.local_path);
 
   FILE *save_file = fopen(path.str, "rb");
   sb_free(&path);

@@ -9,8 +9,8 @@
 
 #define EXPORT_FILE_INDENTATION " │"
 
-#define LOCK_FILENAME "idea.lock"
-#define CONFIG_PATH ".config/idea"
+#define LOCK_FILENAME "lock"
+#define CONFIG_PATH ".local/share/idea_testing"
 #define NOTES_DIRNAME "notes"
 #define NOTES_EXTENSION "md"
 #define SAVE_FILENAME "todos.bin"
@@ -45,8 +45,8 @@ bool save_todo_notes_to_text_file(FILE *save_file, Todo *todo); // Notes file --
 bool create_dir_if_not_exists(char *dir_path);
 bool create_dir_structure();
 
-bool load_file();
-bool save_file();
+bool load_todo_list();
+bool save_todo_list();
 
 bool create_notes_todo(Todo *todo);
 
