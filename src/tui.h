@@ -3,6 +3,7 @@
 
 #include <ncurses.h>
 #include "utils/list.h"
+#include "todo_list.h"
 
 typedef struct {
   unsigned int width;
@@ -54,6 +55,7 @@ void update_area_y_axis();
 
 // Command mode
 bool parse_command(WINDOW *win, bool *exit_loop);
+void show_functionality_message(char *source, Functionality *functionality, unsigned int functionality_count);
 
 // Normal-Visual mode
 bool is_current_item_selected();

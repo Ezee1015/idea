@@ -6,7 +6,6 @@
 #include "tui.h"
 #include "utils/list.h"
 #include "utils/string.h"
-#include "todo_list.h"
 #include "parser.h"
 
 #define ESCAPE_KEY 27
@@ -267,6 +266,12 @@ bool parse_command(WINDOW *win, bool *exit_loop) {
     return true;
   }
 
+  if (!strcmp(input, "help") || !strcmp(input, "h")) {
+    show_functionality_message("Generic commands", todo_list_functionality, todo_list_functionality_count);
+    tui_st.mode = MODE_NORMAL;
+    return true;
+  }
+
   if (input[0] != '\0') {
     tui_st.mode = MODE_NORMAL;
 
@@ -424,6 +429,77 @@ void visual_move_cursor(int direction) { // direction should be 1 or -1
       case VISUAL_UNSELECT: unselect_current_item(); break;
     }
   }
+}
+
+void show_functionality_message(char *source, Functionality *functionality, unsigned int functionality_count) {
+  unsigned int max_functionality_per_page = 5;
+
+  unsigned int max_cmd_length = 0;
+  for (unsigned int i=0; i<functionality_count; i++) {
+    const Functionality f = functionality[i];
+    const unsigned int abbreviated_cmd_length = (f.abbreviation_cmd) ? strlen(f.abbreviation_cmd) : 0;
+    const unsigned int full_cmd_length = strlen(f.full_cmd);
+    const unsigned int cmd_length = abbreviated_cmd_length + full_cmd_length;
+    if (cmd_length > max_cmd_length) max_cmd_length = cmd_length;
+  }
+
+  String_builder msg = sb_new();
+  unsigned int page = 0;
+  char c = 0;
+  do {
+    unsigned int pages = (functionality_count % max_functionality_per_page)
+                         ? functionality_count / max_functionality_per_page + 1
+                         : functionality_count / max_functionality_per_page;
+    if (page >= pages) page = pages - 1;
+
+    sb_clean(&msg);
+
+    for (unsigned int i=page * max_functionality_per_page; i < (page+1) * max_functionality_per_page && i<functionality_count; i++) {
+      const Functionality f = functionality[i];
+      const unsigned int abbreviated_cmd_length = (f.abbreviation_cmd) ? strlen(f.abbreviation_cmd) : 0;
+      const unsigned int full_cmd_length = strlen(f.full_cmd);
+      const unsigned int cmd_length = abbreviated_cmd_length + full_cmd_length;
+
+      const unsigned int description_padding = 3;
+      unsigned int padding = max_cmd_length - cmd_length + description_padding;
+
+      if (i != page * max_functionality_per_page) sb_append(&msg, "\n");
+
+      if (f.abbreviation_cmd) {
+        sb_append_with_format(&msg, ":%s :%s", f.full_cmd, f.abbreviation_cmd);
+        while ( (padding--) > 0 ) sb_append(&msg, " ");
+        sb_append_with_format(&msg, "%s\n", f.man.description);
+      } else {
+        sb_append_with_format(&msg, ":%s  ", f.full_cmd, f.abbreviation_cmd);
+        while ( (padding--) > 0 ) sb_append(&msg, " ");
+        sb_append_with_format(&msg, "%s\n", f.man.description);
+      }
+
+      const unsigned int separator_between_commands_length = 2; // " :" when f.abbreviation_cmd exist or "  " when it doesn't
+      for (unsigned int x = 0; f.man.parameters[x]; x++) {
+        unsigned int padding_parameter = max_cmd_length + description_padding + separator_between_commands_length;
+        sb_append_with_format(&msg, " ");
+        while ( (padding_parameter--) > 0 ) sb_append(&msg, " ");
+        sb_append_with_format(&msg, "Usage: %s %s\n", f.full_cmd, functionality[i].man.parameters[x]);
+      }
+    }
+
+    if (0 <= (int)msg.length-1) msg.str[msg.length-1] = '\0'; // Remove the last '\n' from the last "Usage:"
+
+    String_builder title = sb_new();
+    sb_append_with_format(&title, "Help - %s [%u/%u]", source, page+1, pages);
+    c = message(title.str, msg.str);
+    sb_free(&title);
+
+    switch (c) {
+      case 'l': if (page < pages-1) page++;                                                         break;
+      case 'h': if (page > 0) page--;                                                               break;
+      case '-': if (max_functionality_per_page > 1) max_functionality_per_page--;                   break;
+      case '+': if (max_functionality_per_page < functionality_count) max_functionality_per_page++; break;
+    }
+  } while (c != 'q');
+
+  sb_free(&msg);
 }
 
 void parse_normal(bool *exit_loop) {
