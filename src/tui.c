@@ -36,6 +36,11 @@ void draw_window(void) {
   const unsigned int cursor_length = strlen(cursor);
   const char *command = ":";
   const char *visual = "-- VISUAL --";
+  const char *changed = "[+]";
+
+  if (todo_list_modified) {
+    mvprintw(area_start.y, area_start.x + area_size.width - strlen(changed), "%s", changed);
+  }
 
   if (tui_st.command_multiplier) {
     mvprintw(area_start.y, area_start.x, "%u", tui_st.command_multiplier);
@@ -330,8 +335,8 @@ bool previous_position() {
   return true;
 }
 
-void delete_selected() {
-  if (list_is_empty(tui_st.selected)) return;
+bool delete_selected() {
+  if (list_is_empty(tui_st.selected)) return false;
 
   String_builder msg = sb_new();
   sb_append(&msg, "ToDos to remove:");
@@ -345,7 +350,7 @@ void delete_selected() {
   sb_free(&msg);
   if (!ok) {
     message("INFO", "Delete cancelled!");
-    return;
+    return false;
   }
 
   while (!list_is_empty(tui_st.selected)) {
@@ -356,6 +361,7 @@ void delete_selected() {
 
   // Reposition cursor if it's outside the bounds
   if (tui_st.current_pos > list_size(todo_list)-1) tui_st.current_pos = list_size(todo_list)-1;
+  return true;
 }
 
 bool move_selected(int direction) { // direction should be 1 or -1
@@ -741,7 +747,11 @@ void parse_normal() {
       break;
 
     case 'd':
-      if (tui_st.mode == MODE_NORMAL) delete_selected();
+      if (tui_st.mode == MODE_NORMAL) {
+        // if (list_is_empty(tui_st.selected)) select_current_item();
+
+        if (delete_selected()) todo_list_modified = true;
+      }
       break;
 
     default:

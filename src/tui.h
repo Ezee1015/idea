@@ -82,7 +82,7 @@ void toggle_select_item();
 bool next_position();
 bool previous_position();
 bool move_selected(int direction);
-void delete_selected();
+bool delete_selected();
 void visual_move_cursor(int direction);
 void parse_normal();
 
