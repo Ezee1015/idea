@@ -139,6 +139,19 @@
                                                                        \
       if (delete_selected()) todo_list_modified = true;                \
     }                                                                  \
+  })                                                                   \
+\
+  X('o', "Create a new ToDo below the cursor", {                                                                       \
+    tui_st.mode = MODE_COMMAND;                                                                                        \
+    snprintf(input, sizeof(input), "add_at %d ", tui_st.current_pos + 1 /* 0-based to 1-based) */ + 1 /* next pos */); \
+    tui_st.current_pos++;                                                                                              \
+    tui_st.command_multiplier = 0;                                                                                     \
+  })                                                                                                                   \
+\
+  X('O', "Create a new ToDo above the cursor", {                                                    \
+    tui_st.mode = MODE_COMMAND;                                                                     \
+    snprintf(input, sizeof(input), "add_at %d ", tui_st.current_pos + 1 /* 0-based to 1-based) */); \
+    tui_st.command_multiplier = 0;                                                                  \
   })
 
 #endif // MAPPINGS

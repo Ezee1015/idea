@@ -62,7 +62,7 @@ void update_area_y_axis();
 
 // Command mode
 Help_result show_functionality_message(const char *source, const Functionality *functionality, const unsigned int functionality_count, bool are_commands, bool from_the_end, unsigned int *max_functionality_per_page);
-bool parse_command(WINDOW *win);
+bool parse_command();
 
 // Actions for command mode
 Action_return action_quit(Input *input);

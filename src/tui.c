@@ -26,6 +26,7 @@ Size window_size = {0};
 Point area_start = {0};
 Size area_size = {0};
 Tui_state tui_st = {0};
+char input[256] = {0};
 
 void draw_window(void) {
   int status_line_height = 2;
@@ -45,6 +46,7 @@ void draw_window(void) {
 
   if (tui_st.mode == MODE_COMMAND) {
     mvprintw(area_start.y, area_start.x + cursor_length, "%s", command);
+    if (strcmp(input, "")) printw("%s", input);
   }
 
   if (tui_st.mode == MODE_VISUAL) {
@@ -76,7 +78,7 @@ void draw_window(void) {
   }
 
   if (tui_st.mode == MODE_COMMAND) {
-    move(area_start.y, area_start.x + cursor_length + strlen(command));
+    move(area_start.y, area_start.x + cursor_length + strlen(command) + strlen(input));
   }
 }
 
@@ -218,10 +220,9 @@ bool confirm(char *msg, Confirm_type type) {
   return ret;
 }
 
-bool parse_command(WINDOW *win) {
-  unsigned int i = 0;
+bool parse_command() {
+  unsigned int i = strlen(input);
   bool read = true;
-  char input[256] = {0};
   char c = 0;
 
   while (read) {
@@ -241,7 +242,7 @@ bool parse_command(WINDOW *win) {
     }
 
     if (chars_to_clear) {
-      int x = getcurx(win)-chars_to_clear, y = getcury(win);
+      int x = getcurx(stdscr)-chars_to_clear, y = getcury(stdscr);
       for (unsigned int i=0; i < chars_to_clear; i++) mvprintw(y, x+i, " ");
       move(y, x);
     }
@@ -270,9 +271,10 @@ bool parse_command(WINDOW *win) {
     Action_return (*function)(Input *input) = search_functionality_function(instruction, tui_functionality, tui_functionality_count);
     if (!function) {
       function = search_functionality_function(instruction, todo_list_functionality, todo_list_functionality_count);
-      todo_list_modified = true;
+      if (function) todo_list_modified = true;
     }
     free(instruction); instruction = NULL;
+    input[0] = '\0';
 
     Action_return action_return = (function) ? function(&cmd) : ACTION_RETURN(RETURN_ERROR, "Invalid command");
     switch (action_return.type) {
@@ -629,15 +631,15 @@ Functionality tui_functionality[] = {
 unsigned int tui_functionality_count = sizeof(tui_functionality) / sizeof(Functionality);
 
 void parse_normal() {
-  char input = getch();
+  char c = getch();
 
-  switch (input) {
+  switch (c) {
 #define X(key, description, code_block) case key: code_block; break;
     MAPPINGS()
 #undef X
 
     default:
-      if (isdigit(input)) tui_st.command_multiplier = (tui_st.command_multiplier * 10) + (input-'0');
+      if (isdigit(c)) tui_st.command_multiplier = (tui_st.command_multiplier * 10) + (c-'0');
       break;
   }
 }
@@ -698,7 +700,7 @@ bool window_app(void) {
       draw_window();
 
       if (tui_st.mode == MODE_COMMAND) {
-        if (!parse_command(win)) return false;
+        if (!parse_command()) return false;
       } else {
         parse_normal();
       }
