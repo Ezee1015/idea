@@ -21,6 +21,10 @@
   }                                                                                               \
 } while (0)
 
+#define i_div_ceil(dividend, divisor) (dividend % divisor)     \
+                                      ? dividend / divisor + 1 \
+                                      : dividend / divisor;
+
 Size window_size = {0};
 Point area_start = {0};
 Size area_size = {0};
@@ -212,7 +216,7 @@ bool confirm(char *msg, Confirm_type type) {
   return ret;
 }
 
-bool parse_command(WINDOW *win, bool *exit_loop) {
+bool parse_command(WINDOW *win) {
   unsigned int i = 0;
   bool read = true;
   char input[256] = {0};
@@ -251,27 +255,6 @@ bool parse_command(WINDOW *win, bool *exit_loop) {
     return true;
   }
 
-  if (!strcmp(input, "wq")) {
-    *exit_loop = true;
-    return true;
-  }
-
-  if (!strcmp(input, "q")) {
-    bool ok = confirm("Quit without saving?", CONFIRM_DEFAULT_NO);
-    if (ok) {
-      *exit_loop = true;
-      todo_list_modified = false;
-      endwin();
-    }
-    return true;
-  }
-
-  if (!strcmp(input, "help") || !strcmp(input, "h")) {
-    show_functionality_message("Generic commands", todo_list_functionality, todo_list_functionality_count);
-    tui_st.mode = MODE_NORMAL;
-    return true;
-  }
-
   if (input[0] != '\0') {
     tui_st.mode = MODE_NORMAL;
 
@@ -282,14 +265,17 @@ bool parse_command(WINDOW *win, bool *exit_loop) {
     };
     char *instruction = next_token(&cmd, ' ');
 
-    Action_return (*function)(Input *input) = search_functionality_function(instruction, todo_list_functionality, todo_list_functionality_count);
-    free(instruction);
+    Action_return (*function)(Input *input) = search_functionality_function(instruction, tui_functionality, tui_functionality_count);
+    if (!function) {
+      function = search_functionality_function(instruction, todo_list_functionality, todo_list_functionality_count);
+      todo_list_modified = true;
+    }
+    free(instruction); instruction = NULL;
 
     Action_return action_return = (function) ? function(&cmd) : ACTION_RETURN(RETURN_ERROR, "Invalid command");
     switch (action_return.type) {
       case RETURN_INFO:
       case RETURN_SUCCESS:
-        todo_list_modified = true;
         if (action_return.message && strcmp(action_return.message, ""))
           message("INFO", action_return.message);
         break;
@@ -431,8 +417,8 @@ void visual_move_cursor(int direction) { // direction should be 1 or -1
   }
 }
 
-void show_functionality_message(char *source, Functionality *functionality, unsigned int functionality_count) {
-  unsigned int max_functionality_per_page = 5;
+Help_result show_functionality_message(const char *source, const Functionality *functionality, const unsigned int functionality_count, bool from_the_end, unsigned int *max_functionality_per_page) {
+  Help_result ret = HELP_RETURN_QUIT;
 
   unsigned int max_cmd_length = 0;
   for (unsigned int i=0; i<functionality_count; i++) {
@@ -444,17 +430,13 @@ void show_functionality_message(char *source, Functionality *functionality, unsi
   }
 
   String_builder msg = sb_new();
-  unsigned int page = 0;
-  char c = 0;
+  unsigned int pages = i_div_ceil(functionality_count, *max_functionality_per_page);
+  unsigned int page = (from_the_end) ? pages-1 : 0;
+  bool exit = false;
   do {
-    unsigned int pages = (functionality_count % max_functionality_per_page)
-                         ? functionality_count / max_functionality_per_page + 1
-                         : functionality_count / max_functionality_per_page;
-    if (page >= pages) page = pages - 1;
-
     sb_clean(&msg);
 
-    for (unsigned int i=page * max_functionality_per_page; i < (page+1) * max_functionality_per_page && i<functionality_count; i++) {
+    for (unsigned int i=page * (*max_functionality_per_page); i < (page+1) * (*max_functionality_per_page) && i<functionality_count; i++) {
       const Functionality f = functionality[i];
       const unsigned int abbreviated_cmd_length = (f.abbreviation_cmd) ? strlen(f.abbreviation_cmd) : 0;
       const unsigned int full_cmd_length = strlen(f.full_cmd);
@@ -463,7 +445,7 @@ void show_functionality_message(char *source, Functionality *functionality, unsi
       const unsigned int description_padding = 3;
       unsigned int padding = max_cmd_length - cmd_length + description_padding;
 
-      if (i != page * max_functionality_per_page) sb_append(&msg, "\n");
+      if (i != page * (*max_functionality_per_page)) sb_append(&msg, "\n");
 
       if (f.abbreviation_cmd) {
         sb_append_with_format(&msg, ":%s :%s", f.full_cmd, f.abbreviation_cmd);
@@ -488,21 +470,149 @@ void show_functionality_message(char *source, Functionality *functionality, unsi
 
     String_builder title = sb_new();
     sb_append_with_format(&title, "Help - %s [%u/%u]", source, page+1, pages);
-    c = message(title.str, msg.str);
+    char c = message(title.str, msg.str);
     sb_free(&title);
 
     switch (c) {
-      case 'l': if (page < pages-1) page++;                                                         break;
-      case 'h': if (page > 0) page--;                                                               break;
-      case '-': if (max_functionality_per_page > 1) max_functionality_per_page--;                   break;
-      case '+': if (max_functionality_per_page < functionality_count) max_functionality_per_page++; break;
+      case 'q': exit = true; break;
+
+      case '-':
+        if (*max_functionality_per_page > 1) {
+          (*max_functionality_per_page)--;
+          pages = i_div_ceil(functionality_count, *max_functionality_per_page);
+          if (page >= pages) page = pages - 1;
+        }
+        break;
+
+      case '+':
+        if (*max_functionality_per_page < functionality_count) {
+          (*max_functionality_per_page)++;
+          pages = i_div_ceil(functionality_count, *max_functionality_per_page);
+          if (page >= pages) page = pages - 1;
+        }
+        break;
+
+      case 'l':
+        if (page < pages-1) {
+          page++;
+        } else {
+          ret = HELP_RETURN_NEXT;
+          exit = true;
+        }
+        break;
+
+      case 'h':
+        if (page > 0) {
+          page--;
+        } else {
+          ret = HELP_RETURN_PREV;
+          exit = true;
+        }
+        break;
     }
-  } while (c != 'q');
+  } while (!exit);
 
   sb_free(&msg);
+  return ret;
 }
 
-void parse_normal(bool *exit_loop) {
+Action_return action_help(Input *input) {
+  char *args;
+  if ( input && (args = next_token(input, 0)) ) {
+    free(args);
+    return ACTION_RETURN(RETURN_ERROR, ":help doesn't require arguments");
+  }
+
+  unsigned int max_functionality_per_page = 5;
+
+  const struct {
+    const char *name;
+    const Functionality *func;
+    unsigned int func_count;
+  } functs[] = {
+    { "Generic commands", todo_list_functionality, todo_list_functionality_count },
+    { "TUI commands", tui_functionality, tui_functionality_count },
+  };
+  const unsigned int functs_count = sizeof(functs) / sizeof(functs[0]);
+
+  Help_result r;
+  unsigned int i = 0;
+  bool from_the_end = false;
+  do {
+    r = show_functionality_message(functs[i].name, functs[i].func, functs[i].func_count, from_the_end, &max_functionality_per_page);
+
+    switch (r) {
+      case HELP_RETURN_NEXT:
+        if (i < functs_count-1) {
+          i++;
+          from_the_end = false;
+        } else {
+          from_the_end = true;
+        }
+        break;
+
+      case HELP_RETURN_PREV:
+        if (0 < i) {
+          i--;
+          from_the_end = true;
+        } else {
+          from_the_end = false;
+        }
+        break;
+
+      case HELP_RETURN_QUIT: break;
+    }
+  } while (r != HELP_RETURN_QUIT);
+
+  return ACTION_RETURN(RETURN_SUCCESS, "");
+}
+
+#ifdef COMMIT
+#include "main.h"
+Action_return action_tui_version(Input *input) {
+  char *args;
+  if ( input && (args = next_token(input, 0)) ) {
+    free(args);
+    return ACTION_RETURN(RETURN_ERROR, "version doesn't require arguments");
+  }
+
+  String_builder sb = sb_new();
+  sb_append(&sb, "Version: " COMMIT "\n");
+  sb_append_with_format(&sb, "Config: %s\n", idea_state.local_path);
+  message("Version", sb.str);
+  sb_free(&sb);
+  return ACTION_RETURN(RETURN_SUCCESS, "");
+}
+#endif // COMMIT
+
+Action_return action_quit(Input *input) {
+  bool ok = confirm("Quit without saving?", CONFIRM_DEFAULT_NO);
+  if (ok) {
+    tui_st.exit_loop = true;
+    todo_list_modified = false;
+    endwin();
+    return ACTION_RETURN(RETURN_SUCCESS, "");
+  }
+
+  return ACTION_RETURN(RETURN_INFO, "Operation canceled");
+}
+
+Action_return action_save_and_quit(Input *input) {
+  tui_st.exit_loop = true;
+  return ACTION_RETURN(RETURN_SUCCESS, "");
+}
+
+Functionality tui_functionality[] = {
+  { "quit", "q", action_quit, MAN("Exit the application without saving the changes", NULL) },
+  { "write_quit", "wq", action_save_and_quit, MAN("Save the changes and exit", NULL) },
+  { "help", "h", action_help, MAN("See the help menu", NULL) },
+#ifdef COMMIT
+  { "version", "ver", action_tui_version, MAN("Print the commit hash and version", NULL) },
+#endif // COMMIT
+};
+unsigned int tui_functionality_count = sizeof(tui_functionality) / sizeof(Functionality);
+
+void parse_normal() {
   char input = getch();
 
   switch (input) {
@@ -564,7 +674,7 @@ void parse_normal(bool *exit_loop) {
       break;
 
     case 'q':
-      *exit_loop = true;
+      tui_st.exit_loop = true;
       break;
 
     case 'V':
@@ -657,7 +767,6 @@ bool window_app(void) {
   curs_set(0);
 
   Size minimum_window_size = { .width = 35, .height = GET_MINIMUM_HEIGHT() };
-  bool exit_loop = false;
 
   Size old_dimension = {0};
   unsigned int old_todo_list_size = -1; // '-1' makes it update the first start
@@ -669,12 +778,12 @@ bool window_app(void) {
       erase();
       printw("Window is not width enough...");
       char c = getch(); // This captures when the screen resize too
-      if (c == 'q') exit_loop = true;
+      if (c == 'q') tui_st.exit_loop = true;
     } else if (window_size.height < minimum_window_size.height) {
       erase();
       printw("Window is not height enough...");
       char c = getch(); // This captures when the screen resize too
-      if (c == 'q') exit_loop = true;
+      if (c == 'q') tui_st.exit_loop = true;
 
     } else {
       if (old_dimension.width != window_size.width) {
@@ -698,12 +807,12 @@ bool window_app(void) {
       draw_window();
 
       if (tui_st.mode == MODE_COMMAND) {
-        if (!parse_command(win, &exit_loop)) return false;
+        if (!parse_command(win)) return false;
       } else {
-        parse_normal(&exit_loop);
+        parse_normal();
       }
     }
-  } while ( !exit_loop );
+  } while ( !tui_st.exit_loop );
 
   return (endwin() != ERR);
 }

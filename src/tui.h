@@ -16,6 +16,7 @@ typedef struct {
 } Point;
 
 typedef struct {
+  bool exit_loop;
   enum {
     MODE_NORMAL,
     MODE_VISUAL,
@@ -43,6 +44,12 @@ typedef enum {
   CONFIRM_DEFAULT_NO,
 } Confirm_type;
 
+typedef enum {
+  HELP_RETURN_NEXT,
+  HELP_RETURN_PREV,
+  HELP_RETURN_QUIT,
+} Help_result;
+
 // Window drawing
 void draw_rect(int y1, int x1, int y2, int x2);
 char message(char *title, char *msg);
@@ -54,8 +61,18 @@ void update_area_x_axis();
 void update_area_y_axis();
 
 // Command mode
-bool parse_command(WINDOW *win, bool *exit_loop);
-void show_functionality_message(char *source, Functionality *functionality, unsigned int functionality_count);
+Help_result show_functionality_message(const char *source, const Functionality *functionality, const unsigned int functionality_count, bool from_the_end, unsigned int *max_functionality_per_page);
+bool parse_command(WINDOW *win);
+
+// Actions for command mode
+Action_return action_quit(Input *input);
+Action_return action_save_and_quit(Input *input);
+Action_return action_help(Input *input);
+Action_return action_tui_version(Input *input);
+
+extern Functionality tui_functionality[];
+extern unsigned int tui_functionality_count;
+
 
 // Normal-Visual mode
 bool is_current_item_selected();
@@ -67,6 +84,6 @@ bool previous_position();
 bool move_selected(int direction);
 void delete_selected();
 void visual_move_cursor(int direction);
-void parse_normal(bool *exit_loop);
+void parse_normal();
 
 #endif // TUI_H
