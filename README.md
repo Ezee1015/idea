@@ -13,23 +13,7 @@ Requirements: `ncurses`, `sed`
 
 
 ## Run
-You can see all the available options with `./build/idea -h` or run the TUI version with only running `./build/idea`
-
-### TUI maps
-- `j`: Move the cursor down
-- `k`: Move the cursor up
-- `[1-9]`: Number of times to repeat the command (command multiplier)
-- `[ESCAPE]`: Clear the command multiplier
-- `[SPACE]`: Toggle select
-- `V`: Enter visual mode
-- `J`: Move the selected ToDos down
-- `K`: Move the selected ToDos up
-- `g`: Move the cursor and the selected items to the top
-- `G`: Move the cursor and the selected items to the bottom
-- `d`: Delete the selected ToDos
-- `q`: Exit idea
-- `u`: Unselect all the selected items
-- `:`: Enter command mode
+You can see all the available CLI options with `./build/idea -h` or run the TUI version by only running `./build/idea` and typing `:help` (you can change pages with `h` and `l`, and increase or decrease the number of items show with `+` or `-`)
 
 ## Help
 Each interface can implement its own commands, but you can do `help` in the interface you're using to see the available commands. For example, you can run `./build/idea help` to see the available commands for the CLI.

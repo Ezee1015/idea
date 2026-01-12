@@ -7,10 +7,7 @@
 #include "utils/list.h"
 #include "utils/string.h"
 #include "parser.h"
-
-#define ESCAPE_KEY 27
-#define BACKSPACE_KEY 127
-#define ENTER_KEY 10
+#include "tui_mappings.h"
 
 #define APPLY_MULTIPLIER(command) do {                                                            \
   if (tui_st.command_multiplier == 0) {                                                           \
@@ -423,8 +420,9 @@ void visual_move_cursor(int direction) { // direction should be 1 or -1
   }
 }
 
-Help_result show_functionality_message(const char *source, const Functionality *functionality, const unsigned int functionality_count, bool from_the_end, unsigned int *max_functionality_per_page) {
+Help_result show_functionality_message(const char *source, const Functionality *functionality, const unsigned int functionality_count, bool are_commands, bool from_the_end, unsigned int *max_functionality_per_page) {
   Help_result ret = HELP_RETURN_QUIT;
+  const char *prefix_cmd = (are_commands) ? ":": " ";
 
   unsigned int max_cmd_length = 0;
   for (unsigned int i=0; i<functionality_count; i++) {
@@ -454,11 +452,11 @@ Help_result show_functionality_message(const char *source, const Functionality *
       if (i != page * (*max_functionality_per_page)) sb_append(&msg, "\n");
 
       if (f.abbreviation_cmd) {
-        sb_append_with_format(&msg, ":%s :%s", f.full_cmd, f.abbreviation_cmd);
+        sb_append_with_format(&msg, "%s%s %s%s", prefix_cmd, f.full_cmd, prefix_cmd, f.abbreviation_cmd);
         while ( (padding--) > 0 ) sb_append(&msg, " ");
         sb_append_with_format(&msg, "%s\n", f.man.description);
       } else {
-        sb_append_with_format(&msg, ":%s  ", f.full_cmd, f.abbreviation_cmd);
+        sb_append_with_format(&msg, "%s%s  ", prefix_cmd, f.full_cmd, f.abbreviation_cmd);
         while ( (padding--) > 0 ) sb_append(&msg, " ");
         sb_append_with_format(&msg, "%s\n", f.man.description);
       }
@@ -531,13 +529,25 @@ Action_return action_help(Input *input) {
 
   unsigned int max_functionality_per_page = 5;
 
+  // Create a temporary functionality list only to use the show_functionality_message()
+  const Functionality tui_mappings[] = {
+#define X(key, description, code_block) { (char [2]){key, '\0'}, NULL, NULL, MAN(description, NULL)},
+    MAPPINGS()
+#undef X
+
+   { "[1-9]", NULL, NULL, MAN("Number of times to repeat the command (command multiplier)", NULL) },
+  };
+  const unsigned int tui_mappings_count = sizeof(tui_mappings) / sizeof(tui_mappings[0]);
+
   const struct {
     const char *name;
     const Functionality *func;
     unsigned int func_count;
+    bool are_commands;
   } functs[] = {
-    { "Generic commands", todo_list_functionality, todo_list_functionality_count },
-    { "TUI commands", tui_functionality, tui_functionality_count },
+    { "Generic commands", todo_list_functionality, todo_list_functionality_count, true },
+    { "TUI commands", tui_functionality, tui_functionality_count, true },
+    { "TUI mappings", tui_mappings, tui_mappings_count, false }
   };
   const unsigned int functs_count = sizeof(functs) / sizeof(functs[0]);
 
@@ -545,7 +555,7 @@ Action_return action_help(Input *input) {
   unsigned int i = 0;
   bool from_the_end = false;
   do {
-    r = show_functionality_message(functs[i].name, functs[i].func, functs[i].func_count, from_the_end, &max_functionality_per_page);
+    r = show_functionality_message(functs[i].name, functs[i].func, functs[i].func_count, functs[i].are_commands, from_the_end, &max_functionality_per_page);
 
     switch (r) {
       case HELP_RETURN_NEXT:
@@ -622,142 +632,13 @@ void parse_normal() {
   char input = getch();
 
   switch (input) {
-    case ' ':
-      APPLY_MULTIPLIER({
-        toggle_select_item();
-        next_position();
-      });
-      break;
-
-    case 'j':
-      APPLY_MULTIPLIER({
-        switch (tui_st.mode) {
-          case MODE_NORMAL:  next_position();       break;
-          case MODE_VISUAL:  visual_move_cursor(1); break;
-          case MODE_COMMAND: break; // unreachable
-        }
-      });
-      break;
-
-    case 'k':
-      APPLY_MULTIPLIER({
-        switch (tui_st.mode) {
-          case MODE_NORMAL: previous_position();    break;
-          case MODE_VISUAL: visual_move_cursor(-1); break;
-          case MODE_COMMAND: break; // unreachable
-        }
-      });
-      break;
-
-    case 'g':
-      switch (tui_st.mode) {
-        case MODE_NORMAL:
-          if (!list_is_empty(tui_st.selected)) {
-            while (move_selected(-1));
-          }
-          while (previous_position());
-          break;
-        case MODE_VISUAL: while (tui_st.current_pos) visual_move_cursor(-1); break;
-        case MODE_COMMAND: break; // unreachable
-      }
-      tui_st.command_multiplier = 0;
-      break;
-
-    case 'G':
-      if (list_is_empty(todo_list)) break;
-
-      switch (tui_st.mode) {
-        case MODE_NORMAL:
-          if (!list_is_empty(tui_st.selected)) {
-            while (move_selected(1));
-          }
-          while (next_position());
-          break;
-        case MODE_VISUAL: while (tui_st.current_pos < list_size(todo_list)-1) visual_move_cursor(1); break;
-        case MODE_COMMAND: break; // unreachable
-      }
-      tui_st.command_multiplier = 0;
-      break;
-
-    case 'q':
-      tui_st.exit_loop = true;
-      break;
-
-    case 'V':
-      switch (tui_st.mode) {
-        case MODE_NORMAL:
-          tui_st.visual_start_pos = tui_st.current_pos;
-          tui_st.mode = MODE_VISUAL;
-          tui_st.visual_mode = (is_current_item_selected())
-                              ? VISUAL_UNSELECT
-                              : VISUAL_SELECT;
-
-          APPLY_MULTIPLIER({
-            switch (tui_st.visual_mode) {
-              case VISUAL_SELECT:   select_current_item();   break;
-              case VISUAL_UNSELECT: unselect_current_item(); break;
-            }
-            next_position();
-          });
-
-          if (tui_st.current_pos != list_size(todo_list)-1) previous_position();
-          break;
-
-        case MODE_VISUAL:
-          tui_st.mode = MODE_NORMAL;
-          tui_st.command_multiplier = 0;
-          break;
-
-        case MODE_COMMAND: break; // unreachable
-      }
-      break;
-
-    case 'J':
-      APPLY_MULTIPLIER({
-          if (move_selected(1)) {
-            next_position();
-            if (tui_st.mode == MODE_VISUAL) tui_st.visual_start_pos++;
-            todo_list_modified = true;
-          }
-      });
-      break;
-
-    case 'K':
-      APPLY_MULTIPLIER({
-          if (move_selected(-1)) {
-            previous_position();
-            if (tui_st.mode == MODE_VISUAL) tui_st.visual_start_pos--;
-            todo_list_modified = true;
-          }
-      });
-      break;
-
-    case 'u':
-      if (tui_st.mode == MODE_NORMAL) list_destroy(&tui_st.selected, NULL);
-      tui_st.command_multiplier = 0;
-      break;
-
-    case ':':
-      if (tui_st.mode == MODE_NORMAL) tui_st.mode = MODE_COMMAND;
-      tui_st.command_multiplier = 0;
-      break;
-
-    case ESCAPE_KEY:
-      if (tui_st.command_multiplier) tui_st.command_multiplier = 0;
-      break;
-
-    case 'd':
-      if (tui_st.mode == MODE_NORMAL) {
-        // if (list_is_empty(tui_st.selected)) select_current_item();
-
-        if (delete_selected()) todo_list_modified = true;
-      }
-      break;
+#define X(key, description, code_block) case key: code_block; break;
+    MAPPINGS()
+#undef X
 
     default:
       if (isdigit(input)) tui_st.command_multiplier = (tui_st.command_multiplier * 10) + (input-'0');
       break;
-
   }
 }
 
