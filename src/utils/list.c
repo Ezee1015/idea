@@ -45,6 +45,17 @@ void list_insert_at(List *list, void *element, unsigned int pos) {
   list->count++;
 }
 
+void list_insert_sorted(List *list, void *element, void *(*comparator)(void *, void *)) {
+  List_iterator iterator = list_iterator_create(*list);
+  while (list_iterator_next(&iterator)) {
+    void *list_e = list_iterator_element(iterator);
+
+    if (comparator(list_e, element) == element) break;
+  }
+
+  list_insert_at(list, element, list_iterator_index(iterator));
+}
+
 void list_move_chunk(List *list, unsigned int start_pos, unsigned int chunk_size, int positions_to_move) {
   if (!positions_to_move) return;
 

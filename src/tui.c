@@ -36,6 +36,12 @@ void draw_window(void) {
   const char *visual = "-- VISUAL --";
   const char *changed = "[+]";
 
+  // Area box
+  // draw_rect(area_start.y - 1,
+  //           area_start.x - 1,
+  //           area_start.y + area_size.height,
+  //           area_start.x + area_size.width);
+
   if (todo_list_modified) {
     mvprintw(area_start.y, area_start.x + area_size.width - strlen(changed), "%s", changed);
   }
