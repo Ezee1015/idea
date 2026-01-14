@@ -10,7 +10,7 @@
 #define EXPORT_FILE_INDENTATION " │"
 
 #define LOCK_FILENAME "lock"
-#define CONFIG_PATH ".local/share/idea_testing"
+#define CONFIG_PATH ".local/share/idea"
 #define NOTES_DIRNAME "notes"
 #define NOTES_EXTENSION "md"
 #define SAVE_FILENAME "todos.bin"
