@@ -529,11 +529,7 @@ Help_result show_functionality_message(const char *source, const Functionality *
 }
 
 Action_return action_help(Input *input) {
-  char *args;
-  if ( input && (args = next_token(input, 0)) ) {
-    free(args);
-    return ACTION_RETURN(RETURN_ERROR, ":help doesn't require arguments");
-  }
+  ACTION_NO_ARGS("help", input);
 
   unsigned int max_functionality_per_page = 5;
 
@@ -594,11 +590,7 @@ Action_return action_help(Input *input) {
 #ifdef COMMIT
 #include "main.h"
 Action_return action_tui_version(Input *input) {
-  char *args;
-  if ( input && (args = next_token(input, 0)) ) {
-    free(args);
-    return ACTION_RETURN(RETURN_ERROR, "version doesn't require arguments");
-  }
+  ACTION_NO_ARGS("version", input);
 
   String_builder sb = sb_new();
   sb_append(&sb, "Version: " COMMIT "\n");
@@ -610,11 +602,12 @@ Action_return action_tui_version(Input *input) {
 #endif // COMMIT
 
 Action_return action_quit(Input *input) {
+  ACTION_NO_ARGS("quit", input);
+
   bool ok = confirm("Quit without saving?", CONFIRM_DEFAULT_NO);
   if (ok) {
     tui_st.exit_loop = true;
     todo_list_modified = false;
-    endwin();
     return ACTION_RETURN(RETURN_SUCCESS, "");
   }
 
@@ -622,11 +615,24 @@ Action_return action_quit(Input *input) {
 }
 
 Action_return action_save_and_quit(Input *input) {
+  ACTION_NO_ARGS("save & quit", input);
+
+  // The list is going to be save after the loop if it was modified
   tui_st.exit_loop = true;
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
+Action_return action_save(Input *input) {
+  ACTION_NO_ARGS("save", input);
+
+  if (!save_todo_list()) return ACTION_RETURN(RETURN_ERROR, "Unable to save the ToDo list");
+
+  todo_list_modified = false;
+  return ACTION_RETURN(RETURN_SUCCESS, "");
+}
+
 Functionality tui_functionality[] = {
+  { "write", "w", action_save, MAN("Write the changes to disk", NULL) },
   { "quit", "q", action_quit, MAN("Exit the application without saving the changes", NULL) },
   { "write_quit", "wq", action_save_and_quit, MAN("Save the changes and exit", NULL) },
   { "help", "h", action_help, MAN("See the help menu", NULL) },

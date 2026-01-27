@@ -30,6 +30,14 @@ typedef struct {
     .function = __func__,                                            \
   }
 
+#define ACTION_NO_ARGS(action_name, input) do {                                        \
+  char *args;                                                                          \
+  if ( input && (args = next_token(input, 0)) ) {                                      \
+    free(args);                                                                        \
+    return ACTION_RETURN(RETURN_ERROR, "`" action_name "` doesn't require arguments"); \
+  }                                                                                    \
+} while (0)                                                                            \
+
 typedef struct {
   char *description;
   char **parameters; // Optional --> Empty if it doesn't expect parameters

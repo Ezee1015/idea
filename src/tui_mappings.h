@@ -64,9 +64,29 @@
     tui_st.command_multiplier = 0;                                                                        \
   })                                                                                                      \
 \
-  X('q', "Exit idea", {      \
-    tui_st.exit_loop = true; \
-  })                         \
+  X('s', "Save the changes to disk (same as :w)", {                \
+    Action_return ret = action_save(NULL);                         \
+    if (ret.type != RETURN_SUCCESS) message("ERROR", ret.message); \
+  })                                                               \
+  \
+  X('W', "Save and Exit idea (same as :wq)", {                     \
+    Action_return ret = action_save_and_quit(NULL);                \
+    if (ret.type != RETURN_SUCCESS) message("ERROR", ret.message); \
+    })                                                             \
+\
+  X('Q', "Exit idea without saving (same as :q)", {                \
+    Action_return ret = action_quit(NULL);                         \
+    if (ret.type != RETURN_SUCCESS) message("ERROR", ret.message); \
+  })                                   \
+\
+  X('q', "Confirm to save and Exit idea (similar to :q but asks whether to save)", { \
+    if (todo_list_modified) {                                                  \
+      bool save = confirm("Save?", CONFIRM_DEFAULT_YES);                       \
+      if (!save) todo_list_modified = false;                                   \
+    }                                                                          \
+                                                                               \
+    tui_st.exit_loop = true;                                                   \
+  })                                                                           \
 \
   X('V', "Enter or Exit visual mode", {                                        \
     switch (tui_st.mode) {                                                     \

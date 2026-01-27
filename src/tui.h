@@ -66,6 +66,7 @@ bool parse_command();
 
 // Actions for command mode
 Action_return action_quit(Input *input);
+Action_return action_save(Input *input);
 Action_return action_save_and_quit(Input *input);
 Action_return action_help(Input *input);
 Action_return action_tui_version(Input *input);

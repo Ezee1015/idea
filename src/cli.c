@@ -98,11 +98,7 @@ bool import_file(char *filepath) {
 
 /// Functionality
 Action_return action_print_todo(Input *input) {
-  char *args;
-  if ( input && (args = next_token(input, 0)) ) {
-    free(args);
-    return ACTION_RETURN(RETURN_ERROR, "list doesn't require arguments");
-  }
+  ACTION_NO_ARGS("list", input);
 
   List_iterator iterator = list_iterator_create(todo_list);
   while (list_iterator_next(&iterator)) {
@@ -147,11 +143,7 @@ void print_functionality(char *source, Functionality *functionality, unsigned in
 }
 
 Action_return action_print_help(Input *input) {
-  char *args;
-  if ( input && (args = next_token(input, 0)) ) {
-    free(args);
-    return ACTION_RETURN(RETURN_ERROR, "help doesn't require arguments");
-  }
+  ACTION_NO_ARGS("help", input);
 
   print_functionality("Generic commands", todo_list_functionality, todo_list_functionality_count);
   print_functionality("CLI Specific commands", cli_functionality, cli_functionality_count);
@@ -371,11 +363,7 @@ Action_return notes_todo(Input *input) {
 
 #ifdef COMMIT
 Action_return action_version(Input *input) {
-  char *args;
-  if ( input && (args = next_token(input, 0)) ) {
-    free(args);
-    return ACTION_RETURN(RETURN_ERROR, "version doesn't require arguments");
-  }
+  ACTION_NO_ARGS("version", input);
 
   printf(ANSI_GRAY "Version: " ANSI_RESET COMMIT "\n");
   printf(ANSI_GRAY "Config: "ANSI_RESET "%s\n", idea_state.local_path);
