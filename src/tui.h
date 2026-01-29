@@ -70,6 +70,7 @@ Action_return action_save(Input *input);
 Action_return action_save_and_quit(Input *input);
 Action_return action_help(Input *input);
 Action_return action_tui_version(Input *input);
+Action_return action_add_at_todo_tui(Input *input);
 
 extern Functionality tui_functionality[];
 extern unsigned int tui_functionality_count;

@@ -161,12 +161,12 @@
     }                                                                  \
   })                                                                   \
 \
-  X('o', "Create a new ToDo below the cursor", {                                                                       \
-    tui_st.mode = MODE_COMMAND;                                                                                        \
-    snprintf(input, sizeof(input), "add_at %d ", tui_st.current_pos + 1 /* 0-based to 1-based) */ + 1 /* next pos */); \
-    tui_st.current_pos++;                                                                                              \
-    tui_st.command_multiplier = 0;                                                                                     \
-  })                                                                                                                   \
+  X('o', "Create a new ToDo below the cursor", {                                                                                \
+    tui_st.mode = MODE_COMMAND;                                                                                                 \
+    unsigned int pos = (list_is_empty(todo_list)) ? 1 : tui_st.current_pos + 1 /* 0-based to 1-based) */ + 1 /* next pos */;    \
+    snprintf(input, sizeof(input), "add_at %d ", pos);                                                                          \
+    tui_st.command_multiplier = 0;                                                                                              \
+  })                                                                                                                            \
 \
   X('O', "Create a new ToDo above the cursor", {                                                    \
     tui_st.mode = MODE_COMMAND;                                                                     \

@@ -241,7 +241,7 @@ bool parse_command() {
         input[i--] = '\0';
         chars_to_clear++; // character to remove
       }
-    } else if (isalnum(c) || c == ' ') {
+    } else if (isalnum(c) || c == ' ' || c == '_') {
       input[i++] = c;
     } else { // Not recognized character, so clear the character that was printed on the screen
       chars_to_clear = 1;
@@ -280,7 +280,6 @@ bool parse_command() {
       if (function) todo_list_modified = true;
     }
     free(instruction); instruction = NULL;
-    input[0] = '\0';
 
     Action_return action_return = (function) ? function(&cmd) : ACTION_RETURN(RETURN_ERROR, "Invalid command");
     switch (action_return.type) {
@@ -300,8 +299,11 @@ bool parse_command() {
         if (action_return.message && strcmp(action_return.message, ""))
           message("ERROR. Aborting...", action_return.message);
         endwin();
+        input[0] = '\0';
         return false;
     }
+
+    input[0] = '\0';
   }
 
   return true;
@@ -631,7 +633,39 @@ Action_return action_save(Input *input) {
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
+Action_return action_add_at_todo_tui(Input *input) {
+  Action_return (*function)(Input *input) = search_functionality_function("add_at", todo_list_functionality, todo_list_functionality_count);
+  if (!function) abort(); // Should not happen
+
+  // Peek the index from the input
+  const unsigned int argument_cursor = input->cursor;
+  char *pos_str = next_token(input, ' ');
+  input->cursor = argument_cursor;
+
+  Action_return action_return = function(input);
+  unsigned int pos = 0;
+  switch (action_return.type) {
+    case RETURN_INFO:
+    case RETURN_SUCCESS:
+      todo_list_modified = true;
+      pos = atoi(pos_str);
+      free(pos_str);
+      if (!pos) abort(); // Should not happen as this is checked inside the original add_at (todo_list.c)
+
+      tui_st.current_pos = pos-1;
+      return ACTION_RETURN(RETURN_SUCCESS, action_return.message);
+
+    case RETURN_ERROR:
+    case RETURN_ERROR_AND_EXIT:
+      free(pos_str);
+      return action_return;
+  }
+
+  return ACTION_RETURN(RETURN_ERROR, "Unreachable");
+}
+
 Functionality tui_functionality[] = {
+  { "add_at", "ap", action_add_at_todo_tui, MAN("Add a ToDo in the specified position", "[index] [name]") },
   { "write", "w", action_save, MAN("Write the changes to disk", NULL) },
   { "quit", "q", action_quit, MAN("Exit the application without saving the changes", NULL) },
   { "write_quit", "wq", action_save_and_quit, MAN("Save the changes and exit", NULL) },
