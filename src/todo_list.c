@@ -382,6 +382,7 @@ bool create_dir_structure() {
   for (unsigned int i=0; i<dirs_count; i++) {
     char *path = dirs[i];
     if (!create_dir_if_not_exists(path)) {
+      printf("[ERROR] Unable to create the directory %s\n", path);
       return false;
     }
   }
