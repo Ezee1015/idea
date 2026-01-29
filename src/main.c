@@ -89,7 +89,7 @@ bool load_paths() {
     }
   } else {
     if (!sb_append_from_shell_variable(&sb, "HOME")) return false;
-    sb_append(&sb, "/" CONFIG_PATH);
+    sb_append(&sb, "/" LOCAL_PATH);
   }
   idea_state.local_path = sb.str;
 
