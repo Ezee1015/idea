@@ -345,6 +345,25 @@ initial_state: 5_basic_todos
 command: rm This ToDo has a note
 
 -- --------------------
+-- HTML
+-- --------------------
+
+name: html_empty_state
+initial_state: empty_state
+command: html /tmp/test.html
+state_unchanged
+
+name: html_5_basic_todos
+initial_state: 5_basic_todos
+command: html /tmp/test.html
+state_unchanged
+
+name: html_no_output_file
+initial_state: 5_basic_todos
+command: html
+should_fail
+
+-- --------------------
 -- Mixing operations
 -- --------------------
 

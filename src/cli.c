@@ -8,6 +8,7 @@
 #include "todo_list.h"
 #include "utils/list.h"
 #include "utils/string.h"
+#include "template/template.h"
 
 unsigned int msg_indentation = 1;
 
@@ -361,6 +362,20 @@ Action_return action_notes_todo(Input *input) {
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
+Action_return action_generate_html(Input *input) {
+  char *arg = next_token(input, 0);
+  if (!arg) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+
+  FILE *output = fopen(arg, "w");
+  free(arg);
+  if (!output) return ACTION_RETURN(RETURN_ERROR, "Unable to open the path of the output html file");
+
+  if (!generate_html(output, todo_list)) return ACTION_RETURN(RETURN_ERROR, "Unable to export the ToDos in a HTML");
+
+  fclose(output);
+  return ACTION_RETURN(RETURN_SUCCESS, "");
+}
+
 #ifdef COMMIT
 Action_return action_version(Input *input) {
   ACTION_NO_ARGS("version", input);
@@ -385,6 +400,7 @@ Functionality cli_functionality[] = {
   { "import", NULL, action_import_todos, MAN("Import the ToDos without any interaction (no diff)", "[file]") },
   { "help", "-h", action_print_help, MAN("Help page", NULL) },
   { "notes", NULL, action_notes_todo, MAN("Open the ToDo's notes file", "[ID]", "[name]") },
+  { "html", NULL, action_generate_html, MAN("Generate an HTML file with the ToDos", "[HTML file path]") },
 #ifdef COMMIT
   { "version", "-v", action_version, MAN("Print the commit hash and version", NULL) },
 #endif // COMMIT

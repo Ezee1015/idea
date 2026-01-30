@@ -1,0 +1,15 @@
+<html>
+    <head>
+        <title>idea - Exported ToDos</title>
+    </head>
+
+    <body>
+        <ul>
+            <c> List_iterator iterator = list_iterator_create(todo_list); </c>
+            <c> while (list_iterator_next(&iterator)) { </c>
+                <c> Todo *e = list_iterator_element(iterator); </c>
+                <li>(<c>CSTR(e->id)</c>) <c>CSTR(e->name)</c></li>
+            <c> } </c>
+        </ul>
+    </body>
+</html>
