@@ -2,6 +2,7 @@
 #define TEMPLATE_H
 
 #include <stdio.h>
+#include <time.h>
 #include "../utils/list.h"
 #include "../todo_list.h"
 

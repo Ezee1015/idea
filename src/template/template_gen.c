@@ -66,7 +66,7 @@ bool print_html_to_c_file(const char *html_filepath, long line, char *html_start
         if (isprint(c)) {
           if (fputc(c, template_c) == EOF) return false;
         } else {
-          printf("[ERROR] %s:%d: nvalid character '%c' (%d) in %s:%ld\n", __FILE__, __LINE__, c, c, html_filepath, line);
+          printf("[ERROR] %s:%d: Invalid character '%c' (%d) in %s:%ld\n", __FILE__, __LINE__, c, c, html_filepath, line);
           return false;
         }
         break;

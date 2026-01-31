@@ -35,6 +35,22 @@
             .todo h2 {
                 font-size: 22px;
                 text-align: center;
+                margin-bottom: 0px;
+            }
+
+            .arrow_show {
+                color: var(--fg-dark);
+                width: 100%;
+                text-align: center;
+                margin: 0px;
+                font-size: 15px;
+
+                opacity: 0;
+            }
+
+            .todo_data {
+                padding: 12px;
+                padding-top: 0px;
             }
 
             hr {
@@ -53,6 +69,10 @@
                 top: 0px;
             }
 
+            footer p {
+                text-align: center;
+            }
+
             @media only screen and ( (max-device-width: 640px) or (max-width: 1100px) ) {
                 .todo {
                     width: 98%;
@@ -68,18 +88,104 @@
             <hr>
         </header>
 
-        <div id="todos_container">
-            <c> List_iterator iterator = list_iterator_create(todo_list); </c>
-            <c> while (list_iterator_next(&iterator)) { </c>
-                <c> Todo *e = list_iterator_element(iterator); </c>
-                <div class="todo">
-                    <h2><c>CSTR(e->name)</c></h2>
-                    <div class="todo_container">
-                        <hr>
-                        - ID: <c>CSTR(e->id)</c>
+        <main>
+            <div id="todos_container">
+                <c> List_iterator iterator = list_iterator_create(todo_list); </c>
+                <c> while (list_iterator_next(&iterator)) { </c>
+                    <c> Todo *e = list_iterator_element(iterator); </c>
+                    <div id="<c>CSTR(e->id)</c>" class="todo">
+                        <div class="todo_header">
+                            <h2><c>CSTR(e->name)</c></h2>
+                            <p class="arrow_show">&#9660;</p>
+                        </div>
+
+                        <hr class="todo_header_separator">
+                        <div class="todo_data">
+                            <p class="todo_info"></p>
+                        </div>
                     </div>
-                </div>
-            <c> } </c>
-        </div>
+                <c> } </c>
+            </div>
+        </main>
+
+        <footer>
+            <br>
+            <hr>
+            <p id="export_date">Exported:
+                <c>
+                    time_t currentTime;
+                    time(&currentTime);
+                    CSTR(ctime(&currentTime))
+                </c>
+            </p>
+
+            <c> #ifdef COMMIT </c>
+                <p>Version: <c>CSTR(COMMIT)</c></p>
+            <c> #endif // COMMIT </c>
+
+        </footer>
     </body>
+
+    <script>
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); // Source: https://stackoverflow.com/a/29509267
+        const todos = document.getElementsByClassName("todo")
+
+        function getElementInsideTodoContainer(container, className) {
+            const list = container.getElementsByClassName(className)
+            if (list.length != 1) console.log("Error. There's more then one `" + className + "` in a `todo_container`")
+            return list[0]
+        }
+
+        for (const todo of todos) {
+            const data      = getElementInsideTodoContainer(todo, "todo_data")
+            const header    = getElementInsideTodoContainer(todo, "todo_header")
+            const arrow     = getElementInsideTodoContainer(todo, "arrow_show")
+            const info      = getElementInsideTodoContainer(todo, "todo_info")
+            const separator = getElementInsideTodoContainer(todo, "todo_header_separator")
+
+            // I put display: none in the JS and not in the CSS because if the
+            // browser doesn't execute the JS, the data can still be displayed
+            separator.style.display = "none"
+            data.style.display = "none"
+
+            const host = todo.id.split("-")[0]
+            const date = new Date(todo.id.split("-")[1] * 1000)
+            info.innerHTML = `Created on <b>${host}</b> on <b>${date.toLocaleString(undefined, { hour12: false })}</b>`
+
+            if (!isMobile) {
+                // This gives some problems in mobile, because there's no cursor
+                arrow.style.transition = "opacity 0.15s"
+                header.onmouseenter= () => {
+                    arrow.style.opacity = "1"
+                }
+                header.onmouseleave = () => {
+                    arrow.style.opacity = "0"
+                }
+            }
+
+            header.onclick = () => {
+                todo.animate([
+                    { transform: "scale(1)  " },
+                    { transform: "scale(0.98)" },
+                    { transform: "scale(1) " },
+                ], {
+                    duration: 50,
+                })
+
+                if (data.style.display == "none") {
+                    if (isMobile) arrow.style.opacity = "1"
+                    arrow.innerHTML = "&#9650;"
+
+                    separator.style.display = ""
+                    data.style.display = ""
+                } else {
+                    if (isMobile) arrow.style.opacity = "0"
+                    arrow.innerHTML = "&#9660;"
+
+                    separator.style.display = "none"
+                    data.style.display = "none"
+                }
+            }
+        }
+    </script>
 </html>
