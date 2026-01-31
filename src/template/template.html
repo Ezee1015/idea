@@ -1,15 +1,85 @@
 <html>
     <head>
         <title>idea - Exported ToDos</title>
+
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <style>
+            /* Colors taken from <https://tsoding.github.io/schedule/> */
+            :root {
+                --bg: #181818;
+                --bg-light: #1b1b1b;
+
+                --fg: #e4e4ef;
+                --fg-dark: #515151;
+
+                --green: #73c936;
+            }
+
+            body {
+                background: var(--bg);
+                color: var(--fg);
+            }
+
+            .todo {
+                background: var(--bg-light);
+                width: 50%;
+                margin-top: 25px;
+                margin-left: 25%;
+
+                border-radius: 15px;
+                border: 2px solid var(--fg-dark);
+
+            }
+
+            .todo h2 {
+                font-size: 22px;
+                text-align: center;
+            }
+
+            hr {
+                border: 1px solid var(--fg-dark);
+            }
+
+            h1 {
+                text-align: center;
+                color: var(--green);
+            }
+
+            header {
+                background: var(--bg);
+
+                position: sticky;
+                top: 0px;
+            }
+
+            @media only screen and ( (max-device-width: 640px) or (max-width: 1100px) ) {
+                .todo {
+                    width: 98%;
+                    margin-left: 1%;
+                }
+            }
+        </style>
     </head>
 
     <body>
-        <ul>
+        <header>
+            <h1>idea</h1>
+            <hr>
+        </header>
+
+        <div id="todos_container">
             <c> List_iterator iterator = list_iterator_create(todo_list); </c>
             <c> while (list_iterator_next(&iterator)) { </c>
                 <c> Todo *e = list_iterator_element(iterator); </c>
-                <li>(<c>CSTR(e->id)</c>) <c>CSTR(e->name)</c></li>
+                <div class="todo">
+                    <h2><c>CSTR(e->name)</c></h2>
+                    <div class="todo_container">
+                        <hr>
+                        - ID: <c>CSTR(e->id)</c>
+                    </div>
+                </div>
             <c> } </c>
-        </ul>
+        </div>
     </body>
 </html>
