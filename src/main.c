@@ -126,6 +126,7 @@ int main(int argc, char *argv[]) {
     RET_CODE_CLI_ERROR,
   } ret;
 
+  idea_state.program_path = argv[0];
   if (!load_paths()) {
     free_paths();
     return RET_CODE_PATH_ERROR;

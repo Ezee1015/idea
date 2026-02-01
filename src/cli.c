@@ -137,7 +137,7 @@ void print_functionality(char *source, Functionality *functionality, unsigned in
     const unsigned int separator_between_commands_length = 2; // ", " when f.abbreviation_cmd exist or "  " when it doesn't
     for (unsigned int x = 0; f.man.parameters[x]; x++) {
       unsigned int padding_parameter = max_cmd_length + description_padding + separator_between_commands_length;
-      printf("\t%*sUsage: "ANSI_BLUE"%s %s"ANSI_RESET"\n", padding_parameter, "", f.full_cmd, functionality[i].man.parameters[x]);
+      printf("\t%*s"ANSI_GRAY"Usage: "ANSI_BLUE"%s %s"ANSI_RESET"\n", padding_parameter, "", f.full_cmd, functionality[i].man.parameters[x]);
     }
     printf("\n");
   }
@@ -145,6 +145,10 @@ void print_functionality(char *source, Functionality *functionality, unsigned in
 
 Action_return action_print_help(Input *input) {
   ACTION_NO_ARGS("help", input);
+
+  printf(ANSI_GRAY "Open TUI: " ANSI_RESET "%s\n", idea_state.program_path);
+  printf(ANSI_GRAY "CLI: " ANSI_RESET "%s [command 1] [command 2] [...]\n\n", idea_state.program_path);
+  printf("A simple ToDo-app written in C. Source code: " ANSI_BLUE "<https://www.github.com/Ezee1015/idea>\n\n" ANSI_RESET);
 
   print_functionality("Generic commands", todo_list_functionality, todo_list_functionality_count);
   print_functionality("CLI Specific commands", cli_functionality, cli_functionality_count);

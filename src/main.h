@@ -9,6 +9,8 @@ typedef struct {
   char *notes_path;
   char *tmp_path;
   char *lock_filepath;
+
+  char *program_path;
 } State;
 
 extern State idea_state;
