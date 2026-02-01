@@ -5,9 +5,13 @@
 #include "../utils/list.h"
 #include "../todo_list.h"
 
-#define CSTR(cstr) if (fprintf(f, "%s", cstr) < 0) return false;
-#define UNIX_TIME(time) if (fprintf(f, "%ld", *time) < 0) return false;
+#define FPRINTF_ERROR() ACTION_RETURN(RETURN_ERROR, "fprintf failed")
 
-bool generate_html(FILE *f, List todo_list);
+// Macros to use in the HTML Template (to simplify the c code there)
+#define CSTR(cstr) if (fprintf(f, "%s", cstr) < 0) return FPRINTF_ERROR();
+#define UNIX_TIME(time) if (fprintf(f, "%ld", *time) < 0) return FPRINTF_ERROR();
+#define ERROR(msg) ACTION_RETURN(RETURN_ERROR, msg)
+
+Action_return generate_html(FILE *f, List todo_list);
 
 #endif // TEMPLATE_H

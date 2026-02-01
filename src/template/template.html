@@ -151,7 +151,7 @@
                 <span class="text_dark">from</span>
                 <c>
                     char hostname[256];
-                    if (gethostname(hostname, sizeof(hostname)) == -1) return false;
+                    if (gethostname(hostname, sizeof(hostname)) == -1) return ERROR("Unable to get the hostname for exporting the ToDo");
                     CSTR(hostname);
                 </c>
 

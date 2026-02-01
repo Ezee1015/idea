@@ -74,7 +74,7 @@ bool print_html_to_c_file(const char *html_filepath, long line, char *html_start
     }
 
     if (new_line || i == html_length-1) {
-      if (fprintf(template_c, "\") < 0) return false; // %s:%d from %s:%s()\n", html_filepath, (int)line, __FILE__, __func__) < 0) return false;
+      if (fprintf(template_c, "\") < 0) return FPRINTF_ERROR(); // %s:%d from %s:%s()\n", html_filepath, (int)line, __FILE__, __func__) < 0) return false;
     }
   }
 
@@ -186,11 +186,11 @@ bool generate_template_c(const char *html_filepath, char *html, long html_size, 
   C_CODE("#include \"../../src/template/template.h\"");
   EMPTY_LINE();
 
-  C_CODE("bool generate_html(FILE *f, List todo_list) {");
+  C_CODE("Action_return generate_html(FILE *f, List todo_list) {");
 
   if (!print_html_template(html_filepath, html, html_size, template_c)) return false;
 
-  C_CODE("  return true;");
+  C_CODE("  return ACTION_RETURN(RETURN_SUCCESS, \"\");");
   C_CODE("}");
 
   return true;

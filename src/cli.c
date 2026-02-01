@@ -374,10 +374,10 @@ Action_return action_generate_html(Input *input) {
   free(arg);
   if (!output) return ACTION_RETURN(RETURN_ERROR, "Unable to open the path of the output html file");
 
-  if (!generate_html(output, todo_list)) return ACTION_RETURN(RETURN_ERROR, "Unable to export the ToDos in a HTML");
+  Action_return ret = generate_html(output, todo_list);
 
   fclose(output);
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return ret;
 }
 
 #ifdef COMMIT
