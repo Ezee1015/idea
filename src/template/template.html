@@ -1,6 +1,12 @@
+<c>
+    #include <time.h>
+    #include <unistd.h>
+</c>
+
 <html>
     <head>
-        <title>idea - Exported ToDos</title>
+        <title>idea</title>
+        <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAABhWlDQ1BJQ0MgcHJvZmlsZQAAKJF9kb1Lw1AUxU9TRZGKg0VEBDNUQbCLijjWKhShQqgVWnUweekXNGlIUlwcBdeCgx+LVQcXZ10dXAVB8APEP0CcFF2kxPuSQosYLzzej/PuObx3HyDUy0yzOmKApttmKhEXM9lVsesVAYxgAOMQZGYZc5KUhG993VM31V2UZ/n3/Vm9as5iQEAkjjHDtIk3iGc2bYPzPnGYFWWV+Jx4wqQLEj9yXfH4jXPBZYFnhs10ap44TCwW2lhpY1Y0NeJp4oiq6ZQvZDxWOW9x1spV1rwnf2Eop68sc53WMBJYxBIkiFBQRQll2IjSrpNiIUXncR//kOuXyKWQqwRGjgVUoEF2/eB/8Hu2Vn5q0ksKxYHOF8f5GAW6doFGzXG+jx2ncQIEn4ErveWv1IHZT9JrLS1yBPRtAxfXLU3ZAy53gMEnQzZlVwrSEvJ54P2MvikL9N8CPWve3JrnOH0A0jSr5A1wcAiMFSh73efd3e1z+7enOb8flYJytMnfGsoAAAAJcEhZcwAALiMAAC4jAXilP3YAAAAHdElNRQfqAR8WLyaWq55vAAAAGXRFWHRDb21tZW50AENyZWF0ZWQgd2l0aCBHSU1QV4EOFwAAAM5JREFUKM9jFBUVZWRkZEAFmhHc/34z3Fz7lQEDsDAxMaFpUPLmNIkW/f+f4eubv88O/0LTwIRphqA8KwMDAyMjg4AMK6YsFg139337+fnv9/d/Hh79jinLKC4ujukHRhYGBgaG/38YsPgBja/kxWmaIAJh39rz8fysTwSc9Pzcz6ub37OwM7KwMzJh8QKGhu8v/n14+JsBN2BiIBEMBw3MPDw8yBEnYsCq4cnLJ8kGSR1/GP5+uPsHX8SxcjGycDK9vAFNFOy8TEQlDTwAAJNlNbOfmr+zAAAAAElFTkSuQmCC">
 
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -69,8 +75,22 @@
                 top: 0px;
             }
 
-            footer p {
+            footer {
                 text-align: center;
+            }
+
+            a {
+                text-decoration: none;
+                color: var(--green);
+                border-bottom: 1px solid;
+            }
+
+            #export_date_js {
+                display: none;
+            }
+
+            .text_dark {
+                color: var(--fg-dark);
             }
 
             @media only screen and ( (max-device-width: 640px) or (max-width: 1100px) ) {
@@ -111,17 +131,37 @@
         <footer>
             <br>
             <hr>
-            <p id="export_date">Exported:
+            <p>
+                <span class="text_dark">Exported on</span>
+
+                <span id="export_date_c">
+                    <c>
+                        time_t currentTime;
+                        time(&currentTime);
+                        CSTR(ctime(&currentTime))
+                    </c>
+                </span>
+
+                <span id="export_date_js">
+                    <c>
+                        UNIX_TIME(&currentTime)
+                    </c>
+                </span>
+
+                <span class="text_dark">from</span>
                 <c>
-                    time_t currentTime;
-                    time(&currentTime);
-                    CSTR(ctime(&currentTime))
+                    char hostname[256];
+                    if (gethostname(hostname, sizeof(hostname)) == -1) return false;
+                    CSTR(hostname);
                 </c>
+
+                <c> #ifdef COMMIT </c>
+                    <br> <span class="text_dark">with version: </span><c>CSTR(COMMIT)</c>
+                <c> #endif // COMMIT </c>
             </p>
 
-            <c> #ifdef COMMIT </c>
-                <p>Version: <c>CSTR(COMMIT)</c></p>
-            <c> #endif // COMMIT </c>
+
+            <a href="https://www.github.com/Ezee1015/idea">Source code of idea</a>
 
         </footer>
     </body>
@@ -135,6 +175,11 @@
             if (list.length != 1) console.log("Error. There's more then one `" + className + "` in a `todo_container`")
             return list[0]
         }
+
+        // If the browser can execute JS, then convert Unix time to local time with it
+        export_date_c.style.display = "none"
+        export_date_js.style.display = "unset"
+        export_date_js.innerText = new Date(export_date_js.innerText * 1000).toLocaleString(undefined, { hour12: false })
 
         for (const todo of todos) {
             const data      = getElementInsideTodoContainer(todo, "todo_data")
