@@ -430,7 +430,7 @@ void visual_move_cursor(int direction) { // direction should be 1 or -1
   }
 }
 
-Help_result show_functionality_message(const char *source, const Functionality *functionality, const unsigned int functionality_count, bool are_commands, bool from_the_end, unsigned int *max_functionality_per_page) {
+Help_result show_functionality_message(const char *source, const unsigned source_index, const unsigned int source_count, const Functionality *functionality, const unsigned int functionality_count, bool are_commands, bool from_the_end, unsigned int *max_functionality_per_page) {
   Help_result ret = HELP_RETURN_QUIT;
   const char *prefix_cmd = (are_commands) ? ":": " ";
 
@@ -483,7 +483,7 @@ Help_result show_functionality_message(const char *source, const Functionality *
     if (0 <= (int)msg.length-1) msg.str[msg.length-1] = '\0'; // Remove the last '\n' from the last "Usage:"
 
     String_builder title = sb_new();
-    sb_append_with_format(&title, "Help - %s [%u/%u]", source, page+1, pages);
+    sb_append_with_format(&title, "Help %u/%u: %s [page %u/%u]", source_index+1, source_count, source, page+1, pages);
     char c = message(title.str, msg.str);
     sb_free(&title);
 
@@ -561,7 +561,7 @@ Action_return action_help(Input *input) {
   unsigned int i = 0;
   bool from_the_end = false;
   do {
-    r = show_functionality_message(functs[i].name, functs[i].func, functs[i].func_count, functs[i].are_commands, from_the_end, &max_functionality_per_page);
+    r = show_functionality_message(functs[i].name, i, functs_count, functs[i].func, functs[i].func_count, functs[i].are_commands, from_the_end, &max_functionality_per_page);
 
     switch (r) {
       case HELP_RETURN_NEXT:

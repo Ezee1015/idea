@@ -61,7 +61,7 @@ void update_area_x_axis();
 void update_area_y_axis();
 
 // Command mode
-Help_result show_functionality_message(const char *source, const Functionality *functionality, const unsigned int functionality_count, bool are_commands, bool from_the_end, unsigned int *max_functionality_per_page);
+Help_result show_functionality_message(const char *source, const unsigned source_index, const unsigned int source_count, const Functionality *functionality, const unsigned int functionality_count, bool are_commands, bool from_the_end, unsigned int *max_functionality_per_page);
 bool parse_command();
 
 // Actions for command mode
