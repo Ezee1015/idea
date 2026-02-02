@@ -93,10 +93,28 @@
                 color: var(--fg-dark);
             }
 
-            @media only screen and ( (max-device-width: 640px) or (max-width: 1100px) ) {
+            @media (max-device-width: 640px), (max-width: 1100px), print {
                 .todo {
                     width: 98%;
                     margin-left: 1%;
+                }
+            }
+
+            @media print {
+                .arrow_show {
+                    opacity: 0 !important;
+                }
+
+                .todo_data {
+                    display: revert !important;
+                }
+
+                .todo_header_separator {
+                    display: revert !important;
+                }
+
+                header {
+                    position: revert;
                 }
             }
         </style>
@@ -178,7 +196,7 @@
 
         // If the browser can execute JS, then convert Unix time to local time with it
         export_date_c.style.display = "none"
-        export_date_js.style.display = "unset"
+        export_date_js.style.display = "revert"
         export_date_js.innerText = new Date(export_date_js.innerText * 1000).toLocaleString(undefined, { hour12: false })
 
         for (const todo of todos) {
