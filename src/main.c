@@ -93,9 +93,6 @@ bool load_paths() {
   }
   idea_state.local_path = sb.str;
 
-  sb = sb_create("%s/" NOTES_DIRNAME, idea_state.local_path);
-  idea_state.notes_path = sb.str;
-
   sb = sb_create("%s/" LOCK_FILENAME, idea_state.local_path);
   idea_state.lock_filepath = sb.str;
 
@@ -110,7 +107,6 @@ void free_paths() {
   if (idea_state.backup_filepath) free(idea_state.backup_filepath);
   if (idea_state.lock_filepath) free(idea_state.lock_filepath);
   if (idea_state.local_path) free(idea_state.local_path);
-  if (idea_state.notes_path) free(idea_state.notes_path);
 }
 
 int main(int argc, char *argv[]) {

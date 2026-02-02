@@ -330,7 +330,7 @@ void print_statistics(Statistics stats) {
 
 char *run_test_generate_base_command(Runner_data runner_data, bool valgrind) {
   String_builder base_cmd = sb_create("IDEA_LOCAL_PATH=\"%s\" %s %s/%s",
-                                      runner_data.config_path,
+                                      runner_data.local_path,
                                       (valgrind) ? VALGRIND_CMD : "",
                                       state.repo_path,
                                       state.idea_path);
@@ -357,7 +357,7 @@ bool run_test_execute(Runner_data *runner_data, Test *test, String_builder *cmd,
 
   int system_ret = system(cmd->str);
 
-  String_builder lock_filepath = sb_create("%s/" LOCK_FILENAME, runner_data->config_path);
+  String_builder lock_filepath = sb_create("%s/" LOCK_FILENAME, runner_data->local_path);
   if (access(lock_filepath.str, F_OK) == 0) {
     if (remove(lock_filepath.str) == 0) {
       APPEND_TO_MESSAGES(runner_data, "Test", test->name, "The lock file was still present after the execution, it had to be removed!");
@@ -535,21 +535,30 @@ bool clean_directory(char *path) {
 }
 
 bool is_config_clean(Runner_data *runner_data, Test* t) {
-  // Check if the notes directory is empty
-  String_builder sb = sb_create("%s/notes", runner_data->config_path);
-  bool notes_dir_empty = is_dir_empty(sb.str);
-  if (!notes_dir_empty) {
-    APPEND_TO_MESSAGES(runner_data, "Test", t->name, "There's still notes inside the notes directory! Trying to remove them...");
-    if (!clean_directory(sb.str)) {
-      APPEND_TO_MESSAGES(runner_data, "Test", t->name, "Unable to clear the notes directory!");
+  // Check for files that should have been removed after executing idea
+  char *temp_files[] = {
+    sb_create("%s/" NOTES_TEMP_FILENAME, runner_data->local_path).str,
+    sb_create("%s/" LOCK_FILENAME, runner_data->local_path).str,
+  };
+
+  for (unsigned int i=0; i<sizeof(temp_files)/sizeof(char*); i++) {
+    FILE *file = fopen(temp_files[i], "r");
+    if (file) {
+      fclose(file);
+
+      String_builder tid = sb_create("%ld", pthread_self());
+      APPEND_WITH_FORMAT_TO_MESSAGES(runner_data, "Thread", tid.str, "File %s is still present after execution! Removing it...\n", temp_files[i]);
+      if (remove(temp_files[i]) == -1) {
+        APPEND_WITH_FORMAT_TO_MESSAGES(runner_data, "Thread", tid.str, "Unable to remove the file %s.\n", temp_files[i]);
+      }
+      sb_free(&tid);
     }
-    sb_free(&sb);
-    return false;
+
+    free(temp_files[i]);
   }
-  sb_free(&sb);
 
   // Check if list of ToDos is empty
-  sb = sb_create("%s/" SAVE_FILENAME, runner_data->config_path);
+  String_builder sb = sb_create("%s/" SAVE_FILENAME, runner_data->local_path);
   FILE *todos = fopen(sb.str, "r");
   sb_free(&sb);
   if (!todos) {
@@ -751,8 +760,8 @@ bool parse_args(int argc, char *argv[], int *ret) {
 void *test_runner(void *t_data) {
   Runner_data *data = (Runner_data *) t_data;
 
-  data->config_path = sb_create("%s/%ld-idea", state.tmp_path, pthread_self()).str;
-  if (!create_dir_if_not_exists(data->config_path)) abort();
+  data->local_path = sb_create("%s/%ld-idea", state.tmp_path, pthread_self()).str;
+  if (!create_dir_if_not_exists(data->local_path)) abort();
   data->export_filepath = sb_create("%s/%ld-export", state.tmp_path, pthread_self()).str;
 
   for (unsigned int i=data->tests_range.start; i<=data->tests_range.end; i++) {
@@ -772,9 +781,8 @@ void *test_runner(void *t_data) {
 
   // Remove config_path directory and it's associated files
   char *files_to_remove[] = {
-    sb_create("%s/" NOTES_DIRNAME "/", data->config_path).str,
-    sb_create("%s/" SAVE_FILENAME, data->config_path).str,
-    strdup(data->config_path),
+    sb_create("%s/" SAVE_FILENAME, data->local_path).str,
+    strdup(data->local_path),
   };
 
   bool ok = true;
@@ -788,7 +796,7 @@ void *test_runner(void *t_data) {
     free(files_to_remove[i]);
   }
 
-  free(data->config_path);
+  free(data->local_path);
   free(data->export_filepath);
   return NULL;
 }

@@ -49,19 +49,8 @@ char *generate_unique_todo_id() {
 void free_todo(Todo *todo) {
   free(todo->name);
   free(todo->id);
+  free(todo->notes);
   free(todo);
-}
-
-bool remove_todo_notes(Todo *todo) {
-  if (!todo->notes) return true;
-
-  String_builder path = sb_create("%s/%s." NOTES_EXTENSION, idea_state.notes_path, todo->id);
-  int remove_ret = remove(path.str);
-  sb_free(&path);
-  if (remove_ret == -1) return false;
-
-  todo->notes = false;
-  return true;
 }
 
 // id has to be NULL to be generated, otherwise is duplicated from the given id
@@ -70,7 +59,7 @@ Todo *create_todo(char *id) {
   if (!new) return NULL;
   new->id = (id) ? strdup(id) : generate_unique_todo_id();
   new->name = NULL;
-  new->notes = false;
+  new->notes = NULL;
   return new;
 }
 
@@ -102,7 +91,7 @@ bool load_string_from_binary_file(FILE *file, char **str) {
 bool save_todo_to_binary_file(FILE *file, Todo *todo) {
   if (!save_string_to_binary_file(file, todo->id)) return false;
   if (!save_string_to_binary_file(file, todo->name)) return false;
-  if (!fwrite(&todo->notes, sizeof(bool), 1, file)) return false;
+  if (!save_string_to_binary_file(file, todo->notes)) return false;
   return true;
 }
 
@@ -111,11 +100,11 @@ void *load_todo_from_binary_file(FILE *file) {
   if (!todo) abort();
   if (!load_string_from_binary_file(file, &todo->id)) return false;
   if (!load_string_from_binary_file(file, &todo->name)) return false;
-  if (!fread(&todo->notes, sizeof(bool), 1, file)) return false;
+  if (!load_string_from_binary_file(file, &todo->notes)) return false;
   return todo;
 }
 
-bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reached_eof) {
+bool load_todo_from_export_file(FILE *load_file, List *old_todo_list, bool *reached_eof) {
   if (!load_file || !reached_eof || !old_todo_list) return false;
   bool ret = true;
 
@@ -123,7 +112,7 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
   char *atribute = NULL;
   Todo *new_todo = NULL;
   Todo *old_todo = NULL;
-  FILE *todo_notes = NULL;
+  String_builder todo_notes = sb_new();
   enum State {
     NO_STATE,
     STATE_PROPERTIES, // Reading properties of the ToDo
@@ -203,17 +192,12 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
           new_todo->name = next_token(&line_input, 0);
 
         } else if (indentation == 1 && !strcmp(atribute, "notes_content:")) {
-          if (!new_todo || new_todo->notes || todo_notes) {
+          if (!new_todo || new_todo->notes || !sb_is_empty(todo_notes)) {
             ret = false;
             state = STATE_EXIT;
             break;
           }
 
-          String_builder path = sb_create("%s/%s." NOTES_EXTENSION, idea_state.notes_path, new_todo->id);
-          todo_notes = fopen(path.str, "w");
-          sb_free(&path);
-          if (!todo_notes) { ret = false; state = STATE_EXIT; break; }
-          new_todo->notes = true;
           state = STATE_NOTES_CONTENT;
 
         } else {
@@ -224,7 +208,7 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
 
       case STATE_NOTES_CONTENT:
         if (indentation == 2) {
-          if (!new_todo || !new_todo->notes || !todo_notes) {
+          if (!new_todo) {
             ret = false;
             state = STATE_EXIT;
             break;
@@ -233,18 +217,19 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
           line_input.cursor = indentation * strlen(EXPORT_FILE_INDENTATION);
           char *file_content = next_token(&line_input, 0);
           if (!file_content) {
-            fputs("\n", todo_notes);
+            sb_append(&todo_notes, "\n");
             break;
           }
-          fprintf(todo_notes, "%s\n", file_content);
+          sb_append_with_format(&todo_notes, "%s\n", file_content);
           free(file_content);
 
         } else if (indentation == 1 && !strcmp(atribute, "EOF")) {
-          fclose(todo_notes); todo_notes = NULL;
+          new_todo->notes = todo_notes.str;
+          todo_notes = sb_new();
           state = STATE_PROPERTIES;
 
         } else {
-          fclose(todo_notes); todo_notes = NULL;
+          sb_free(&todo_notes);
           ret = false;
           state = STATE_EXIT;
         }
@@ -264,13 +249,12 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
     ret = false;
   }
 
-  if (todo_notes) {
-    fclose(todo_notes);
+  if (!sb_is_empty(todo_notes)) {
+    sb_free(&todo_notes);
     ret = false;
   }
 
   if (old_todo) {
-    if (old_todo->notes && !new_todo->notes) remove_todo_notes(old_todo);
     free_todo(old_todo);
   }
 
@@ -278,75 +262,40 @@ bool load_todo_from_text_file(FILE *load_file, List *old_todo_list, bool *reache
   return ret;
 }
 
-bool save_todo_notes_to_text_file(FILE *save_file, Todo *todo) {
+bool write_notes_to_export_file(FILE *save_file, Todo *todo) {
   if (!todo || !save_file) return false;
   if (!todo->notes) return true;
 
-  String_builder path = sb_create("%s/%s." NOTES_EXTENSION, idea_state.notes_path, todo->id);
-  FILE *notes = fopen(path.str, "r");
-  sb_free(&path);
-  if (!notes) return false;
+  if (fputs(EXPORT_FILE_INDENTATION "notes_content:\n" EXPORT_FILE_INDENTATION EXPORT_FILE_INDENTATION, save_file) == EOF) return false;
 
-  if (fputs(EXPORT_FILE_INDENTATION "notes_content:\n" EXPORT_FILE_INDENTATION EXPORT_FILE_INDENTATION, save_file) == EOF) { fclose(notes); return false; }
-  int prev = fgetc(notes), cur;
+  unsigned int length = strlen(todo->notes);
+  for (unsigned int i=0; i < length-1; i++) {
+    char c = todo->notes[i];
 
-  while ( (cur = fgetc(notes)) != EOF ) {
-    switch (prev) {
+    switch (c) {
       case '\n' :
-        if (fputs("\n" EXPORT_FILE_INDENTATION EXPORT_FILE_INDENTATION, save_file) == EOF) { fclose(notes); return false; }
+        if (fputs("\n" EXPORT_FILE_INDENTATION EXPORT_FILE_INDENTATION, save_file) == EOF) return false;
         break;
 
       default:
-        if (fputc(prev, save_file) == EOF) { fclose(notes); return false; }
+        if (fputc(c, save_file) == EOF) return false;
         break;
     }
-
-    prev = cur;
   }
 
   // Every line in the notes content will always start with "| | [here is the content]"
   // I know a file ended when I encounter an "| EOF"
   fputs("\n" EXPORT_FILE_INDENTATION "EOF\n", save_file);
 
-  fclose(notes);
   return true;
 }
 
-bool write_notes_to_notes_file(FILE *file, char *notes) {
-  unsigned int content_lenght = strlen(notes);
-  bool escaped = false;
-  for (unsigned int i=0; i<content_lenght; i++) {
-    switch (notes[i]) {
-      case '\\':
-        if (escaped && fputs("\\\\", file) == EOF) return false;
-        escaped = !escaped;
-        break;
-
-      case 'n':
-        if (fputs( (escaped) ? "\n" : "n", file) == EOF) return false;
-        escaped = false;
-        break;
-
-      default:
-        if (escaped) {
-          if (fputc('\\', file) == EOF) return false;
-          escaped = false;
-        }
-        if (fputc(notes[i], file) == EOF) return false;
-        break;
-    }
-  }
-  return true;
-}
-
-bool save_todo_to_text_file(FILE *file, Todo *todo) {
+bool save_todo_to_export_file(FILE *file, Todo *todo) {
   if (fprintf(file, "todo\n") <= 0) return false;
   if (fprintf(file, EXPORT_FILE_INDENTATION "id: %s\n", todo->id) <= 0) return false;
   if (fprintf(file, EXPORT_FILE_INDENTATION "name: %s\n", todo->name) <= 0) return false;
 
-  if (todo->notes) {
-    if (!save_todo_notes_to_text_file(file, todo)) return false;
-  }
+  if (todo->notes && !write_notes_to_export_file(file, todo)) return false;
 
   return true;
 }
@@ -375,7 +324,6 @@ bool create_dir_if_not_exists(char *dir_path) {
 bool create_dir_structure() {
   char *dirs[] = {
     idea_state.local_path,
-    idea_state.notes_path
   };
 
   unsigned int dirs_count = sizeof(dirs) / sizeof(char *);
@@ -452,9 +400,9 @@ Action_return action_remove_todo(Input *input) {
 
   Todo *removed = list_remove(&todo_list, index);
 
-  if (!remove_todo_notes(removed)) {
-    list_insert_at(&todo_list, removed, index-1);
-    return ACTION_RETURN(RETURN_ERROR, "Unable to remove the ToDo's notes file");
+  if (removed->notes) {
+    free(removed->notes);
+    removed->notes = NULL;
   }
 
   free_todo(removed);
@@ -508,7 +456,6 @@ Action_return action_clear_todos(Input *input) {
   }
   free(confirmation);
 
-  if (!list_map_bool(todo_list, (bool (*)(void *))remove_todo_notes)) return ACTION_RETURN(RETURN_ERROR, "Unable to remove a ToDo's notes file");
   list_destroy(&todo_list, (void (*)(void *))free_todo);
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
@@ -526,26 +473,21 @@ Action_return action_notes_todo_remove(Input *input) {
   free(arg); arg = NULL;
 
   if (!todo->notes) return ACTION_RETURN(RETURN_ERROR, "The todo doesn't have a notes file");
-  if (!remove_todo_notes(todo)) return ACTION_RETURN(RETURN_ERROR, "Unable to remove the notes");
+
+  if (todo->notes) {
+    free(todo->notes);
+    todo->notes = NULL;
+  }
+
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
-// The opening of the notes is delegated to each interface
-bool create_notes_todo(Todo *todo) {
-  if (!todo || todo->notes) return false;
+void initialize_notes(Todo *todo) {
+  if (strcmp(todo->notes, "")) return;
 
-  String_builder path = sb_create("%s/%s." NOTES_EXTENSION, idea_state.notes_path, todo->id);
-
-  FILE *notes = fopen(path.str, "w");
-  sb_free(&path);
-  if (!notes) return false;
-
-  bool ok = (fprintf(notes, "# %s\n\n\n", todo->name));
-  fclose(notes);
-
-  if (!ok) remove_todo_notes(todo);
-  todo->notes = true;
-  return ok;
+  // Default ToDo note template
+  String_builder sb = sb_create("# %s\n\n\n", todo->name);
+  todo->notes = sb.str;
 }
 
 Functionality todo_list_functionality[] = {

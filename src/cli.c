@@ -90,11 +90,58 @@ bool import_file(char *filepath) {
   todo_list = list_new();
 
   bool reached_eof = false;
-  while (load_todo_from_text_file(file, &old_todo_list, &reached_eof));
+  while (load_todo_from_export_file(file, &old_todo_list, &reached_eof));
   fclose(file);
-  if (!list_map_bool(old_todo_list, (bool (*)(void *))remove_todo_notes)) return false;
   list_destroy(&old_todo_list, (void (*)(void *))free_todo);
   return reached_eof;
+}
+
+bool write_notes_to_file(Todo *todo) {
+  String_builder notes_temp_path = sb_create("%s/" NOTES_TEMP_FILENAME, idea_state.local_path);
+  FILE *f = fopen(notes_temp_path.str, "w");
+  sb_free(&notes_temp_path);
+  if (!f) return false;
+
+  if (fputs(todo->notes, f) == EOF) {
+    fclose(f);
+    return false;
+  }
+
+  fclose(f);
+  return true;
+}
+
+bool load_notes_from_file(Todo *todo) {
+  String_builder notes_temp_path = sb_create("%s/" NOTES_TEMP_FILENAME, idea_state.local_path);
+  FILE *f = fopen(notes_temp_path.str, "r");
+  if (!f) {
+    sb_free(&notes_temp_path);
+    return false;
+  }
+
+  long size = 0;
+  if ( fseek(f, 0, SEEK_END) == -1
+       || (size = ftell(f)) == -1
+       || fseek(f, 0, SEEK_SET) == -1) {
+    sb_free(&notes_temp_path);
+    fclose(f);
+    return false;
+  }
+
+  if (todo->notes) free(todo->notes);
+  todo->notes = malloc(size+1);
+  if (!todo->notes) return false;
+  if (fread(todo->notes, size, 1, f) == 0) {
+    sb_free(&notes_temp_path);
+    fclose(f);
+    return false;
+  }
+  todo->notes[size] = '\0';
+
+  fclose(f);
+  if (remove(notes_temp_path.str) == -1) PRINT_MESSAGE("Unable to remove the temporary notes file: %s", notes_temp_path.str);
+  sb_free(&notes_temp_path);
+  return true;
 }
 
 /// Functionality
@@ -176,7 +223,7 @@ Action_return action_export_todos(Input *input) {
       return ACTION_RETURN(RETURN_ERROR, "Unable to print new line in the file");
     }
 
-    if (!save_todo_to_text_file(export_file, list_iterator_element(iterator))) {
+    if (!save_todo_to_export_file(export_file, list_iterator_element(iterator))) {
       fclose(export_file);
       return ACTION_RETURN(RETURN_ERROR, "Unable to save todo");
     }
@@ -350,18 +397,20 @@ Action_return action_notes_todo(Input *input) {
 
   Todo *todo = list_get(todo_list, pos);
 
-  if (!todo->notes) {
-    if (!create_notes_todo(todo)) return ACTION_RETURN(RETURN_ERROR, "Unable to create the notes file");
-    todo_list_modified = true;
-  }
+  if (!todo->notes) initialize_notes(todo);
 
-  String_builder instruction = sb_create("%s '%s/%s." NOTES_EXTENSION "'", TEXT_EDITOR, idea_state.notes_path, todo->id);
+  if (!write_notes_to_file(todo)) return ACTION_RETURN(RETURN_ERROR, "Unable to write the notes to the temporary file.");
 
+  String_builder instruction = sb_create("%s '%s/" NOTES_TEMP_FILENAME "'", TEXT_EDITOR, idea_state.local_path);
   int system_ret = system(instruction.str);
   sb_free(&instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) != 0)) {
     return ACTION_RETURN(RETURN_ERROR, "Text editor failed or file doesn't exist");
   }
+
+  if (!load_notes_from_file(todo)) return ACTION_RETURN(RETURN_ERROR, "Unable to read the notes from the temporary file.");
+
+  todo_list_modified = true;
 
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }

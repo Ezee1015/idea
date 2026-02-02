@@ -123,7 +123,7 @@ typedef struct {
   pthread_mutex_t *m_log;
 
   // Completed inside the thread:
-  char *config_path;
+  char *local_path;
   char *export_filepath;
 } Runner_data;
 

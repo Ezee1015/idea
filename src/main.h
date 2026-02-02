@@ -6,7 +6,6 @@
 typedef struct {
   char *backup_filepath;
   char *local_path;
-  char *notes_path;
   char *tmp_path;
   char *lock_filepath;
 

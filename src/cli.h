@@ -54,6 +54,10 @@ bool create_backup();
 bool restore_backup();
 void remove_backup();
 
+// Create a temporary file in the local directory to modify the notes of the ToDo
+bool write_notes_to_file(Todo *todo);
+bool load_notes_from_file(Todo *todo);
+
 bool clone_text_file(char *origin_path, char *clone_path);
 
 void print_todo(unsigned int index, Todo todo);
