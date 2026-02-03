@@ -319,13 +319,14 @@
                 }
 
                 const rect = todo.getBoundingClientRect();
-                const shake = { y: 5, x: 5 }
+                const shake = (data.style.display == "none") ? { y: 5, x: 5 } :  { y: -5, x: -5 };
 
                 const shake_scale = {
                     x: (rect.width + shake.x) / rect.width,
                     y: (rect.height + shake.y) / rect.height
                 }
                 todo.animate([
+                    { transform: "scale(1) " },
                     { transform: "scale(" + shake_scale.x + ", " + shake_scale.y + ")" },
                     { transform: "scale(1) " },
                 ], {
