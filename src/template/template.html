@@ -38,6 +38,7 @@
                 border-radius: 15px;
                 border: 2px solid var(--fg-dark);
 
+                transform-origin: center;
             }
 
             .todo h2 {
@@ -302,14 +303,6 @@
             }
 
             header.onclick = () => {
-                todo.animate([
-                    { transform: "scale(1)  " },
-                    { transform: "scale(0.98)" },
-                    { transform: "scale(1) " },
-                ], {
-                    duration: 50,
-                })
-
                 if (data.style.display == "none") {
                     if (isMobile) arrow.style.opacity = "1"
                     arrow.innerHTML = "&#9650;"
@@ -323,6 +316,20 @@
                     separator.style.display = "none"
                     data.style.display = "none"
                 }
+
+                const rect = todo.getBoundingClientRect();
+                const shake = { y: 5, x: 5 }
+
+                const shake_scale = {
+                    x: (rect.width + shake.x) / rect.width,
+                    y: (rect.height + shake.y) / rect.height
+                }
+                todo.animate([
+                    { transform: "scale(" + shake_scale.x + ", " + shake_scale.y + ")" },
+                    { transform: "scale(1) " },
+                ], {
+                    duration: 100,
+                })
             }
         }
     </script>
