@@ -20,6 +20,8 @@
                 --fg-dark: #515151;
 
                 --green: #73c936;
+                --blue-dark: #1e2030;
+                --blue-light: #222436;
             }
 
             body {
@@ -59,6 +61,31 @@
                 padding-top: 0px;
             }
 
+            .todo_notes {
+                background: var(--blue-dark);
+                width: 100%;
+                border-spacing: 0px; /* Make the line-nr right border continuous vertically */
+                padding: 5px;
+                border-radius: 15px;
+                border: 3px solid var(--blue-light);
+            }
+
+            .todo_notes_line {
+                width: 100%;
+                text-align: left;
+                padding-left: 5px;
+            }
+
+            .todo_notes_line_nr {
+                color: var(--fg-dark);
+                border-right: 2px dashed var(--bg-light);
+
+                width: fit-content;
+                vertical-align: top;
+                text-align: right;
+                padding-right: 5px;
+            }
+
             hr {
                 border: 1px solid var(--fg-dark);
             }
@@ -91,6 +118,16 @@
 
             .text_dark {
                 color: var(--fg-dark);
+            }
+
+            /* Source: https://stackoverflow.com/a/2310809 */
+            .unselectable {
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                -khtml-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
             }
 
             @media (max-device-width: 640px), (max-width: 1100px), print {
@@ -133,13 +170,51 @@
                     <c> Todo *e = list_iterator_element(iterator); </c>
                     <div id="<c>CSTR(e->id)</c>" class="todo">
                         <div class="todo_header">
-                            <h2><c>CSTR(e->name)</c></h2>
-                            <p class="arrow_show">&#9660;</p>
+                            <h2 class="unselectable"><c>CSTR(e->name)</c></h2>
+                            <p class="arrow_show unselectable">&#9660;</p>
                         </div>
 
                         <hr class="todo_header_separator">
                         <div class="todo_data">
                             <p class="todo_info"></p>
+
+                            <c> if (e->notes) { </c>
+                                <h3>Notes:</h3>
+                                <table class="todo_notes">
+                                    <c>
+                                        char *notes = e->notes;
+                                        unsigned int line_nr = 0;
+                                        bool new_line = true;
+
+                                        while (*notes) {
+                                            if (new_line) {
+                                                line_nr++;
+                                                new_line = false;
+                                                </c>
+                                                    <tr>
+                                                        <td class="todo_notes_line_nr unselectable"><c>UINT(line_nr)</c></td>
+                                                        <td class="todo_notes_line">
+                                                <c>
+                                            }
+
+                                            switch (*notes) {
+                                                case '\n':
+                                                    new_line = true;
+                                                    </c>
+                                                            </td>
+                                                        </tr>
+                                                    <c>
+                                                    break;
+
+                                                default:
+                                                    CHAR(*notes);
+                                                    break;
+                                            }
+                                            notes++;
+                                        }
+                                    </c>
+                                </table>
+                            <c> } </c>
                         </div>
                     </div>
                 <c> } </c>
