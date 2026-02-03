@@ -483,7 +483,7 @@ Action_return action_notes_todo_remove(Input *input) {
 }
 
 void initialize_notes(Todo *todo) {
-  if (strcmp(todo->notes, "")) return;
+  if (todo->notes) return;
 
   // Default ToDo note template
   String_builder sb = sb_create("# %s\n\n\n", todo->name);
