@@ -1,6 +1,9 @@
 # idea
 A simple To-Do App written in C that fits my needs
 
+> [!NOTE]
+> This project is a work in progress so anything can change or break without notice
+
 ## Compilation
 Requirements: `ncurses`, `sed`
 
