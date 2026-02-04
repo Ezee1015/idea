@@ -32,8 +32,7 @@
 --     directory with the name of the test + ".idea".
 --
 -- TIP: If I want the program to crash (return 1) in purpose, I surround the conflictive
--- command in correct commands to test that the changes are not saved and the backup
--- system is working correctly
+-- command in correct commands to test that the changes are not saved
 
 -- ----------
 -- CLEAR

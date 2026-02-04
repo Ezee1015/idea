@@ -6,8 +6,6 @@
 #include "parser.h"
 #include "todo_list.h"
 
-#define BACKUP_NAME "backup.idea" // For restoring to the previous state in case of an error
-
 #define TEXT_EDITOR "nvim"
 #define NOTES_ICON "󱅄" //     󰠮  󰺿  󰅏
 
@@ -49,10 +47,6 @@ Action_return action_do_nothing(Input *input);
 Action_return action_print_help(Input *input);
 extern Functionality cli_functionality[];
 extern unsigned int cli_functionality_count;
-
-bool create_backup();
-bool restore_backup();
-void remove_backup();
 
 // Create a temporary file in the local directory to modify the notes of the ToDo
 bool write_notes_to_file(Todo *todo);

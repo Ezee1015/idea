@@ -30,58 +30,6 @@ bool clone_text_file(char *origin_path, char *clone_path) {
   return true;
 }
 
-bool create_backup() {
-  String_builder instruction = sb_create("export %s", idea_state.backup_filepath);
-
-  Action_return result;
-  NESTED_ACTION(result = cli_parse_input(instruction.str), result);
-  bool ok;
-  switch (result.type) {
-    case RETURN_SUCCESS: case RETURN_INFO:
-      if (result.message && strcmp(result.message, ""))
-        PRINT_MESSAGE("Message from the backup file (%s)...", idea_state.backup_filepath);
-      ok = true;
-      break;
-
-    case RETURN_ERROR:
-    case RETURN_ERROR_AND_EXIT:
-      PRINT_MESSAGE("Unable to create the backup file (%s)...", idea_state.backup_filepath);
-      ok = false;
-      break;
-  }
-
-  sb_free(&instruction);
-  return ok;
-}
-
-bool restore_backup() {
-  String_builder instruction = sb_create("import %s", idea_state.backup_filepath);
-
-  Action_return result;
-  NESTED_ACTION(result = cli_parse_input(instruction.str), result);
-  bool ok;
-  switch (result.type) {
-    case RETURN_SUCCESS: case RETURN_INFO:
-      if (result.message && strcmp(result.message, ""))
-        PRINT_MESSAGE("Message from the backup file (%s)", idea_state.backup_filepath);
-      ok = true;
-      break;
-
-    case RETURN_ERROR:
-    case RETURN_ERROR_AND_EXIT:
-      PRINT_MESSAGE("Unable to restore from the backup file... The backup file is located *TEMPORARY* at %s", idea_state.backup_filepath);
-      ok = false;
-      break;
-  }
-
-  sb_free(&instruction);
-  return ok;
-}
-
-void remove_backup() {
-  remove(idea_state.backup_filepath);
-}
-
 bool import_file(char *filepath) {
   FILE *file = fopen(filepath, "r");
   if (!file) return false;

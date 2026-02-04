@@ -34,8 +34,6 @@ bool unlock_file() {
 }
 
 bool parse_commands_cli(char *commands[], int count) {
-  if (!create_backup()) return false;
-
   int i=0;
   bool something_went_wrong = false;
   while (!something_went_wrong && i<count) {
@@ -62,16 +60,11 @@ bool parse_commands_cli(char *commands[], int count) {
   }
 
   if (something_went_wrong) {
-    PRINT_TEXT("Restoring the state from the Backup file...\n");
-    if (!restore_backup()) {
-      todo_list_modified = false; // Try to not save it because it may be corrupted
-      PRINT_TEXT("Restoring the backup file failed... We're screwed...");
-      PRINT_TEXT("Save right now a copy of the backup file (may be owerwritten in the future) and try to fix the problem");
-      return false;
-    }
+    PRINT_TEXT("Idea is not saving the changes made in this instance\n");
+    todo_list_modified = false; // Try to not save it because it may be corrupted
+    return false;
   }
 
-  remove_backup();
   if (todo_list_modified) action_print_todo(NULL);
   return !something_went_wrong;
 }
@@ -96,15 +89,11 @@ bool load_paths() {
   sb = sb_create("%s/" LOCK_FILENAME, idea_state.local_path);
   idea_state.lock_filepath = sb.str;
 
-  sb = sb_create("%s/" BACKUP_NAME, idea_state.local_path);
-  idea_state.backup_filepath = sb.str;
-
   return true;
 }
 
 void free_paths() {
   if (idea_state.tmp_path) free(idea_state.tmp_path);
-  if (idea_state.backup_filepath) free(idea_state.backup_filepath);
   if (idea_state.lock_filepath) free(idea_state.lock_filepath);
   if (idea_state.local_path) free(idea_state.local_path);
 }
