@@ -241,7 +241,7 @@ bool parse_command() {
         input[i--] = '\0';
         chars_to_clear++; // character to remove
       }
-    } else if (isalnum(c) || c == ' ' || c == '_' || c == '\\') {
+    } else if (isalnum(c) || c == ' ' || c == '_' || c == '\\' || c == '.' || c == '/') {
       input[i++] = c;
     } else { // Not recognized character, so clear the character that was printed on the screen
       chars_to_clear = 1;
@@ -277,7 +277,6 @@ bool parse_command() {
     Action_return (*function)(Input *input) = search_functionality_function(instruction, tui_functionality, tui_functionality_count);
     if (!function) {
       function = search_functionality_function(instruction, todo_list_functionality, todo_list_functionality_count);
-      if (function) todo_list_modified = true;
     }
     free(instruction); instruction = NULL;
 
@@ -295,7 +294,6 @@ bool parse_command() {
         break;
 
       case RETURN_ERROR_AND_EXIT:
-        todo_list_modified = false;
         if (action_return.message && strcmp(action_return.message, ""))
           message("ERROR. Aborting...", action_return.message);
         endwin();

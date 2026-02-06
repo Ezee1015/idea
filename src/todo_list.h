@@ -56,6 +56,7 @@ Action_return action_edit_todo(Input *input);
 Action_return action_export_todo(Input *input);
 Action_return action_import_todo(Input *input);
 Action_return action_notes_todo_remove(Input *input);
+Action_return action_generate_html(Input *input);
 extern Functionality todo_list_functionality[];
 extern unsigned int todo_list_functionality_count;
 

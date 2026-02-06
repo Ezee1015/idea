@@ -41,7 +41,6 @@ Action_return action_sync_todos(Input *input);
 Action_return action_import_todos(Input *input);
 Action_return action_export_todos(Input *input);
 Action_return action_notes_todo(Input *input);
-Action_return action_generate_html(Input *input);
 Action_return action_execute_commands(Input *input);
 Action_return action_do_nothing(Input *input);
 Action_return action_print_help(Input *input);

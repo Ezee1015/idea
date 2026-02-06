@@ -8,7 +8,6 @@
 #include "todo_list.h"
 #include "utils/list.h"
 #include "utils/string.h"
-#include "template/template.h"
 
 unsigned int msg_indentation = 1;
 
@@ -363,20 +362,6 @@ Action_return action_notes_todo(Input *input) {
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
-Action_return action_generate_html(Input *input) {
-  char *arg = next_token(input, 0);
-  if (!arg) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
-
-  FILE *output = fopen(arg, "w");
-  free(arg);
-  if (!output) return ACTION_RETURN(RETURN_ERROR, "Unable to open the path of the output html file");
-
-  Action_return ret = generate_html(output, todo_list);
-
-  fclose(output);
-  return ret;
-}
-
 #ifdef COMMIT
 Action_return action_version(Input *input) {
   ACTION_NO_ARGS("version", input);
@@ -401,7 +386,6 @@ Functionality cli_functionality[] = {
   { "import", NULL, action_import_todos, MAN("Import the ToDos without any interaction (no diff)", "[file]") },
   { "help", "-h", action_print_help, MAN("Help page", NULL) },
   { "notes", NULL, action_notes_todo, MAN("Open the ToDo's notes file", "[ID]", "[name]") },
-  { "html", NULL, action_generate_html, MAN("Generate an HTML file with the ToDos", "[HTML file path]") },
 #ifdef COMMIT
   { "version", "-v", action_version, MAN("Print the commit hash and version", NULL) },
 #endif // COMMIT
@@ -421,7 +405,6 @@ Action_return cli_parse_input(char *input) {
   Action_return (*function)(Input *input) = search_functionality_function(instruction, cli_functionality, cli_functionality_count);
   if (!function) {
     function = search_functionality_function(instruction, todo_list_functionality, todo_list_functionality_count);
-    todo_list_modified = true;
   }
   free(instruction); instruction = NULL;
 

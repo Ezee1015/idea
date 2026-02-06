@@ -11,6 +11,7 @@
 #include "utils/list.h"
 #include "utils/string.h"
 #include "todo_list.h"
+#include "template/template.h"
 
 List todo_list = list_new();
 bool todo_list_modified = false;
@@ -363,6 +364,7 @@ Action_return action_add_todo(Input *input) {
   todo->name = data;
 
   list_append(&todo_list, todo);
+  todo_list_modified = true;
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
@@ -384,6 +386,7 @@ Action_return action_add_at_todo(Input *input) {
   todo->name = data;
 
   list_insert_at(&todo_list, todo, pos-1);
+  todo_list_modified = true;
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
@@ -399,11 +402,7 @@ Action_return action_remove_todo(Input *input) {
   free(argument); argument = NULL;
 
   Todo *removed = list_remove(&todo_list, index);
-
-  if (removed->notes) {
-    free(removed->notes);
-    removed->notes = NULL;
-  }
+  todo_list_modified = true;
 
   free_todo(removed);
   return ACTION_RETURN(RETURN_SUCCESS, "");
@@ -431,6 +430,7 @@ Action_return action_move_todo(Input *input) {
   Todo *todo = list_remove(&todo_list, pos_origin);
   // if (pos_origin < pos_destination) pos_destination--;
   list_insert_at(&todo_list, todo, pos_destination-1);
+  todo_list_modified = true;
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
@@ -451,6 +451,7 @@ Action_return action_edit_todo(Input *input) {
   Todo *todo = list_get(todo_list, pos);
   free(todo->name);
   todo->name = new_text;
+  todo_list_modified = true;
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
@@ -464,6 +465,7 @@ Action_return action_clear_todos(Input *input) {
   free(confirmation);
 
   list_destroy(&todo_list, (void (*)(void *))free_todo);
+  todo_list_modified = true;
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
@@ -481,10 +483,9 @@ Action_return action_notes_todo_remove(Input *input) {
 
   if (!todo->notes) return ACTION_RETURN(RETURN_ERROR, "The todo doesn't have a notes file");
 
-  if (todo->notes) {
-    free(todo->notes);
-    todo->notes = NULL;
-  }
+  free(todo->notes);
+  todo->notes = NULL;
+  todo_list_modified = true;
 
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
@@ -495,6 +496,21 @@ void initialize_notes(Todo *todo) {
   // Default ToDo note template
   String_builder sb = sb_create("# %s\n\n\n", todo->name);
   todo->notes = sb.str;
+  todo_list_modified = true;
+}
+
+Action_return action_generate_html(Input *input) {
+  char *arg = next_token(input, 0);
+  if (!arg) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+
+  FILE *output = fopen(arg, "w");
+  free(arg);
+  if (!output) return ACTION_RETURN(RETURN_ERROR, "Unable to open the path of the output html file");
+
+  Action_return ret = generate_html(output, todo_list);
+
+  fclose(output);
+  return ret;
 }
 
 Functionality todo_list_functionality[] = {
@@ -505,5 +521,6 @@ Functionality todo_list_functionality[] = {
   { "edit", "e", action_edit_todo, MAN("Edit a ToDo", "[ID] [new name]", "[name] [new name]") },
   { "clear", NULL, action_clear_todos, MAN("Clear all ToDos", "all") },
   { "notes_remove", NULL, action_notes_todo_remove, MAN("Remove the notes file for the todo", "[ID]", "[name]") },
+  { "html", NULL, action_generate_html, MAN("Generate an HTML file with the ToDos", "[HTML file path]") },
 };
 unsigned int todo_list_functionality_count = sizeof(todo_list_functionality) / sizeof(Functionality);
