@@ -241,7 +241,7 @@ bool parse_command() {
         input[i--] = '\0';
         chars_to_clear++; // character to remove
       }
-    } else if (isalnum(c) || c == ' ' || c == '_') {
+    } else if (isalnum(c) || c == ' ' || c == '_' || c == '\\') {
       input[i++] = c;
     } else { // Not recognized character, so clear the character that was printed on the screen
       chars_to_clear = 1;

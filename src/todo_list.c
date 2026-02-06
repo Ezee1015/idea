@@ -410,38 +410,45 @@ Action_return action_remove_todo(Input *input) {
 }
 
 Action_return action_move_todo(Input *input) {
-  char *pos_origin_str = next_token(input, ' ');
-  if (!pos_origin_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
-  unsigned int pos_origin = atoi(pos_origin_str);
-  free(pos_origin_str);
+  char *arg = next_token(input, ' ');
+  printf("Arg: %s", arg);
+  if (!arg) return ACTION_RETURN(RETURN_ERROR, "You need to specify the Name or the ID of the ToDo to move");
+  unsigned int pos_origin;
+  if (!search_todo_pos_by_name_or_pos(arg, &pos_origin)) {
+    free(arg);
+    return ACTION_RETURN(RETURN_ERROR, "Unable to find the ToDo");
+  }
+  free(arg); arg = NULL;
 
-  char *pos_destination_str = next_token(input, 0);
-  if (!pos_destination_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
-  unsigned int pos_destination = atoi(pos_destination_str);
-  free(pos_destination_str);
-
-  if (pos_origin == 0 || pos_origin > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid origin position");
+  arg = next_token(input, 0);
+  if (!arg) return ACTION_RETURN(RETURN_ERROR, "You need to specify the position to move the ToDo");
+  unsigned int pos_destination = atoi(arg);
+  free(arg); arg = NULL;
   if (pos_destination == 0 || pos_destination > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid destination position");
-  if (pos_destination == pos_origin) return ACTION_RETURN(RETURN_INFO, "Moving to the same position");
 
-  Todo *todo = list_remove(&todo_list, pos_origin-1);
+  if (pos_destination-1 /* 1-based to 0-based */ == pos_origin) return ACTION_RETURN(RETURN_INFO, "Moving to the same position");
+
+  Todo *todo = list_remove(&todo_list, pos_origin);
   // if (pos_origin < pos_destination) pos_destination--;
   list_insert_at(&todo_list, todo, pos_destination-1);
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 
 Action_return action_edit_todo(Input *input) {
-  char *pos_str = next_token(input, ' ');
-  if (!pos_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
-  unsigned int pos = atoi(pos_str);
-  free(pos_str);
+  char *arg = next_token(input, ' ');
+  if (!arg) return ACTION_RETURN(RETURN_ERROR, "You need to specify the Name or the ID of the ToDo to edit");
 
-  if (pos == 0 || pos > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid Position");
+  unsigned int pos;
+  if (!search_todo_pos_by_name_or_pos(arg, &pos)) {
+    free(arg);
+    return ACTION_RETURN(RETURN_ERROR, "Unable to find the ToDo");
+  }
+  free(arg); arg = NULL;
 
   char *new_text = next_token(input, 0);
-  if (!new_text) return ACTION_RETURN(RETURN_ERROR, "Empty new text.");
+  if (!new_text) return ACTION_RETURN(RETURN_ERROR, "The ToDo can't have an empty name.");
 
-  Todo *todo = list_get(todo_list, pos-1);
+  Todo *todo = list_get(todo_list, pos);
   free(todo->name);
   todo->name = new_text;
   return ACTION_RETURN(RETURN_SUCCESS, "");
@@ -494,8 +501,8 @@ Functionality todo_list_functionality[] = {
   { "add", "a", action_add_todo, MAN("Add a ToDo", "[name]") },
   { "add_at", "ap", action_add_at_todo, MAN("Add a ToDo in the specified position", "[index] [name]") },
   { "remove", "rm", action_remove_todo, MAN("Remove a ToDo", "[ID]", "[name]") },
-  { "move", "mv", action_move_todo, MAN("Move ToDo", "[ID]") },
-  { "edit", "e", action_edit_todo, MAN("Edit a ToDo", "[ID] [new name]") },
+  { "move", "mv", action_move_todo, MAN("Move ToDo", "[ID] [new position]", "[name] [new position]") },
+  { "edit", "e", action_edit_todo, MAN("Edit a ToDo", "[ID] [new name]", "[name] [new name]") },
   { "clear", NULL, action_clear_todos, MAN("Clear all ToDos", "all") },
   { "notes_remove", NULL, action_notes_todo_remove, MAN("Remove the notes file for the todo", "[ID]", "[name]") },
 };

@@ -1,23 +1,50 @@
 #include <ncurses.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "parser.h"
+#include "utils/string.h"
 
 char *next_token(Input *input, char divider) {
   if (input->cursor > input->length) return NULL;
 
+  String_builder sb = sb_new();
   unsigned int i = input->cursor;
-  while (i <= input->length && input->input[i] != divider) i++;
+  bool escaped = false;
+  while (i <= input->length) {
+    const char c = input->input[i];
 
-  unsigned int read = i - input->cursor;
-  if (read == 0) return NULL;
-  char *token = malloc(read + 1);
-  memcpy(token, input->input + input->cursor, read);
-  token[read] = '\0';
+    if (escaped) {
+      switch (c) {
+        case '\\':
+          if (c == divider) break;
+          sb_append_char(&sb, c);
+          escaped = false;
+          break;
+
+        case ' ':
+          sb_append_char(&sb, ' ');
+          escaped = false;
+          break;
+
+        default:
+          if (c == divider) break;
+          sb_append(&sb, (char[]){ '\\', c, '\0'});
+          escaped = false;
+          break;
+      }
+    } else {
+      if (c == '\\') {
+        escaped = true;
+      } else {
+        if (c == divider) break;
+        sb_append_char(&sb, c);
+      }
+    }
+    i++;
+  }
 
   input->cursor = i + 1;
-  return token;
+  return sb.str;
 }
 
 Action_return (*search_functionality_function(char *instruction, Functionality functionality[], unsigned int functionality_count))(Input *input) {

@@ -18,3 +18,5 @@ Requirements: `ncurses`, `sed`
 This program has 2 interfaces: CLI or TUI.
 - You can see all the available CLI options with `./build/idea -h`
 - or run the TUI version by only running `./build/idea` and typing `:help` (you can change pages with `h` and `l`, and increase or decrease the number of items shown with `+` or `-`)
+
+> In command arguments, you can escape a space with `\ `, and a backslash with `\\`.
