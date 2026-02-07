@@ -43,7 +43,7 @@ create_backup() {
   mkdir $BACKUP_PATH
   cp "$TODO_LIST_BIN" "$BACKUP_PATH/"
   $IDEA_EXE_PATH -v | grep "Version:" | awk '{print $2}' | sed -r 's/\x1B\[[0-9;]*[[:alpha:]]//g' >> "$BACKUP_PATH/version" # I need to do 'sed' because the text from 'idea -v' has ANSI Escape Codes
-  echo "Created backup of idea $BACKUP_PATH at $(date)"
+  echo "[INFO] Created backup of idea $BACKUP_PATH at $(date)"
 }
 
 clean_backups() {
@@ -56,7 +56,7 @@ clean_backups() {
     BACKUP_TIME=$(basename $BACKUP)
     DELTA=$(expr $SECONDS_NOW - $BACKUP_TIME)
     if [[ $DELTA -gt $THRESHOLD ]]; then
-      echo "$BACKUP is $(pretty_delta_time $DELTA) old! Removing it"
+      echo "[INFO] $BACKUP is $(pretty_delta_time $DELTA) old! Removing it"
       rm "$BACKUP/todos.bin"
       rmdir "$BACKUP"
     fi
@@ -103,7 +103,7 @@ idea_checkout() {
   if [[ ! -z $IDEA_REPO_LINK ]]; then
     cd /tmp
     if [[ -z "$(ls -A "/tmp/idea" 2> /dev/null)" ]]; then
-      echo "- Cloning idea. Please wait..."
+      echo "[INFO] Cloning idea. Please wait..."
       git clone https://www.github.com/Ezee1015/idea 2> /dev/null
     fi
     cd idea
@@ -111,7 +111,7 @@ idea_checkout() {
     cd $IDEA_REPO_PATH
   fi
 
-  echo "- Checking out specific idea version"
+  echo "[INFO] Checking out specific idea version"
   git checkout $VERSION 2> /dev/null
   if [[ $? -ne 0 ]]; then
     echo "[ERROR] An error happened while executing git checkout"
@@ -119,11 +119,11 @@ idea_checkout() {
   fi
   make > /dev/null
 
-  echo "- Copying idea local directory"
+  echo "[INFO] Copying idea local directory"
   LOCAL_TMP_DIR="/tmp/idea_checkout_local"
   rm -r "$LOCAL_TMP_DIR" 2> /dev/null
   cp -r "$BACKUP_DIRECTORY/$1" "$LOCAL_TMP_DIR"
-  echo "- Running idea:"
+  echo "[INFO] Running idea:"
   IDEA_LOCAL_PATH="$LOCAL_TMP_DIR" ./build/idea "${@:2}"
 }
 
@@ -169,7 +169,7 @@ elif [[ $1 == "-c" ]] || [[ $1 == "--checkout" ]]; then
   idea_checkout $2 "${@:3}"
 
 else
-  echo "Unknown command '$1'"
+  echo "[ERROR] Unknown command '$1'"
   exit 1
 
 fi

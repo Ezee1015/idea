@@ -102,7 +102,7 @@ export_html() {
         rm "$GENERATED_HTML_PATH"
         echo "[ERROR] Error while exporting to HTML: $IDEA_OUTPUT"
     fi
-    echo "Exported HTML from idea at $(date) ($(date '+%s'))"
+    echo "[INFO] Exported HTML from idea at $(date) ($(date '+%s'))"
 }
 
 ########
@@ -130,12 +130,12 @@ elif [[ $1 == "-h" ]] || [[ $1 == "--help" ]]; then
 elif [[ $1 == "--daemon" ]]; then
     echo "$INDEX_HTML" > "$INDEX_PATH"
 
-    echo "Running idea_auto_export_html daemon for $IDEA_LOCAL_PATH"
+    echo "[INFO] Running idea_auto_export_html daemon for $IDEA_LOCAL_PATH"
 
     while [[ true ]]; do
         inotifywait -e access "$INDEX_PATH" &> /dev/null
 
-        echo "index.html opened at $(date) ($(date '+%s'))"
+        echo "[INFO] index.html opened at $(date) ($(date '+%s'))"
 
         if [[ ! -e "$TODO_LIST_BIN" ]] || [[ ! -e "$GENERATED_HTML_PATH" ]]; then
             export_html
@@ -153,6 +153,6 @@ elif [[ $1 == "--daemon" ]]; then
         sleep 1
     done
 else
-    echo "Unknown command '$1'"
+    echo "[ERROR] Unknown command '$1'"
     exit 1
 fi
