@@ -3,6 +3,7 @@
 if [[ -z $IDEA_LOCAL_PATH ]]; then
     IDEA_LOCAL_PATH="$HOME/.local/share/idea"
 fi
+TODO_LIST_BIN=$IDEA_LOCAL_PATH/todos.bin
 
 # Source: https://stackoverflow.com/a/246128
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
@@ -95,6 +96,15 @@ help() {
     echo "--daemon ........... Run daemon"
 }
 
+export_html() {
+    IDEA_OUTPUT=$(IDEA_LOCAL_PATH="$IDEA_LOCAL_PATH" $IDEA_EXE_PATH "html $GENERATED_HTML_PATH")
+    if [[ $? -ne 0 ]]; then
+        rm "$GENERATED_HTML_PATH"
+        echo "[ERROR] Error while exporting to HTML: $IDEA_OUTPUT"
+    fi
+    echo "Exported HTML from idea at $(date) ($(date '+%s'))"
+}
+
 ########
 
 if [[ ! -d "$IDEA_LOCAL_PATH" ]]; then
@@ -123,12 +133,24 @@ elif [[ $1 == "--daemon" ]]; then
     echo "Running idea_auto_export_html daemon for $IDEA_LOCAL_PATH"
 
     while [[ true ]]; do
-      inotifywait -e access "$INDEX_PATH" &> /dev/null
+        inotifywait -e access "$INDEX_PATH" &> /dev/null
 
-      IDEA_LOCAL_PATH="$IDEA_LOCAL_PATH" $IDEA_EXE_PATH "html $GENERATED_HTML_PATH"
-      echo "Exported HTML from idea at $(date) ($(date '+%s'))"
+        echo "index.html opened at $(date) ($(date '+%s'))"
 
-      sleep 1
+        if [[ ! -e "$TODO_LIST_BIN" ]] || [[ ! -e "$GENERATED_HTML_PATH" ]]; then
+            export_html
+
+        else
+            # Source: https://askubuntu.com/a/803151
+            TODO_LIST_MTIME=$(stat -c '%Y' "$TODO_LIST_BIN")
+            GENERATED_MTIME=$(stat -c '%Y' "$GENERATED_HTML_PATH")
+
+            if [[ $TODO_LIST_MTIME -ge $GENERATED_MTIME ]]; then
+                export_html
+            fi
+        fi
+
+        sleep 1
     done
 else
     echo "Unknown command '$1'"
