@@ -1,0 +1,175 @@
+#!/bin/bash
+
+if [[ -z $IDEA_LOCAL_PATH ]]; then
+  IDEA_LOCAL_PATH="$HOME/.local/share/idea"
+fi
+
+# Source: https://stackoverflow.com/a/246128
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+IDEA_EXE_PATH="$SCRIPT_DIR/idea"
+
+SCRIPT_DATA_PATH="$IDEA_LOCAL_PATH/scripts_data/backup"
+
+BACKUP_DIRECTORY="$SCRIPT_DATA_PATH"
+TODO_LIST_BIN=$IDEA_LOCAL_PATH/todos.bin
+DAYS_TO_KEEP=10
+
+# You can toggle between this two variable to switch between:
+# - Online compilation
+# - Offline compilation
+IDEA_REPO_LINK="https://www.github.com/Ezee1015/idea"
+# IDEA_REPO_PATH="$HOME/github/idea"
+
+pretty_delta_time() {
+  ONE_DAY=86400
+  ONE_HOUR=3600
+  ONE_MINUTE=60
+
+  if [[ $1 -ge $ONE_DAY ]]; then
+    echo "$(expr $1 / $ONE_DAY) days"
+  elif [[ $1 -ge $ONE_HOUR ]]; then
+    echo "$(expr $1 / $ONE_HOUR) hours"
+  # More than 1 minute
+  elif [[ $1 -ge $ONE_MINUTE ]]; then
+    echo "$(expr $1 / $ONE_MINUTE) minutes"
+  else
+    echo "$DELTA seconds"
+  fi
+}
+
+create_backup() {
+  BACKUP_NAME=$(date +%s)
+  BACKUP_PATH="$BACKUP_DIRECTORY/$BACKUP_NAME"
+  mkdir $BACKUP_PATH
+  cp "$TODO_LIST_BIN" "$BACKUP_PATH/"
+  $IDEA_EXE_PATH -v | grep "Version:" | awk '{print $2}' | sed -r 's/\x1B\[[0-9;]*[[:alpha:]]//g' >> "$BACKUP_PATH/version" # I need to do 'sed' because the text from 'idea -v' has ANSI Escape Codes
+  echo "Created backup of idea $BACKUP_PATH at $(date)"
+}
+
+clean_backups() {
+  if [ -z "$( ls -A "$BACKUP_DIRECTORY" )" ]; then return; fi
+
+  SECONDS_NOW=$(date +%s)
+  THRESHOLD=$(expr $DAYS_TO_KEEP \* 24 \* 60 \* 60)
+
+  for BACKUP in $BACKUP_DIRECTORY/*; do
+    BACKUP_TIME=$(basename $BACKUP)
+    DELTA=$(expr $SECONDS_NOW - $BACKUP_TIME)
+    if [[ $DELTA -gt $THRESHOLD ]]; then
+      echo "$BACKUP is $(pretty_delta_time $DELTA) old! Removing it"
+      rm "$BACKUP/todos.bin"
+      rmdir "$BACKUP"
+    fi
+  done
+}
+
+help() {
+  echo "-h, --help ......... Help"
+  echo "--daemon ........... Run daemon"
+  echo "-l, --list ......... List available backup files"
+  echo "-c , --checkout .... Checkout a backup of idea. Arguments: [Unix time stamp] [command 1] [command 2] [...]"
+}
+
+list_backups() {
+  if [ -z "$( ls -A "$BACKUP_DIRECTORY" )" ]; then return; fi
+
+  SECONDS_NOW=$(date +%s)
+
+  for BACKUP in $BACKUP_DIRECTORY/*; do
+    BACKUP_TIME=$(basename $BACKUP)
+    DELTA=$(expr $SECONDS_NOW - $BACKUP_TIME)
+
+    echo "$BACKUP_TIME: $(date -d @$BACKUP_TIME) ($(pretty_delta_time $DELTA) ago)"
+  done
+}
+
+idea_checkout() {
+  if [[ -z "$(ls -A "$BACKUP_DIRECTORY/$1" 2> /dev/null)" ]]; then
+    echo "[ERROR] Backup '$BACKUP_DIRECTORY/$1' doesn't exist"
+    return
+  fi
+
+  VERSION=$(cat "$BACKUP_DIRECTORY/$1/version")
+  if [[ -z $VERSION ]]; then
+    echo "[ERROR] Unknown idea version of backup $BACKUP_DIRECTORY/$1"
+    return
+  fi
+
+  if [[ -z $IDEA_REPO_PATH ]] && [[ -z $IDEA_REPO_LINK ]]; then
+    echo "[ERROR] You must specify IDEA_REPO_LINK or IDEA_REPO_PATH to checkout the backup"
+    return
+  fi
+
+  if [[ ! -z $IDEA_REPO_LINK ]]; then
+    cd /tmp
+    if [[ -z "$(ls -A "/tmp/idea" 2> /dev/null)" ]]; then
+      echo "- Cloning idea. Please wait..."
+      git clone https://www.github.com/Ezee1015/idea 2> /dev/null
+    fi
+    cd idea
+  else
+    cd $IDEA_REPO_PATH
+  fi
+
+  echo "- Checking out specific idea version"
+  git checkout $VERSION 2> /dev/null
+  if [[ $? -ne 0 ]]; then
+    echo "[ERROR] An error happened while executing git checkout"
+    return
+  fi
+  make > /dev/null
+
+  echo "- Copying idea local directory"
+  LOCAL_TMP_DIR="/tmp/idea_checkout_local"
+  rm -r "$LOCAL_TMP_DIR" 2> /dev/null
+  cp -r "$BACKUP_DIRECTORY/$1" "$LOCAL_TMP_DIR"
+  echo "- Running idea:"
+  IDEA_LOCAL_PATH="$LOCAL_TMP_DIR" ./build/idea "${@:2}"
+}
+
+
+########
+
+# Source: https://stackoverflow.com/a/677212
+if ! command -v "$IDEA_EXE_PATH" >/dev/null 2>&1; then
+    echo "[ERROR] Unable to find or execute $IDEA_EXE_PATH"
+    exit 1
+fi
+
+if [[ ! -d "$IDEA_LOCAL_PATH" ]]; then
+  echo "[ERROR] $IDEA_LOCAL_PATH doesn't exists. Run idea for the first time to create that directory"
+  exit 1
+fi
+
+mkdir -p "$SCRIPT_DATA_PATH"
+
+if [[ $# -eq 0 ]]; then
+  help
+  exit 1
+
+elif [[ $1 == "-h" ]] || [[ $1 == "--help" ]]; then
+  help
+
+elif [[ $1 == "--daemon" ]]; then
+  clean_backups
+
+  while [[ true ]]; do
+    if [ -e "$TODO_LIST_BIN" ]; then
+      inotifywait -e modify "$TODO_LIST_BIN" &> /dev/null
+      create_backup
+    fi
+
+    sleep 1
+  done
+
+elif [[ $1 == "-l" ]] || [[ $1 == "--list" ]]; then
+  list_backups
+
+elif [[ $1 == "-c" ]] || [[ $1 == "--checkout" ]]; then
+  idea_checkout $2 "${@:3}"
+
+else
+  echo "Unknown command '$1'"
+  exit 1
+
+fi

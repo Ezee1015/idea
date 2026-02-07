@@ -14,6 +14,8 @@ Requirements: `ncurses`, `sed`
     - `make uninstall`: Uninstall the binary from the system
     - `make test`: Run the tests. For more options, such as memory leak checking and output logging, see `./build/tests -h`
 
+> When running `make install` it will install the idea scripts too. You can see more information about each script inside the `scripts` directory
+
 ## Run
 This program has 2 interfaces: CLI or TUI.
 - You can see all the available CLI options with `./build/idea -h`

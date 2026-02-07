@@ -1,0 +1,136 @@
+#!/bin/bash
+
+if [[ -z $IDEA_LOCAL_PATH ]]; then
+    IDEA_LOCAL_PATH="$HOME/.local/share/idea"
+fi
+
+# Source: https://stackoverflow.com/a/246128
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+IDEA_EXE_PATH="$SCRIPT_DIR/idea"
+
+SCRIPT_DATA_PATH="$IDEA_LOCAL_PATH/scripts_data/auto_export_html"
+INDEX_PATH="$SCRIPT_DATA_PATH/index.html"
+GENERATED_HTML_PATH="$SCRIPT_DATA_PATH/generated.html"
+
+INDEX_HTML="
+<html>
+    <head>
+        <!-- Source: https://stackoverflow.com/a/5411567 -->
+        <meta http-equiv=\"refresh\" content=\"1; url=./generated.html\" />
+
+        <title>idea</title>
+        <link rel=\"icon\" type=\"image/png\" href=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAABhWlDQ1BJQ0MgcHJvZmlsZQAAKJF9kb1Lw1AUxU9TRZGKg0VEBDNUQbCLijjWKhShQqgVWnUweekXNGlIUlwcBdeCgx+LVQcXZ10dXAVB8APEP0CcFF2kxPuSQosYLzzej/PuObx3HyDUy0yzOmKApttmKhEXM9lVsesVAYxgAOMQZGYZc5KUhG993VM31V2UZ/n3/Vm9as5iQEAkjjHDtIk3iGc2bYPzPnGYFWWV+Jx4wqQLEj9yXfH4jXPBZYFnhs10ap44TCwW2lhpY1Y0NeJp4oiq6ZQvZDxWOW9x1spV1rwnf2Eop68sc53WMBJYxBIkiFBQRQll2IjSrpNiIUXncR//kOuXyKWQqwRGjgVUoEF2/eB/8Hu2Vn5q0ksKxYHOF8f5GAW6doFGzXG+jx2ncQIEn4ErveWv1IHZT9JrLS1yBPRtAxfXLU3ZAy53gMEnQzZlVwrSEvJ54P2MvikL9N8CPWve3JrnOH0A0jSr5A1wcAiMFSh73efd3e1z+7enOb8flYJytMnfGsoAAAAJcEhZcwAALiMAAC4jAXilP3YAAAAHdElNRQfqAR8WLyaWq55vAAAAGXRFWHRDb21tZW50AENyZWF0ZWQgd2l0aCBHSU1QV4EOFwAAAM5JREFUKM9jFBUVZWRkZEAFmhHc/34z3Fz7lQEDsDAxMaFpUPLmNIkW/f+f4eubv88O/0LTwIRphqA8KwMDAyMjg4AMK6YsFg139337+fnv9/d/Hh79jinLKC4ujukHRhYGBgaG/38YsPgBja/kxWmaIAJh39rz8fysTwSc9Pzcz6ub37OwM7KwMzJh8QKGhu8v/n14+JsBN2BiIBEMBw3MPDw8yBEnYsCq4cnLJ8kGSR1/GP5+uPsHX8SxcjGycDK9vAFNFOy8TEQlDTwAAJNlNbOfmr+zAAAAAElFTkSuQmCC\">
+
+        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+
+        <style>
+            /* Colors taken from <https://tsoding.github.io/schedule/> */
+            :root {
+                --bg: #181818;
+                --bg-light: #1b1b1b;
+
+                --fg: #e4e4ef;
+                --fg-dark: #515151;
+
+                --green: #73c936;
+            }
+
+            body {
+                background: var(--bg);
+                color: var(--fg);
+            }
+
+            header {
+                background: var(--bg);
+
+                position: sticky;
+                top: 0px;
+            }
+
+            h1 {
+                text-align: center;
+                color: var(--green);
+            }
+
+            h2 {
+                font-size: 22px;
+                text-align: center;
+                margin-bottom: 0px;
+            }
+
+            p {
+                text-align: center;
+            }
+
+            a {
+                text-decoration: none;
+                color: var(--green);
+                border-bottom: 1px solid;
+            }
+        </style>
+    </head>
+
+    <body>
+        <header>
+            <h1>idea</h1>
+            <hr>
+        </header>
+
+        <main>
+            <h2>Generating...</h2>
+            <p id=\"redirect_text\">If the browser doesn't redirect you, please <a href=\"generated.html\">click here</a></p>
+        </main>
+    </body>
+    <script>
+        redirect_text.style.display = \"none\"
+        setTimeout(() => {
+            redirect_text.style.display = \"revert\"
+        }, 2000)
+    </script>
+</html>
+"
+
+help() {
+    echo "-h, --help ......... Help"
+    echo "--daemon ........... Run daemon"
+}
+
+########
+
+if [[ ! -d "$IDEA_LOCAL_PATH" ]]; then
+  echo "[ERROR] $IDEA_LOCAL_PATH doesn't exists. Run idea for the first time to create that directory"
+  exit 1
+fi
+
+# Source: https://stackoverflow.com/a/677212
+if ! command -v "$IDEA_EXE_PATH" >/dev/null 2>&1; then
+    echo "[ERROR] Unable to find or execute $IDEA_EXE_PATH"
+    exit 1
+fi
+
+mkdir -p "$SCRIPT_DATA_PATH"
+
+if [[ $# -eq 0 ]]; then
+    help
+    exit 1
+
+elif [[ $1 == "-h" ]] || [[ $1 == "--help" ]]; then
+    help
+
+elif [[ $1 == "--daemon" ]]; then
+    echo "$INDEX_HTML" > "$INDEX_PATH"
+
+    echo "Running idea_auto_export_html daemon for $IDEA_LOCAL_PATH"
+
+    while [[ true ]]; do
+      inotifywait -e access "$INDEX_PATH" &> /dev/null
+
+      IDEA_LOCAL_PATH="$IDEA_LOCAL_PATH" $IDEA_EXE_PATH "html $GENERATED_HTML_PATH"
+      echo "Exported HTML from idea at $(date) ($(date '+%s'))"
+
+      sleep 1
+    done
+else
+    echo "Unknown command '$1'"
+    exit 1
+fi

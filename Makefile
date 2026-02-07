@@ -22,6 +22,9 @@ IDEA_CFILES := $(wildcard src/*.c)
 TESTS_EXEC := $(BUILD_FOLDER)/tests
 TESTS_CFILES := $(wildcard tests/src/*.c) $(wildcard src/utils/*.c) src/parser.c
 
+SCRIPTS := $(wildcard scripts/*)
+INSTALL_PATH ?= /usr/local/bin
+
 all: $(IDEA_EXEC) $(TESTS_EXEC)
 
 $(TEMPLATE_GEN_EXEC): $(TEMPLATE_GEN_CFILE) $(UTILS_CFILES)
@@ -50,11 +53,22 @@ run:
 
 .PHONY = install
 install: $(IDEA_EXEC)
-	sudo cp $(IDEA_EXEC) /usr/local/bin/
+	@echo "- Installing idea in $(INSTALL_PATH)"
+	cp $(IDEA_EXEC) "$(INSTALL_PATH)/"
+	@echo "- Installing scripts"
+	for script in $(SCRIPTS); do \
+		cd "$$script" && $(MAKE) install INSTALL_PATH="$(INSTALL_PATH)" ;\
+		cd ../.. ;\
+	done
 
 .PHONY = uninstall
 uninstall: $(IDEA_EXEC)
-	sudo rm /usr/local/bin/$(IDEA_EXEC_NAME)
+	@echo "- Uninstalling idea from $(INSTALL_PATH)"
+	rm "$(INSTALL_PATH)/$(IDEA_EXEC_NAME)"
+	@echo "- Uninstalling scripts"
+	for script in $(SCRIPTS); do \
+		cd "$$script" && $(MAKE) uninstall INSTALL_PATH="$(INSTALL_PATH)" ;\
+	done
 
 $(TESTS_EXEC): $(TESTS_CFILES)
 	mkdir -p $(BUILD_FOLDER)
