@@ -278,6 +278,10 @@ bool write_notes_to_export_file(FILE *save_file, Todo *todo) {
         if (fputs("\n" EXPORT_FILE_INDENTATION EXPORT_FILE_INDENTATION, save_file) == EOF) return false;
         break;
 
+      case '\\':
+        if (fputs("\\\\", save_file) == EOF) return false;
+        break;
+
       default:
         if (fputc(c, save_file) == EOF) return false;
         break;
@@ -291,10 +295,34 @@ bool write_notes_to_export_file(FILE *save_file, Todo *todo) {
   return true;
 }
 
+char *escape_backslash_cstr(String_builder *sb, char *cstr) {
+  sb_clean(sb);
+
+  unsigned int str_length = strlen(cstr);
+  for (unsigned int i=0; i<str_length; i++) {
+    if (cstr[i] == '\\') sb_append(sb, "\\\\");
+    else sb_append_char(sb, cstr[i]);
+  }
+
+  return sb->str;
+}
+
 bool save_todo_to_export_file(FILE *file, Todo *todo) {
   if (fprintf(file, "todo\n") <= 0) return false;
-  if (fprintf(file, EXPORT_FILE_INDENTATION "id: %s\n", todo->id) <= 0) return false;
-  if (fprintf(file, EXPORT_FILE_INDENTATION "name: %s\n", todo->name) <= 0) return false;
+
+  String_builder sb = sb_new();
+
+  sb_append(&sb, todo->id);
+  sb_search_and_replace(&sb, "\\", "\\\\");
+  if (fprintf(file, EXPORT_FILE_INDENTATION "id: %s\n", sb.str) <= 0) return false;
+  sb_clean(&sb);
+
+  sb_append(&sb, todo->name);
+  sb_search_and_replace(&sb, "\\", "\\\\");
+  if (fprintf(file, EXPORT_FILE_INDENTATION "name: %s\n", sb.str) <= 0) return false;
+  sb_clean(&sb);
+
+  sb_free(&sb);
 
   if (todo->notes && !write_notes_to_export_file(file, todo)) return false;
 

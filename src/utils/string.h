@@ -50,7 +50,11 @@ void sb_append_long(String_builder *sb, long n);
 
 void sb_append_char(String_builder *sb, char c);
 
+void sb_insert_at(String_builder *sb, unsigned int index, const char *cstr);
+
 void sb_replace(String_builder *sb, unsigned int index, const char *replace_cstr);
+
+void sb_remove(String_builder *sb, unsigned int index, unsigned int length);
 
 bool sb_is_empty(String_builder sb);
 
@@ -61,5 +65,7 @@ void sb_clean(String_builder *sb);
 bool sb_read_line(FILE *f, String_builder *sb);
 
 bool sb_equals(String_builder sb1, String_builder sb2);
+
+bool sb_search_and_replace(String_builder *sb, const char *search, const char *replace);
 
 #endif // STRINGS_H

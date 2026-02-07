@@ -218,6 +218,31 @@ void sb_append_char(String_builder *sb, char c) {
   sb_append(sb, (char[2]){c, '\0'});
 }
 
+void sb_insert_at(String_builder *sb, unsigned int index, const char *cstr) {
+  if (!sb || index > sb->length || !cstr) abort();
+  unsigned int cstr_length = strlen(cstr);
+
+  unsigned int new_length = sb->length + cstr_length;
+  _sb_resize_if_necessary(sb, new_length);
+
+  for (int i = new_length; i >= (int) (index + cstr_length); i--) {
+    sb->str[i] = sb->str[i - cstr_length];
+  }
+
+  strncpy(sb->str+index, cstr, cstr_length);
+  sb->length = new_length;
+}
+
+void sb_remove(String_builder *sb, unsigned int index, unsigned int length) {
+  if (!sb || index > sb->length) abort();
+
+  unsigned int new_length = sb->length - length;
+  _sb_resize_if_necessary(sb, new_length);
+
+  strcpy(sb->str+index, sb->str+index+length);
+  sb->length = new_length;
+}
+
 void sb_replace(String_builder *sb, unsigned int index, const char *replace_cstr) {
   if (index >= sb->length) abort();
 
@@ -269,4 +294,21 @@ bool sb_read_line(FILE *f, String_builder *sb) {
 
 bool sb_equals(String_builder sb1, String_builder sb2) {
   return (sb1.length == sb2.length && !strcmp(sb1.str, sb2.str));
+}
+
+bool sb_search_and_replace(String_builder *sb, const char *search, const char *replace) {
+  const unsigned int search_length = strlen(search);
+  const unsigned int replace_length = strlen(replace);
+  bool found = false;
+
+  for (unsigned int i=0; i<sb->length; i++) {
+    if (cstr_starts_with(sb->str+i, search)) {
+      sb_remove(sb, i, search_length);
+      sb_insert_at(sb, i, replace);
+      found = true;
+      i += replace_length - search_length;
+    }
+  }
+
+  return found;
 }
