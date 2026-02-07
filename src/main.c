@@ -71,7 +71,7 @@ bool parse_commands_cli(char *commands[], int count) {
 
 bool load_paths() {
   String_builder sb = sb_new();
-  if (!sb_append_from_shell_variable(&sb, "TMPDIR")) return false;
+  if (!sb_append_from_shell_variable(&sb, "TMPDIR")) sb_append(&sb, "/tmp");
   idea_state.tmp_path = sb.str;
 
   sb = sb_new();
