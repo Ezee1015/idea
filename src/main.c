@@ -36,6 +36,9 @@ bool unlock_file() {
 bool parse_commands_cli(char *commands[], int count) {
   int i=0;
   bool something_went_wrong = false;
+
+  cli_disable_colors = getenv("IDEA_CLI_DISABLE_COLORS");
+
   while (!something_went_wrong && i<count) {
     Action_return result;
     NESTED_ACTION(result = cli_parse_input(commands[i]), result);

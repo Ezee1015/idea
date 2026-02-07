@@ -9,7 +9,6 @@
 #include <errno.h>
 #include <sys/stat.h>
 
-#include "../../src/cli.h"
 #include "../../src/parser.h"
 #include "../../src/todo_list.h"
 

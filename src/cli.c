@@ -10,9 +10,10 @@
 #include "utils/string.h"
 
 unsigned int msg_indentation = 1;
+bool cli_disable_colors = false;
 
 void print_todo(unsigned int index, Todo todo) {
-  printf(ANSI_RED "%d)" ANSI_GREEN "%s" ANSI_RESET " %s\n", index + 1, (todo.notes) ? " " NOTES_ICON : "", todo.name);
+  printf( "%s%d)%s%s%s %s\n", ANSI_RED, index + 1, ANSI_GREEN, (todo.notes) ? " " NOTES_ICON : "", ANSI_RESET, todo.name);
 }
 
 bool clone_text_file(char *origin_path, char *clone_path) {
@@ -104,7 +105,7 @@ Action_return action_print_todo(Input *input) {
 }
 
 void print_functionality(char *source, Functionality *functionality, unsigned int functionality_count) {
-  printf(ANSI_UNDERLINE "%s" ANSI_RESET ":\n", source);
+  printf("%s%s%s:\n", ANSI_UNDERLINE, source, ANSI_RESET);
   if (functionality_count == 0) return;
 
   unsigned int max_cmd_length = 0;
@@ -125,13 +126,13 @@ void print_functionality(char *source, Functionality *functionality, unsigned in
     const unsigned int description_padding = 3;
     unsigned int padding = max_cmd_length - cmd_length + description_padding;
 
-    if (f.abbreviation_cmd) printf("\t" ANSI_YELLOW "%s" ANSI_RESET ", " ANSI_YELLOW "%s" ANSI_RESET "%*s%s\n", f.full_cmd, f.abbreviation_cmd, padding, " ", f.man.description);
-    else                    printf("\t" ANSI_YELLOW "%s" ANSI_RESET "  %*s%s\n", f.full_cmd, padding, " ", f.man.description);
+    if (f.abbreviation_cmd) printf("\t%s%s%s, %s%s%s%*s%s\n", ANSI_YELLOW, f.full_cmd, ANSI_RESET, ANSI_YELLOW, f.abbreviation_cmd, ANSI_RESET, padding, " ", f.man.description);
+    else                    printf("\t%s%s%s  %*s%s\n", ANSI_YELLOW, f.full_cmd, ANSI_RESET, padding, " ", f.man.description);
 
     const unsigned int separator_between_commands_length = 2; // ", " when f.abbreviation_cmd exist or "  " when it doesn't
     for (unsigned int x = 0; f.man.parameters[x]; x++) {
       unsigned int padding_parameter = max_cmd_length + description_padding + separator_between_commands_length;
-      printf("\t%*s"ANSI_GRAY"Usage: "ANSI_BLUE"%s %s"ANSI_RESET"\n", padding_parameter, "", f.full_cmd, functionality[i].man.parameters[x]);
+      printf("\t%*s%sUsage: %s%s %s%s\n", padding_parameter, "", ANSI_GRAY, ANSI_BLUE, f.full_cmd, functionality[i].man.parameters[x], ANSI_RESET);
     }
     printf("\n");
   }
@@ -140,9 +141,9 @@ void print_functionality(char *source, Functionality *functionality, unsigned in
 Action_return action_print_help(Input *input) {
   ACTION_NO_ARGS("help", input);
 
-  printf(ANSI_GRAY "Open TUI: " ANSI_RESET "%s\n", idea_state.program_path);
-  printf(ANSI_GRAY "CLI: " ANSI_RESET "%s [command 1] [command 2] [...]\n\n", idea_state.program_path);
-  printf("A simple ToDo-app written in C. Source code: " ANSI_BLUE "<https://www.github.com/Ezee1015/idea>\n\n" ANSI_RESET);
+  printf("%sOpen TUI: %s%s\n", ANSI_GRAY, ANSI_RESET, idea_state.program_path);
+  printf("%sCLI: %s%s [command 1] [command 2] [...]\n\n", ANSI_GRAY, ANSI_RESET, idea_state.program_path);
+  printf("A simple ToDo-app written in C. Source code: %s<https://www.github.com/Ezee1015/idea>%s\n\n", ANSI_BLUE, ANSI_RESET);
 
   print_functionality("Generic commands", todo_list_functionality, todo_list_functionality_count);
   print_functionality("CLI Specific commands", cli_functionality, cli_functionality_count);
@@ -294,7 +295,7 @@ Action_return action_sync_todos(Input *input) {
 
   // Show the user the changes in the commands that are going to be executed
   printf("Diff of the database commands:\n\n");
-  instruction = sb_create("%s %s %s", DIFF_CMD, base_path.str, local_path.str);
+  instruction = sb_create(DIFF_CMD_FMT " %s %s", DIFF_CMD_ARGS, base_path.str, local_path.str);
   system_ret = system(instruction.str);
   sb_free(&instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) == 2)) {
@@ -366,8 +367,8 @@ Action_return action_notes_todo(Input *input) {
 Action_return action_version(Input *input) {
   ACTION_NO_ARGS("version", input);
 
-  printf(ANSI_GRAY "Version: " ANSI_RESET COMMIT "\n");
-  printf(ANSI_GRAY "Config: "ANSI_RESET "%s\n", idea_state.local_path);
+  printf("%sVersion: %s" COMMIT "\n", ANSI_GRAY, ANSI_RESET);
+  printf("%sLocal path: %s%s\n", ANSI_GRAY, ANSI_RESET, idea_state.local_path);
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }
 #endif // COMMIT

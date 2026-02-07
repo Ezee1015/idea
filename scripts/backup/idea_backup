@@ -42,7 +42,7 @@ create_backup() {
   BACKUP_PATH="$BACKUP_DIRECTORY/$BACKUP_NAME"
   mkdir $BACKUP_PATH
   cp "$TODO_LIST_BIN" "$BACKUP_PATH/"
-  $IDEA_EXE_PATH -v | grep "Version:" | awk '{print $2}' | sed -r 's/\x1B\[[0-9;]*[[:alpha:]]//g' >> "$BACKUP_PATH/version" # I need to do 'sed' because the text from 'idea -v' has ANSI Escape Codes
+  IDEA_CLI_DISABLE_COLORS=\"true\" $IDEA_EXE_PATH -v | grep "Version:" | awk '{print $2}' >> "$BACKUP_PATH/version"
   echo "[INFO] Created backup of idea $BACKUP_PATH at $(date)"
 }
 
