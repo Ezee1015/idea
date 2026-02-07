@@ -410,7 +410,6 @@ Action_return action_remove_todo(Input *input) {
 
 Action_return action_move_todo(Input *input) {
   char *arg = next_token(input, ' ');
-  printf("Arg: %s", arg);
   if (!arg) return ACTION_RETURN(RETURN_ERROR, "You need to specify the Name or the ID of the ToDo to move");
   unsigned int pos_origin;
   if (!search_todo_pos_by_name_or_pos(arg, &pos_origin)) {
@@ -500,16 +499,36 @@ void initialize_notes(Todo *todo) {
 }
 
 Action_return action_generate_html(Input *input) {
-  char *arg = next_token(input, 0);
-  if (!arg) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  List custom_todos = list_new();
+  FILE *output_file = NULL;
+  Action_return ret = ACTION_RETURN(RETURN_SUCCESS, "");
 
-  FILE *output = fopen(arg, "w");
-  free(arg);
-  if (!output) return ACTION_RETURN(RETURN_ERROR, "Unable to open the path of the output html file");
+  char *output_path = next_token(input, ' ');
+  if (!output_path) {
+    ret = ACTION_RETURN(RETURN_ERROR, "You need to specify at least the HTML output path");
+    goto exit;
+  }
 
-  Action_return ret = generate_html(output, todo_list);
+  char *arg = NULL;
+  while ( (arg = next_token(input, ' ')) ) {
+    unsigned int pos = 0;
+    if (!search_todo_pos_by_name_or_pos(arg, &pos)) {
+      ret = ACTION_RETURN(RETURN_ERROR, "Unable to find the ToDo");
+      goto exit;
+    }
+    list_append(&custom_todos, list_get(todo_list, pos));
+  }
 
-  fclose(output);
+  output_file = fopen(output_path, "w");
+  if (!output_file) return ACTION_RETURN(RETURN_ERROR, "Unable to open the path of the output HTML file");
+
+  ret = generate_html(output_file, (!list_is_empty(custom_todos)) ? custom_todos : todo_list);
+  list_destroy(&custom_todos, NULL);
+
+exit:
+  list_destroy(&custom_todos, NULL);
+  if (output_file) fclose(output_file);
+  if (output_path) free(output_path);
   return ret;
 }
 
