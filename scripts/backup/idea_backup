@@ -153,6 +153,7 @@ elif [[ $1 == "-h" ]] || [[ $1 == "--help" ]]; then
 elif [[ $1 == "--daemon" ]]; then
   clean_backups
 
+  echo "[INFO] Running idea_backup daemon for $IDEA_LOCAL_PATH"
   while [[ true ]]; do
     if [ -e "$TODO_LIST_BIN" ]; then
       inotifywait -e modify "$TODO_LIST_BIN" &> /dev/null
