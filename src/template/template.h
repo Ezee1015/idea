@@ -2,8 +2,13 @@
 #define TEMPLATE_H
 
 #include <stdio.h>
+
 #include "../utils/list.h"
 #include "../todo_list.h"
+
+// includes for the template.html
+#include <time.h>
+#include <unistd.h>
 
 #define FPRINTF_ERROR() ACTION_RETURN(RETURN_ERROR, "fprintf failed")
 

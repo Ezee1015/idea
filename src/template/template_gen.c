@@ -205,6 +205,9 @@ int main(int argc, char *argv[]) {
     ERROR_FOPEN_C_OUTPUT,
     ERROR_GENERATING_C_OUTPUT,
   } ret = SUCCESS;
+  FILE *file_html = NULL;
+  FILE *file_c = NULL;
+  char *template = NULL;
 
   if (argc != 3 ) {
     printf("./%s [HTML template path] [output C file path]\n", argv[0]);
@@ -214,15 +217,14 @@ int main(int argc, char *argv[]) {
   const char *html_filepath = argv[1],
              *c_filepath = argv[2];
 
-  FILE *file_html = fopen(html_filepath, "r");
+  file_html = fopen(html_filepath, "r");
   if (!file_html) DEFER(ERROR_FOPEN_HTML);
 
-  char *template = NULL;
   long template_size = 0;
   if (!load_template(file_html, &template, &template_size)) DEFER(ERROR_READING_HTML);
   fclose(file_html); file_html = NULL;
 
-  FILE *file_c = fopen(c_filepath, "w");
+  file_c = fopen(c_filepath, "w");
   if (!file_c) DEFER(ERROR_FOPEN_C_OUTPUT);
 
   if (!generate_template_c(html_filepath, template, template_size, file_c)) DEFER(ERROR_GENERATING_C_OUTPUT);
