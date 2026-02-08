@@ -540,7 +540,10 @@ Action_return action_generate_html(Input *input) {
   char *arg = NULL;
   while ( (arg = next_token(input, ' ')) ) {
     unsigned int pos = 0;
-    if (!search_todo_pos_by_name_or_pos(arg, &pos)) {
+    bool ok = search_todo_pos_by_name_or_pos(arg, &pos);
+    free(arg);
+
+    if (!ok) {
       ret = ACTION_RETURN(RETURN_ERROR, "Unable to find the ToDo");
       goto exit;
     }
@@ -548,7 +551,10 @@ Action_return action_generate_html(Input *input) {
   }
 
   output_file = fopen(output_path, "w");
-  if (!output_file) return ACTION_RETURN(RETURN_ERROR, "Unable to open the path of the output HTML file");
+  if (!output_file) {
+    ret = ACTION_RETURN(RETURN_ERROR, "Unable to open the path of the output HTML file");
+    goto exit;
+  }
 
   ret = generate_html(output_file, (!list_is_empty(custom_todos)) ? custom_todos : todo_list);
   list_destroy(&custom_todos, NULL);
