@@ -15,7 +15,6 @@
 
 List todo_list = list_new();
 bool todo_list_modified = false;
-unsigned int instance_todo_counter = 0; // Counter of ToDos created by the current instance (to avoid id collisions in the same second)
 
 bool search_todo_pos_by_name_or_pos(const char *name_or_position, unsigned int *index) { // `position` should be 1-based. `index` is 0-based
   if (list_is_empty(todo_list)) return false;
@@ -39,29 +38,40 @@ bool search_todo_pos_by_name_or_pos(const char *name_or_position, unsigned int *
   return true;
 }
 
-char *generate_unique_todo_id() {
-  char hostname[256];
-  if (gethostname(hostname, sizeof(hostname)) == -1) return NULL;
-
-  String_builder id_builder = sb_create("%s-%ld-%d", hostname, time(NULL), ++instance_todo_counter);
-  return id_builder.str;
-}
-
 void free_todo(Todo *todo) {
   free(todo->name);
-  free(todo->id);
+  free(todo->hostname);
   free(todo->notes);
   free(todo);
 }
 
-// id has to be NULL to be generated, otherwise is duplicated from the given id
-Todo *create_todo(char *id) {
-  Todo *new = malloc(sizeof(Todo));
-  if (!new) return NULL;
-  new->id = (id) ? strdup(id) : generate_unique_todo_id();
-  new->name = NULL;
-  new->notes = NULL;
-  return new;
+Todo *create_todo(char *name) {
+  if (!name) return NULL;
+
+  Todo *todo = malloc(sizeof(Todo));
+  if (!todo) return NULL;
+
+  todo->name = name;
+  todo->creation_time = time(NULL);
+  todo->notes = NULL;
+
+  const unsigned int hostname_size = 128;
+  todo->hostname = malloc(hostname_size);
+  if (gethostname(todo->hostname, hostname_size) == -1) {
+    free(todo);
+    return NULL;
+  }
+
+  return todo;
+}
+
+bool todo_exists(const char *name) {
+  List_iterator iterator = list_iterator_create(todo_list);
+  while (list_iterator_next(&iterator)) {
+    Todo *element = list_iterator_element(iterator);
+    if (!strcmp(element->name, name)) return true;
+  }
+  return false;
 }
 
 /// FILE OPERATIONS
@@ -90,8 +100,9 @@ bool load_string_from_binary_file(FILE *file, char **str) {
 }
 
 bool save_todo_to_binary_file(FILE *file, Todo *todo) {
-  if (!save_string_to_binary_file(file, todo->id)) return false;
   if (!save_string_to_binary_file(file, todo->name)) return false;
+  if (!save_string_to_binary_file(file, todo->hostname)) return false;
+  if (!fwrite(&todo->creation_time, sizeof(todo->creation_time), 1, file)) return false;
   if (!save_string_to_binary_file(file, todo->notes)) return false;
   return true;
 }
@@ -99,8 +110,10 @@ bool save_todo_to_binary_file(FILE *file, Todo *todo) {
 void *load_todo_from_binary_file(FILE *file) {
   Todo *todo = malloc(sizeof(Todo));
   if (!todo) abort();
-  if (!load_string_from_binary_file(file, &todo->id)) return false;
+
   if (!load_string_from_binary_file(file, &todo->name)) return false;
+  if (!load_string_from_binary_file(file, &todo->hostname)) return false;
+  if (!fread(&todo->creation_time, sizeof(todo->creation_time), 1, file)) return false;
   if (!load_string_from_binary_file(file, &todo->notes)) return false;
   return todo;
 }
@@ -160,37 +173,69 @@ bool load_todo_from_export_file(FILE *load_file, List *old_todo_list, bool *reac
           state = STATE_EXIT;
           break;
 
-        } else if (indentation == 1 && !strcmp(atribute, "id:")) {
+        } else if (indentation == 1 && !strcmp(atribute, "name:")) {
           if (new_todo) {
             ret = false;
             state = STATE_EXIT;
             break;
           }
 
-          char *id = next_token(&line_input, 0);
-          new_todo = create_todo(id);
-          free(id);
+          char *name = next_token(&line_input, 0);
 
+          if (todo_exists(name)) {
+            free(name);
+            ret = false;
+            state = STATE_EXIT;
+            break;
+          }
+
+          new_todo = malloc(sizeof(Todo));
+          memset(new_todo, 0, sizeof(Todo));
+          new_todo->name = name;
           list_append(&todo_list, new_todo);
 
           // Search if the todo has a local version
           List_iterator iterator = list_iterator_create(*old_todo_list);
           while (list_iterator_next(&iterator)) {
             Todo *element = list_iterator_element(iterator);
-            if (!strcmp(element->id, new_todo->id)) {
+            if (!strcmp(element->name, new_todo->name)) {
               old_todo = list_remove(old_todo_list, list_iterator_index(iterator));
               break;
             }
           }
 
-        } else if (indentation == 1 && !strcmp(atribute, "name:")) {
-          if (!new_todo || new_todo->name) {
+        } else if (indentation == 1 && !strcmp(atribute, "created:")) {
+          if (!new_todo || new_todo->creation_time != 0) {
             ret = false;
             state = STATE_EXIT;
             break;
           }
 
-          new_todo->name = next_token(&line_input, 0);
+          char *creation_time_cstr = next_token(&line_input, 0);
+          if (!creation_time_cstr) {
+            ret = false;
+            state = STATE_EXIT;
+            break;
+          }
+
+          char *end = NULL;
+          new_todo->creation_time = strtoull(creation_time_cstr, &end, 10);
+          if (*end != '\0' || end == creation_time_cstr) {
+            free(creation_time_cstr);
+            ret = false;
+            state = STATE_EXIT;
+            break;
+          }
+          free(creation_time_cstr);
+
+        } else if (indentation == 1 && !strcmp(atribute, "hostname:")) {
+          if (!new_todo || new_todo->hostname) {
+            ret = false;
+            state = STATE_EXIT;
+            break;
+          }
+
+          new_todo->hostname = next_token(&line_input, 0);
 
         } else if (indentation == 1 && !strcmp(atribute, "notes_content:")) {
           if (!new_todo || new_todo->notes || !sb_is_empty(todo_notes)) {
@@ -312,15 +357,19 @@ bool save_todo_to_export_file(FILE *file, Todo *todo) {
 
   String_builder sb = sb_new();
 
-  sb_append(&sb, todo->id);
-  sb_search_and_replace(&sb, "\\", "\\\\");
-  if (fprintf(file, EXPORT_FILE_INDENTATION "id: %s\n", sb.str) <= 0) return false;
-  sb_clean(&sb);
-
   sb_append(&sb, todo->name);
   sb_search_and_replace(&sb, "\\", "\\\\");
   if (fprintf(file, EXPORT_FILE_INDENTATION "name: %s\n", sb.str) <= 0) return false;
   sb_clean(&sb);
+
+  sb_append(&sb, todo->hostname);
+  sb_search_and_replace(&sb, "\\", "\\\\");
+  if (fprintf(file, EXPORT_FILE_INDENTATION "hostname: %s\n", sb.str) <= 0) return false;
+  sb_clean(&sb);
+
+  if (fprintf(file, EXPORT_FILE_INDENTATION "created: %lu\n", todo->creation_time) <= 0) return false;
+  sb_clean(&sb);
+
 
   sb_free(&sb);
 
@@ -387,9 +436,16 @@ Action_return action_add_todo(Input *input) {
   char *data = next_token(input, 0);
   if (!data) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
 
-  Todo *todo = create_todo(NULL);
-  if (!todo) return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "No more memory");
-  todo->name = data;
+  if (todo_exists(data)) {
+    free(data);
+    return ACTION_RETURN(RETURN_ERROR, "Already exists a ToDo with that name");
+  }
+
+  Todo *todo = create_todo(data);
+  if (!todo) {
+    free(data);
+    return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "No more memory");
+  }
 
   list_append(&todo_list, todo);
   todo_list_modified = true;
@@ -406,12 +462,16 @@ Action_return action_add_at_todo(Input *input) {
   char *data = next_token(input, 0);
   if (!data) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
 
-  Todo *todo = create_todo(NULL);
+  if (todo_exists(data)) {
+    free(data);
+    return ACTION_RETURN(RETURN_ERROR, "Already exists a ToDo with that name");
+  }
+
+  Todo *todo = create_todo(data);
   if (!todo) {
     free(data);
     return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "No more memory");
   }
-  todo->name = data;
 
   list_insert_at(&todo_list, todo, pos-1);
   todo_list_modified = true;
@@ -472,12 +532,20 @@ Action_return action_edit_todo(Input *input) {
   }
   free(arg); arg = NULL;
 
-  char *new_text = next_token(input, 0);
-  if (!new_text) return ACTION_RETURN(RETURN_ERROR, "The ToDo can't have an empty name.");
+  char *new_name = next_token(input, 0);
+  if (!new_name) {
+    free(new_name);
+    return ACTION_RETURN(RETURN_ERROR, "The ToDo can't have an empty name.");
+  }
+
+  if (todo_exists(new_name)) {
+    free(new_name);
+    return ACTION_RETURN(RETURN_ERROR, "Already exists a ToDo with that name");
+  }
 
   Todo *todo = list_get(todo_list, pos);
   free(todo->name);
-  todo->name = new_text;
+  todo->name = new_name;
   todo_list_modified = true;
   return ACTION_RETURN(RETURN_SUCCESS, "");
 }

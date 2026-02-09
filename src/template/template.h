@@ -18,6 +18,11 @@
 #define UINT(uint) if (fprintf(f, "%u", uint) < 0) return FPRINTF_ERROR();
 #define UNIX_TIME(time) if (fprintf(f, "%ld", *time) < 0) return FPRINTF_ERROR();
 #define ERROR(msg) ACTION_RETURN(RETURN_ERROR, msg)
+#define TIME(unix_time) do { \
+    char b[32]; \
+    strftime(b, 20, "%Y/%m/%d %H:%M:%S", localtime((time_t*) &unix_time));\
+    CSTR(b) \
+  } while(0);
 
 Action_return generate_html(FILE *f, List todo_list);
 

@@ -3,6 +3,8 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <time.h>
+#include <stdint.h>
 
 #include "utils/list.h"
 #include "parser.h"
@@ -15,18 +17,20 @@
 #define NOTES_TEMP_FILENAME "notes.md"
 
 typedef struct {
-  char *id;
-  char *name;
+  char *name; // Primary key
+
+  char *hostname;
+  uint64_t creation_time;
   char *notes;
 } Todo;
 
 extern List todo_list;
 extern bool todo_list_modified;
 
+Todo *create_todo(char *name);
+bool todo_exists(const char *name);
 bool search_todo_pos_by_name_or_pos(const char *name_or_position, unsigned int *index); // `position` should be 1-based. `index` is 0-based
-char *generate_unique_todo_id();
 void free_todo(Todo *node);
-Todo *create_todo(char *id);
 
 // DB
 bool save_string_to_binary_file(FILE *file, char *str);
