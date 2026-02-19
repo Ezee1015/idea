@@ -1,0 +1,20 @@
+#!/bin/bash
+
+idea_loop() {
+  IDEA_DEFAULT_COMMAND="list"
+  EXIT_COMMAND="q"
+
+  clear
+  echo -e "You can exit by pressing '$EXIT_COMMAND'\n"
+  while [[ "$IDEA_DEFAULT_COMMAND" != "$EXIT_COMMAND" ]]; do
+    idea "$IDEA_DEFAULT_COMMAND"
+    echo
+
+    read -p "󱞩 " IDEA_DEFAULT_COMMAND
+    if [[ "$IDEA_DEFAULT_COMMAND" == "" ]]; then IDEA_DEFAULT_COMMAND="list"; fi
+    if [[ "$IDEA_DEFAULT_COMMAND" != "$EXIT_COMMAND" ]]; then clear; fi
+  done
+}
+
+export -f idea_loop
+rlwrap bash -c idea_loop
