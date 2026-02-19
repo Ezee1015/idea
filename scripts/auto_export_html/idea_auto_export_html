@@ -13,12 +13,14 @@ SCRIPT_DATA_PATH="$IDEA_LOCAL_PATH/scripts_data/auto_export_html"
 INDEX_PATH="$SCRIPT_DATA_PATH/index.html"
 GENERATED_HTML_PATH="$SCRIPT_DATA_PATH/generated.html"
 
+HTML_REDIRECT_SEC=1
+JS_REDIRECT_MSEC=500
 INDEX_HTML="
 <!DOCTYPE html>
 <html>
     <head>
         <!-- Source: https://stackoverflow.com/a/5411567 -->
-        <meta http-equiv=\"refresh\" content=\"1; url=./generated.html\" />
+        <meta http-equiv=\"refresh\" content=\"$HTML_REDIRECT_SEC; url=./generated.html\" />
 
         <title>idea</title>
         <link rel=\"icon\" type=\"image/png\" href=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAV1BMVEUAAAAYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBggJxpgpi9lrzEpOR00UCFzyTZDbSZXlCwmMxxIdyddoC5xxTVrujMgKBohKhpsuzMtQx5PhCpUjiyJFHa5AAAACXRSTlMAMZja+gqb/sI2q192AAAAgElEQVQY02WP2xKDIAxEQ4Jg7CVqK7a1//+dDQkzrXZfAmcCuwugCkgxEgZwdSnzcDpfOKfO7j0zX0VGHX0lSQ++oUr6PvOPcgCscxKR2QgC1XG7Lw0QRN8tDcR/QHtA/ukXoNuuj6e8Vre1YEVtpXgwi769VVuLbuU8ppc71P8AYlEIqJ+LVz0AAAAASUVORK5CYII=\">
@@ -85,9 +87,15 @@ INDEX_HTML="
     </body>
     <script>
         redirect_text.style.display = \"none\"
+
+        // If JS is available redirect it faster than HTML refresh that only accepts seconds
+        setTimeout(() => {
+            window.location.replace(\"./generated.html\");
+        }, $JS_REDIRECT_MSEC)
+
         setTimeout(() => {
             redirect_text.style.display = \"revert\"
-        }, 2000)
+        }, $HTML_REDIRECT_SEC * 1000 + 200)
     </script>
 </html>
 "
