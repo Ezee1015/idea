@@ -1,4 +1,9 @@
-# idea
+<div style="display: flex; justify-content: center; align-items: center; gap: 20px;">
+  <img src="./resources/icon/icon_192x192.png" height="90" />
+  <h1>idea</h1>
+</div>
+<br>
+
 A simple To-Do App written in C that fits my needs
 
 > [!NOTE]
