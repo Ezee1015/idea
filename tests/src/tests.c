@@ -35,9 +35,10 @@ Tests_state state = {
 // Lines of the export/state file that should not be compared,
 // because they are unique to the moment the program is run
 const char *incomparable_lines[] = {
-  EXPORT_FILE_INDENTATION "id:",
+  EXPORT_FILE_INDENTATION "created:",
+  EXPORT_FILE_INDENTATION "hostname:",
 };
-const unsigned int incomparable_lines_count = sizeof(char *) / sizeof(incomparable_lines);
+const unsigned int incomparable_lines_count = sizeof(incomparable_lines) / sizeof(char *);
 
 void free_test(Test *test) {
   if (test->name) free(test->name);
