@@ -2,7 +2,9 @@
 <html>
     <head>
         <title>idea</title>
-        <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAV1BMVEUAAAAYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBggJxpgpi9lrzEpOR00UCFzyTZDbSZXlCwmMxxIdyddoC5xxTVrujMgKBohKhpsuzMtQx5PhCpUjiyJFHa5AAAACXRSTlMAMZja+gqb/sI2q192AAAAgElEQVQY02WP2xKDIAxEQ4Jg7CVqK7a1//+dDQkzrXZfAmcCuwugCkgxEgZwdSnzcDpfOKfO7j0zX0VGHX0lSQ++oUr6PvOPcgCscxKR2QgC1XG7Lw0QRN8tDcR/QHtA/ukXoNuuj6e8Vre1YEVtpXgwi769VVuLbuU8ppc71P8AYlEIqJ+LVz0AAAAASUVORK5CYII=">
+        <c>#ifdef ICON</c>
+        <link rel="icon" type="image/png" href="data:image/png;base64,<c>CSTR(ICON)</c>">
+        <c>#endif // ICON</c>
 
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
 

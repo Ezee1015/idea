@@ -5,6 +5,8 @@ This script will detect when you try to open the `index.html` and regenerate the
 ## Dependencies
 
 - `inotify-tools`
+- `base64`
+- `imagemagick convert`
 
 ## How it works?
 

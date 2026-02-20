@@ -184,6 +184,7 @@ bool generate_template_c(const char *html_filepath, char *html, long html_size, 
   EMPTY_LINE();
 
   C_CODE("#include \"../../src/template/template.h\"");
+  C_CODE("#include \"../../build/src/resources.h\"");
   EMPTY_LINE();
 
   C_CODE("Action_return generate_html(FILE *f, List todo_list) {");
