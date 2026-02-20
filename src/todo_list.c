@@ -637,11 +637,11 @@ exit:
 Functionality todo_list_functionality[] = {
   { "add", "a", action_add_todo, MAN("Add a ToDo", "[name]") },
   { "add_at", "ap", action_add_at_todo, MAN("Add a ToDo in the specified position", "[index] [name]") },
-  { "remove", "rm", action_remove_todo, MAN("Remove a ToDo", "[ID]", "[name]") },
+  { "remove", "rm", action_remove_todo, MAN("Remove a ToDo", "[index]", "[name]") },
   { "move", "mv", action_move_todo, MAN("Move ToDo", "[ID] [new position]", "[name] [new position]") },
   { "edit", "e", action_edit_todo, MAN("Edit a ToDo", "[ID] [new name]", "[name] [new name]") },
   { "clear", NULL, action_clear_todos, MAN("Clear all ToDos", "all") },
   { "notes_remove", NULL, action_notes_todo_remove, MAN("Remove the notes file for the todo", "[ID]", "[name]") },
-  { "html", NULL, action_generate_html, MAN("Generate an HTML file with the ToDos", "[HTML file path]") },
+  { "html", NULL, action_generate_html, MAN("Generate an HTML file with the ToDos", "[HTML file path]", "[HTML file path] [ToDo name 1] [ToDo name 2] [...]", "[HTML file path] [ToDo index 1] [ToDo index 2] [...]") },
 };
 unsigned int todo_list_functionality_count = sizeof(todo_list_functionality) / sizeof(Functionality);
