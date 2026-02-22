@@ -35,9 +35,10 @@ bool sb_append_from_shell_variable(String_builder *sb, const char *variable);
 
 void sb_append(String_builder *sb, const char *cstr);
 
-void sb_append_with_format(String_builder *sb, const char *fmt, ...);
+// Source of attribute: <https://stackoverflow.com/a/78774629>
+void sb_append_with_format(String_builder *sb, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 
-String_builder sb_create(const char *fmt, ...);
+String_builder sb_create(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
 // sb_dst and sb_src SHOULD NOT be the same String_builder
 void sb_append_str(String_builder *sb_dst, const String_builder sb_src);

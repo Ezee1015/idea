@@ -9,7 +9,6 @@
 #include "utils/list.h"
 #include "utils/string.h"
 
-unsigned int msg_indentation = 1;
 bool cli_disable_colors = false;
 
 void print_todo(unsigned int index, Todo todo) {
@@ -18,9 +17,15 @@ void print_todo(unsigned int index, Todo todo) {
 
 bool clone_text_file(char *origin_path, char *clone_path) {
   FILE *origin = fopen(origin_path, "r");
-  if (!origin) return false;
+  if (!origin) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to open '%s'", origin_path);
+    return false;
+  }
   FILE *clone = fopen(clone_path, "w");
-  if (!clone) return false;
+  if (!clone) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to open '%s'", clone_path);
+    return false;
+  }
 
   int c; // int for EOF
   while ( (c = fgetc(origin)) != EOF ) fputc(c, clone);
@@ -32,13 +37,16 @@ bool clone_text_file(char *origin_path, char *clone_path) {
 
 bool import_file(char *filepath) {
   FILE *file = fopen(filepath, "r");
-  if (!file) return false;
+  if (!file) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to open '%s'", filepath);
+    return false;
+  }
 
   List old_todo_list = todo_list;
   todo_list = list_new();
 
   bool reached_eof = false;
-  while (load_todo_from_export_file(file, &old_todo_list, &reached_eof));
+  while (load_todo_from_export_file(filepath, file, &old_todo_list, &reached_eof));
   fclose(file);
   list_destroy(&old_todo_list, (void (*)(void *))free_todo);
   return reached_eof;
@@ -47,11 +55,16 @@ bool import_file(char *filepath) {
 bool write_notes_to_file(Todo *todo) {
   String_builder notes_temp_path = sb_create("%s/" NOTES_TEMP_FILENAME, idea_state.local_path);
   FILE *f = fopen(notes_temp_path.str, "w");
+  if (!f) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to open '%s'", notes_temp_path.str);
+    sb_free(&notes_temp_path);
+    return false;
+  }
   sb_free(&notes_temp_path);
-  if (!f) return false;
 
   if (fputs(todo->notes, f) == EOF) {
     fclose(f);
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "An error ocurred while writing to the note's temporal file");
     return false;
   }
 
@@ -63,6 +76,7 @@ bool load_notes_from_file(Todo *todo) {
   String_builder notes_temp_path = sb_create("%s/" NOTES_TEMP_FILENAME, idea_state.local_path);
   FILE *f = fopen(notes_temp_path.str, "r");
   if (!f) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to open '%s'", notes_temp_path.str);
     sb_free(&notes_temp_path);
     return false;
   }
@@ -71,6 +85,7 @@ bool load_notes_from_file(Todo *todo) {
   if ( fseek(f, 0, SEEK_END) == -1
        || (size = ftell(f)) == -1
        || fseek(f, 0, SEEK_SET) == -1) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to get the length of the file '%s'", notes_temp_path.str);
     sb_free(&notes_temp_path);
     fclose(f);
     return false;
@@ -80,6 +95,7 @@ bool load_notes_from_file(Todo *todo) {
   todo->notes = malloc(size+1);
   if (!todo->notes) return false;
   if (fread(todo->notes, size, 1, f) == 0) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to read the file '%s'", notes_temp_path.str);
     sb_free(&notes_temp_path);
     fclose(f);
     return false;
@@ -87,13 +103,43 @@ bool load_notes_from_file(Todo *todo) {
   todo->notes[size] = '\0';
 
   fclose(f);
-  if (remove(notes_temp_path.str) == -1) PRINT_MESSAGE("Unable to remove the temporary notes file: %s", notes_temp_path.str);
+  if (remove(notes_temp_path.str) == -1) APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to remove the temporary notes file: %s", notes_temp_path.str);
   sb_free(&notes_temp_path);
   return true;
 }
 
+void cli_print_backtrace() {
+  if (list_is_empty(backtrace)) return;
+
+  const Backtrace_item *b = list_get(backtrace, 0);
+  switch (b->level) {
+    case BACKTRACE_INFO:  printf("\n" BOX_V_BAR " %s[INFO]%s\n"    BOX_V_BAR " %s", ANSI_BLUE, ANSI_RESET, ANSI_BLUE); break;
+    case BACKTRACE_ERROR: printf("\n" BOX_V_BAR " %s[ERROR]%s\n"   BOX_V_BAR " %s", ANSI_RED,  ANSI_RESET, ANSI_RED ); break;
+  }
+  printf("%s%s\n" BOX_V_BAR, b->message, ANSI_RESET);
+
+  printf("\n" BOX_V_BAR " %sBacktrace%s", ANSI_GRAY, ANSI_RESET);
+  printf("\n" BOX_V_BAR " %s", ANSI_GRAY);
+  for (int i=0; i<9; i++) if (i == 4) printf(BOX_T); else printf(BOX_H_BAR);
+  printf("%s\n", ANSI_RESET);
+
+  List_iterator iterator = list_iterator_create(backtrace);
+  while (list_iterator_next(&iterator)) {
+    const Backtrace_item *e = list_iterator_element(iterator);
+    printf(BOX_V_BAR "     %s" BOX_V_BAR " %u) %s:%u:%s(): ", ANSI_GRAY, list_size(backtrace) - list_iterator_index(iterator), e->file, e->line, e->function_name);
+    switch (b->level) {
+      case BACKTRACE_INFO:  printf("[INFO]"); break;
+      case BACKTRACE_ERROR: printf("[ERROR]"); break;
+    }
+    printf(" %s%s\n", e->message, ANSI_RESET);
+  }
+  printf("%s\n", ANSI_RESET);
+
+  list_destroy(&backtrace, (void (*)(void *))free_backtrace_item);
+}
+
 /// Functionality
-Action_return action_print_todo(Input *input) {
+bool action_print_todo(Input *input) {
   ACTION_NO_ARGS("list", input);
 
   List_iterator iterator = list_iterator_create(todo_list);
@@ -101,7 +147,7 @@ Action_return action_print_todo(Input *input) {
     const Todo *todo = list_iterator_element(iterator);
     print_todo(list_iterator_index(iterator), *todo);
   }
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 
 void print_functionality(char *source, Functionality *functionality, unsigned int functionality_count) {
@@ -138,7 +184,7 @@ void print_functionality(char *source, Functionality *functionality, unsigned in
   }
 }
 
-Action_return action_print_help(Input *input) {
+bool action_print_help(Input *input) {
   ACTION_NO_ARGS("help", input);
 
   printf("%sOpen TUI: %s%s\n", ANSI_GRAY, ANSI_RESET, idea_state.program_path);
@@ -148,46 +194,63 @@ Action_return action_print_help(Input *input) {
   print_functionality("Generic commands", todo_list_functionality, todo_list_functionality_count);
   print_functionality("CLI Specific commands", cli_functionality, cli_functionality_count);
 
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 
-Action_return action_export_todos(Input *input) {
+bool action_export_todos(Input *input) {
   char *export_path = next_token(input, '\0');
-  if (!export_path) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  if (!export_path) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You must specify the export file path");
+    return false;
+  }
 
   FILE *export_file = fopen(export_path, "w");
+  if (!export_file) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to create the export file '%s'", export_path);
+    free(export_path);
+    return false;
+  }
   free(export_path); export_path = NULL;
-  if (!export_file) return ACTION_RETURN(RETURN_ERROR, "Unable to create the export file");
 
   if (fputs("-- File generated by idea. Edit this file with caution.\n", export_file) == EOF) {
     fclose(export_file);
-    return ACTION_RETURN(RETURN_ERROR, "Unable to save the export file header");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to save the export file header");
+    return false;
   }
 
   List_iterator iterator = list_iterator_create(todo_list);
   while (list_iterator_next(&iterator)) {
     if (fputs("\n", export_file) == EOF) {
       fclose(export_file);
-      return ACTION_RETURN(RETURN_ERROR, "Unable to print new line in the file");
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to print a new line in the export file");
+      return false;
     }
 
     if (!save_todo_to_export_file(export_file, list_iterator_element(iterator))) {
       fclose(export_file);
-      return ACTION_RETURN(RETURN_ERROR, "Unable to save todo");
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to save all the ToDos in the export file");
+      return false;
     }
   }
 
   fclose(export_file);
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 
-Action_return action_execute_commands(Input *input) {
+bool action_execute_commands(Input *input) {
   char *import_path = next_token(input, '\0');
-  if (!import_path) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  if (!import_path) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You must specify the file path");
+    return false;
+  }
 
   FILE *cmds_file = fopen(import_path, "r");
+  if (!cmds_file) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to open the file '%s'", import_path);
+    free(import_path);
+    return false;
+  }
   free(import_path); import_path = NULL;
-  if (!cmds_file) return ACTION_RETURN(RETURN_ERROR, "Unable to open the import file");
 
   unsigned int line_nr = 1;
   String_builder line = sb_new();
@@ -197,25 +260,14 @@ Action_return action_execute_commands(Input *input) {
       continue;
     }
 
-    Action_return result;
-    NESTED_ACTION(result = cli_parse_input(line.str), result);
-    switch (result.type) {
-      case RETURN_SUCCESS: case RETURN_INFO:
-        if (result.message && strcmp(result.message, ""))
-          PRINT_MESSAGE("Message from line %d (%s) of the commands in the file", line_nr, line.str);
-        break;
+    bool result;
+    result = cli_parse_input(line.str);
 
-      case RETURN_ERROR:
-        PRINT_MESSAGE("Execution of the commands in the file failed at line %d (%s)", line_nr, line.str);
-        fclose(cmds_file);
-        sb_free(&line);
-        return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "Execution failed");
-
-      case RETURN_ERROR_AND_EXIT:
-        PRINT_MESSAGE("Execution of the commands in the file failed at line %d (%s)", line_nr, line.str);
-        fclose(cmds_file);
-        sb_free(&line);
-        return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "Execution aborted");
+    if (!result) {
+      fclose(cmds_file);
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "An error happened while executing the commands from %s:%u", line.str, line_nr);
+      sb_free(&line);
+      return false;
     }
 
     sb_clean(&line);
@@ -224,25 +276,30 @@ Action_return action_execute_commands(Input *input) {
 
   sb_free(&line);
   fclose(cmds_file);
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 
-Action_return action_import_todos(Input *input) {
+bool action_import_todos(Input *input) {
   char *import_path = next_token(input, '\0');
   if (!import_path) {
-    return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You must specify the import file path");
+    return false;
   }
 
   bool ok = import_file(import_path);
-  free(import_path); import_path = NULL;
-  if (!ok) return ACTION_RETURN(RETURN_ERROR, "Import failed!");
+  if (!ok) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import of '%s' failed!", import_path);
+    free(import_path);
+    return false;
+  }
 
+  free(import_path);
   todo_list_modified = true;
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 
-Action_return action_sync_todos(Input *input) {
-  Action_return result = ACTION_RETURN(RETURN_SUCCESS, "");
+bool action_sync_todos(Input *input) {
+  bool result = true;
 
   String_builder base_path     = sb_create("%s/local_without_changes.idea", idea_state.tmp_path);
   String_builder local_path    = sb_create("%s/local.idea", idea_state.tmp_path);
@@ -250,35 +307,35 @@ Action_return action_sync_todos(Input *input) {
 
   char *import_path = next_token(input, '\0');
   if (!import_path) {
-    result = ACTION_RETURN(RETURN_ERROR, "Command malformed");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You must specify the file path to sync");
+    result = false;
     goto exit;
   }
 
   // Clone the external file to a temporary location
   if (!clone_text_file(import_path, external_path.str)) {
-    result = ACTION_RETURN(RETURN_ERROR, "Unable to copy the external file to the /tmp folder");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to copy the external file (%s) to %s", import_path, external_path.str);
+    result = false;
     goto exit;
   }
 
   // Generate the "local" file -that contains the actual database- (to diff it with the external file)
   String_builder instruction = sb_create("export %s", local_path.str);
 
-  Action_return function_return;
-  NESTED_ACTION(function_return = cli_parse_input(instruction.str), function_return);
+  bool function_return;
+  function_return = cli_parse_input(instruction.str);
   sb_free(&instruction);
-  switch (function_return.type) {
-      case RETURN_SUCCESS: case RETURN_INFO:
-        break;
-      case RETURN_ERROR:
-      case RETURN_ERROR_AND_EXIT:
-        result = ACTION_RETURN(RETURN_ERROR_AND_EXIT, "Unable to export the local todos to diff them from the external one");
-        goto exit;
+  if (!function_return) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to export the local ToDos to diff them");
+    result = false;
+    goto exit;
   }
   // Clone the generated file (/tmp/local.idea) into (/tmp/local_without_changes.idea)
   // to compare the changes made with the diff tool (that are saved in /tmp/local.idea)
   // with the current state of the data base (/tmp/local_without_changes.idea)
   if (!clone_text_file(local_path.str, base_path.str)) {
-    result = ACTION_RETURN(RETURN_ERROR, "Unable to clone the exported local database in the /tmp folder");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to clone the exported local database (%s) to '%s'", local_path.str, base_path.str);
+    result = false;
     goto exit;
   }
 
@@ -289,7 +346,8 @@ Action_return action_sync_todos(Input *input) {
   int system_ret = system(instruction.str);
   sb_free(&instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) != 0)) {
-    result = ACTION_RETURN(RETURN_ERROR, "Diff tool failed");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Diff tool failed");
+    result = false;
     goto exit;
   }
 
@@ -299,23 +357,27 @@ Action_return action_sync_todos(Input *input) {
   system_ret = system(instruction.str);
   sb_free(&instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) == 2)) {
-    result = ACTION_RETURN(RETURN_ERROR, "Final diff failed");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Final diff failed");
+    result = false;
     goto exit;
   }
   if (WEXITSTATUS(system_ret) == 0) {
-    result = ACTION_RETURN(RETURN_INFO, "The file to import is the same as the database. Import canceled");
+    APPEND_TO_BACKTRACE(BACKTRACE_INFO, "The file to sync is the same as the database. Sync canceled!");
+    result = true;
     goto exit;
   }
 
   printf("\nDo you want to import this ToDos? The current database will be deleted [y/N] > ");
   char ans = getchar();
   if (ans != 'y' && ans != 'Y') {
-    result = ACTION_RETURN(RETURN_INFO, "Import canceled");
+    APPEND_TO_BACKTRACE(BACKTRACE_INFO, "Import canceled");
+    result = true;
     goto exit;
   }
 
   if (!import_file(local_path.str)) {
-    result = ACTION_RETURN(RETURN_ERROR, "Import failed!");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import failed");
+    result = false;
     goto exit;
   }
   todo_list_modified = true;
@@ -332,14 +394,18 @@ exit:
   return result;
 }
 
-Action_return action_notes_todo(Input *input) {
+bool action_notes_todo(Input *input) {
   char *arg = next_token(input, 0);
-  if (!arg) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  if (!arg) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: you must specify the ToDo");
+    return false;
+  }
 
   unsigned int pos;
   if (!search_todo_pos_by_name_or_pos(arg, &pos)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to find the ToDo '%s'", arg);
     free(arg);
-    return ACTION_RETURN(RETURN_ERROR, "Unable to find the ToDo");
+    return false;
   }
   free(arg); arg = NULL;
 
@@ -347,35 +413,41 @@ Action_return action_notes_todo(Input *input) {
 
   if (!todo->notes) initialize_notes(todo);
 
-  if (!write_notes_to_file(todo)) return ACTION_RETURN(RETURN_ERROR, "Unable to write the notes to the temporary file.");
+  if (!write_notes_to_file(todo)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to write the notes to the temporary file");
+    return false;
+  }
 
   String_builder instruction = sb_create("%s '%s/" NOTES_TEMP_FILENAME "'", TEXT_EDITOR, idea_state.local_path);
   int system_ret = system(instruction.str);
   sb_free(&instruction);
   if (system_ret == -1 || (WIFEXITED(system_ret) && WEXITSTATUS(system_ret) != 0)) {
-    return ACTION_RETURN(RETURN_ERROR, "Text editor failed or file doesn't exist");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "The text editor exited with error code %d", WEXITSTATUS(system_ret));
+    return false;
   }
 
-  if (!load_notes_from_file(todo)) return ACTION_RETURN(RETURN_ERROR, "Unable to read the notes from the temporary file.");
+  if (!load_notes_from_file(todo)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to read the notes from the temporary file");
+    return false;
+  }
 
   todo_list_modified = true;
-
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 
 #ifdef COMMIT
-Action_return action_version(Input *input) {
+bool action_version(Input *input) {
   ACTION_NO_ARGS("version", input);
 
   printf("%sVersion: %s" COMMIT "\n", ANSI_GRAY, ANSI_RESET);
   printf("%sLocal path: %s%s\n", ANSI_GRAY, ANSI_RESET, idea_state.local_path);
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 #endif // COMMIT
 
-Action_return action_do_nothing(Input *input) {
+bool action_do_nothing(Input *input) {
   input->cursor = input->length+1;
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 
 Functionality cli_functionality[] = {
@@ -395,7 +467,7 @@ unsigned int cli_functionality_count = sizeof(cli_functionality) / sizeof(Functi
 
 /// Parsing
 
-Action_return cli_parse_input(char *input) {
+bool cli_parse_input(char *input) {
   Input cmd = {
     .input = input,
     .length = strlen(input),
@@ -403,33 +475,26 @@ Action_return cli_parse_input(char *input) {
   };
   char *instruction = next_token(&cmd, ' ');
 
-  Action_return (*function)(Input *input) = search_functionality_function(instruction, cli_functionality, cli_functionality_count);
+  bool (*function)(Input *input) = search_functionality_function(instruction, cli_functionality, cli_functionality_count);
   if (!function) {
     function = search_functionality_function(instruction, todo_list_functionality, todo_list_functionality_count);
   }
-  free(instruction); instruction = NULL;
 
-  Action_return action_return = (function) ? function(&cmd) : ACTION_RETURN(RETURN_ERROR, "Invalid command");
-  switch (action_return.type) {
-    case RETURN_INFO:
-    case RETURN_SUCCESS:
-      if (cmd.cursor <= cmd.length) abort(); // Command parsing error. There's data left in the command
-      break;
-
-    case RETURN_ERROR:
-    case RETURN_ERROR_AND_EXIT:
-      break;
+  if (!function) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unknown command '%s'", instruction);
+    free(instruction);
+    return false;
   }
 
-  return action_return;
-}
-
-char *print_action_return(Action_return_type type) {
-  switch (type) {
-    case RETURN_SUCCESS: return "SUCCESS";
-    case RETURN_INFO: return "INFO";
-    case RETURN_ERROR: return "ERROR";
-    case RETURN_ERROR_AND_EXIT: return "ABORT";
+  if (function(&cmd)) {
+    if (cmd.cursor <= cmd.length) {
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command parsing error. There's data left in the command parameters. Command: '%s'", instruction);
+    }
+    free(instruction);
+    return true;
+  } else {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command '%s' failed", instruction);
+    free(instruction);
+    return false;
   }
-  return NULL;
 }

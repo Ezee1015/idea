@@ -56,6 +56,7 @@ char message(char *title, char *msg);
 bool confirm(char *msg, Confirm_type type);
 void draw_window(void);
 bool window_app(void);
+void tui_print_backtrace();
 
 void update_area_x_axis();
 void update_area_y_axis();
@@ -65,16 +66,15 @@ Help_result show_functionality_message(const char *source, const unsigned source
 bool parse_command();
 
 // Actions for command mode
-Action_return action_quit(Input *input);
-Action_return action_save(Input *input);
-Action_return action_save_and_quit(Input *input);
-Action_return action_help(Input *input);
-Action_return action_tui_version(Input *input);
-Action_return action_add_at_todo_tui(Input *input);
+bool action_quit(Input *input);
+bool action_save(Input *input);
+bool action_save_and_quit(Input *input);
+bool action_help(Input *input);
+bool action_tui_version(Input *input);
+bool action_add_at_todo_tui(Input *input);
 
 extern Functionality tui_functionality[];
 extern unsigned int tui_functionality_count;
-
 
 // Normal-Visual mode
 bool is_current_item_selected();

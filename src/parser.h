@@ -1,42 +1,22 @@
 #ifndef ACTIONS_H
 #define ACTIONS_H
 
+#include "main.h"
+
 typedef struct {
   char *input;
   unsigned int length;
   unsigned int cursor;
 } Input;
 
-typedef enum {
-  RETURN_ERROR,
-  RETURN_ERROR_AND_EXIT,
-  RETURN_INFO,
-  RETURN_SUCCESS,
-} Action_return_type ;
-
-typedef struct {
-  char *message;
-  char *file;
-  unsigned int line;
-  const char *function;
-  Action_return_type type;
-} Action_return;
-
-#define ACTION_RETURN(return_type, return_message) (Action_return) { \
-    .type = return_type,                                             \
-    .message = return_message,                                       \
-    .file = __FILE__,                                                \
-    .line = __LINE__,                                                \
-    .function = __func__,                                            \
-  }
-
-#define ACTION_NO_ARGS(action_name, input) do {                                        \
-  char *args;                                                                          \
-  if ( input && (args = next_token(input, 0)) ) {                                      \
-    free(args);                                                                        \
-    return ACTION_RETURN(RETURN_ERROR, "`" action_name "` doesn't require arguments"); \
-  }                                                                                    \
-} while (0)                                                                            \
+#define ACTION_NO_ARGS(action_name, input) do {                                          \
+  char *args;                                                                            \
+  if ( input && (args = next_token(input, 0)) ) {                                        \
+    free(args);                                                                          \
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "`" action_name "` doesn't require arguments"); \
+    return false;                                                                        \
+  }                                                                                      \
+} while (0)
 
 typedef struct {
   char *description;
@@ -49,12 +29,12 @@ typedef struct {
 typedef struct {
   char *full_cmd;         // Obligatory
   char *abbreviation_cmd; // Optional
-  Action_return (*function_cmd)(Input *);
+  bool (*function_cmd)(Input *);
   Manual man;
 } Functionality;
 
 char *next_token(Input *input, char divider);
 
-Action_return (*search_functionality_function(char *instruction, Functionality functionality[], unsigned int functionality_count))(Input *);
+bool (*search_functionality_function(char *instruction, Functionality functionality[], unsigned int functionality_count))(Input *);
 
 #endif

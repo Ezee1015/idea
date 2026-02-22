@@ -232,7 +232,7 @@
 
                 <c>
                     char hostname[256];
-                    if (gethostname(hostname, sizeof(hostname)) == -1) return ERROR("Unable to get the hostname for exporting the ToDo");
+                    if (gethostname(hostname, sizeof(hostname)) == -1) ERROR("Unable to get the hostname for exporting the ToDo");
                     CSTR(hostname);
                 </c>
 

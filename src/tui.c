@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "tui.h"
+#include "main.h"
 #include "utils/list.h"
 #include "utils/string.h"
 #include "parser.h"
@@ -274,33 +275,29 @@ bool parse_command() {
     };
     char *instruction = next_token(&cmd, ' ');
 
-    Action_return (*function)(Input *input) = search_functionality_function(instruction, tui_functionality, tui_functionality_count);
+    bool (*function)(Input *input) = search_functionality_function(instruction, tui_functionality, tui_functionality_count);
     if (!function) {
       function = search_functionality_function(instruction, todo_list_functionality, todo_list_functionality_count);
     }
-    free(instruction); instruction = NULL;
 
-    Action_return action_return = (function) ? function(&cmd) : ACTION_RETURN(RETURN_ERROR, "Invalid command");
-    switch (action_return.type) {
-      case RETURN_INFO:
-      case RETURN_SUCCESS:
-        if (action_return.message && strcmp(action_return.message, ""))
-          message("INFO", action_return.message);
-        break;
+    if (!function) {
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unknown command '%s'", instruction);
+    } else {
+      bool action_return = function(&cmd);
+      if (action_return) {
+        if (!list_is_empty(backtrace)) {
+          APPEND_TO_BACKTRACE(BACKTRACE_INFO, "Message from command '%s'", instruction);
+        }
+        if (cmd.cursor <= cmd.length) {
+          APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command parsing error. There's data left in the command parameters. Command: '%s'", instruction);
+        }
+      } else {
+        APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "An error ocurred while executing '%s'", instruction);
+      }
 
-      case RETURN_ERROR:
-        if (action_return.message && strcmp(action_return.message, ""))
-          message("ERROR", action_return.message);
-        break;
-
-      case RETURN_ERROR_AND_EXIT:
-        if (action_return.message && strcmp(action_return.message, ""))
-          message("ERROR. Aborting...", action_return.message);
-        endwin();
-        input[0] = '\0';
-        return false;
     }
 
+    free(instruction);
     input[0] = '\0';
   }
 
@@ -354,7 +351,7 @@ bool delete_selected() {
   bool ok = confirm(msg.str, CONFIRM_DEFAULT_NO);
   sb_free(&msg);
   if (!ok) {
-    message("INFO", "Delete cancelled!");
+    APPEND_TO_BACKTRACE(BACKTRACE_INFO, "Delete cancelled!");
     return false;
   }
 
@@ -464,7 +461,7 @@ Help_result show_functionality_message(const char *source, const unsigned source
         while ( (padding--) > 0 ) sb_append(&msg, " ");
         sb_append_with_format(&msg, "%s\n", f.man.description);
       } else {
-        sb_append_with_format(&msg, "%s%s  ", prefix_cmd, f.full_cmd, f.abbreviation_cmd);
+        sb_append_with_format(&msg, "%s%s  ", prefix_cmd, f.full_cmd);
         while ( (padding--) > 0 ) sb_append(&msg, " ");
         sb_append_with_format(&msg, "%s\n", f.man.description);
       }
@@ -528,7 +525,7 @@ Help_result show_functionality_message(const char *source, const unsigned source
   return ret;
 }
 
-Action_return action_help(Input *input) {
+bool action_help(Input *input) {
   ACTION_NO_ARGS("help", input);
 
   unsigned int max_functionality_per_page = 5;
@@ -584,12 +581,11 @@ Action_return action_help(Input *input) {
     }
   } while (r != HELP_RETURN_QUIT);
 
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 
 #ifdef COMMIT
-#include "main.h"
-Action_return action_tui_version(Input *input) {
+bool action_tui_version(Input *input) {
   ACTION_NO_ARGS("version", input);
 
   String_builder sb = sb_new();
@@ -597,42 +593,44 @@ Action_return action_tui_version(Input *input) {
   sb_append_with_format(&sb, "Config: %s\n", idea_state.local_path);
   message("Version", sb.str);
   sb_free(&sb);
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 #endif // COMMIT
 
-Action_return action_quit(Input *input) {
+bool action_quit(Input *input) {
   ACTION_NO_ARGS("quit", input);
 
   bool ok = confirm("Quit without saving?", CONFIRM_DEFAULT_NO);
   if (ok) {
     tui_st.exit_loop = true;
     todo_list_modified = false;
-    return ACTION_RETURN(RETURN_SUCCESS, "");
   }
 
-  return ACTION_RETURN(RETURN_INFO, "Operation canceled");
+  return true;
 }
 
-Action_return action_save_and_quit(Input *input) {
+bool action_save_and_quit(Input *input) {
   ACTION_NO_ARGS("save & quit", input);
 
   // The list is going to be save after the loop if it was modified
   tui_st.exit_loop = true;
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 
-Action_return action_save(Input *input) {
+bool action_save(Input *input) {
   ACTION_NO_ARGS("save", input);
 
-  if (!save_todo_list()) return ACTION_RETURN(RETURN_ERROR, "Unable to save the ToDo list");
+  if (!save_todo_list()) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to save the ToDo list");
+    return false;
+  }
 
   todo_list_modified = false;
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 
-Action_return action_add_at_todo_tui(Input *input) {
-  Action_return (*function)(Input *input) = search_functionality_function("add_at", todo_list_functionality, todo_list_functionality_count);
+bool action_add_at_todo_tui(Input *input) {
+  bool (*function)(Input *input) = search_functionality_function("add_at", todo_list_functionality, todo_list_functionality_count);
   if (!function) abort(); // Should not happen
 
   // Peek the index from the input
@@ -640,26 +638,18 @@ Action_return action_add_at_todo_tui(Input *input) {
   char *pos_str = next_token(input, ' ');
   input->cursor = argument_cursor;
 
-  Action_return action_return = function(input);
+  bool action_return = function(input);
   unsigned int pos = 0;
-  switch (action_return.type) {
-    case RETURN_INFO:
-    case RETURN_SUCCESS:
+  if (action_return) {
       todo_list_modified = true;
       pos = atoi(pos_str);
-      free(pos_str);
       if (!pos) abort(); // Should not happen as this is checked inside the original add_at (todo_list.c)
 
       tui_st.current_pos = pos-1;
-      return ACTION_RETURN(RETURN_SUCCESS, action_return.message);
-
-    case RETURN_ERROR:
-    case RETURN_ERROR_AND_EXIT:
-      free(pos_str);
-      return action_return;
   }
+  free(pos_str);
 
-  return ACTION_RETURN(RETURN_ERROR, "Unreachable");
+  return action_return;
 }
 
 Functionality tui_functionality[] = {
@@ -696,6 +686,35 @@ void update_area_x_axis() {
 void update_area_y_axis() {
   area_size.height = list_size(todo_list) + 2; // + 2 for the status line
   area_start.y = (window_size.height-area_size.height)/2;
+}
+
+void tui_print_backtrace() {
+  if (list_is_empty(backtrace)) return;
+  char *title = NULL;
+  String_builder sb = sb_new();
+
+  const Backtrace_item *b = list_get(backtrace, 0);
+  switch (b->level) {
+    case BACKTRACE_INFO:  title = "INFO";      break;
+    case BACKTRACE_ERROR: title = "ERROR";     break;
+  }
+
+  sb_append_with_format(&sb, "%s\n\nBacktrace:\n", b->message);
+
+  List_iterator iterator = list_iterator_create(backtrace);
+  while (list_iterator_next(&iterator)) {
+    const Backtrace_item *e = list_iterator_element(iterator);
+    sb_append_with_format(&sb, "%u) %s(): ", list_size(backtrace) - list_iterator_index(iterator), e->function_name);
+    switch (b->level) {
+      case BACKTRACE_INFO:  sb_append(&sb, "[INFO] ");    break;
+      case BACKTRACE_ERROR: sb_append(&sb, "[ERROR] ");   break;
+    }
+    sb_append_with_format(&sb, "%s\n", e->message);
+  }
+  list_destroy(&backtrace, (void (*)(void *))free_backtrace_item);
+
+  message(title, sb.str);
+  sb_free(&sb);
 }
 
 #define GET_MINIMUM_HEIGHT() list_size(todo_list) + 2
@@ -748,6 +767,7 @@ bool window_app(void) {
       } else {
         parse_normal();
       }
+      tui_print_backtrace();
     }
   } while ( !tui_st.exit_loop );
 

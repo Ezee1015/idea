@@ -6,9 +6,14 @@
 #include "parser.h"
 #include "todo_list.h"
 
-#define TEXT_EDITOR "nvim"
 #define NOTES_ICON "󱅄" //     󰠮  󰺿  󰅏
 
+// Box chars source: <https://en.wikipedia.org/wiki/Box-drawing_characters>
+#define BOX_V_BAR "│"
+#define BOX_H_BAR "─"
+#define BOX_T "┬"
+
+#define TEXT_EDITOR "nvim"
 #define DIFFTOOL_CMD "nvim -d"
 
 #define ANSI_RED       (cli_disable_colors) ? "" : "\033[0;31m"
@@ -27,28 +32,18 @@
                          " --unchanged-group-format='%%='"
 #define DIFF_CMD_ARGS DIFF_FORMAT_ARGS, DIFF_FORMAT_ARGS, DIFF_FORMAT_ARGS
 
-extern unsigned int msg_indentation;
-#define PRINT(file, line, function, fmt, ...) printf("#%*s %s%s:%d (%s)%s: " fmt "\n",  msg_indentation, "|", ANSI_BLUE, file, line, function, ANSI_RESET, __VA_ARGS__)
-#define PRINT_MESSAGE(fmt, ...) PRINT(__FILE__, __LINE__, __func__, fmt, __VA_ARGS__)
-#define PRINT_TEXT(fmt) PRINT(__FILE__, __LINE__, __func__, fmt "%s", "")
-#define NESTED_ACTION(operation, result) do {                                      \
-    msg_indentation += 2;                                                          \
-    operation;                                                                     \
-    if (result.message && strcmp(result.message, ""))                              \
-      PRINT(result.file, result.line, result.function, "[%s] %s", print_action_return(result.type), result.message); \
-    msg_indentation -= 2;                                                          \
-  } while (0)
-
 extern bool cli_disable_colors;
 
-Action_return action_print_todo(Input *input);
-Action_return action_sync_todos(Input *input);
-Action_return action_import_todos(Input *input);
-Action_return action_export_todos(Input *input);
-Action_return action_notes_todo(Input *input);
-Action_return action_execute_commands(Input *input);
-Action_return action_do_nothing(Input *input);
-Action_return action_print_help(Input *input);
+void cli_print_backtrace();
+
+bool action_print_todo(Input *input);
+bool action_sync_todos(Input *input);
+bool action_import_todos(Input *input);
+bool action_export_todos(Input *input);
+bool action_notes_todo(Input *input);
+bool action_execute_commands(Input *input);
+bool action_do_nothing(Input *input);
+bool action_print_help(Input *input);
 extern Functionality cli_functionality[];
 extern unsigned int cli_functionality_count;
 
@@ -60,8 +55,6 @@ bool clone_text_file(char *origin_path, char *clone_path);
 
 void print_todo(unsigned int index, Todo todo);
 
-Action_return cli_parse_input(char *input);
-
-char *print_action_return(Action_return_type type);
+bool cli_parse_input(char *input);
 
 #endif // CLI_H

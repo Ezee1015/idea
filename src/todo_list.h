@@ -40,7 +40,7 @@ void *load_todo_from_binary_file(FILE *file);
 
 // Import/ Export file
 bool save_todo_to_export_file(FILE *file, Todo *todo);
-bool load_todo_from_export_file(FILE *load_file, List *old_todo_list, bool *reached_eof);
+bool load_todo_from_export_file(const char *load_file_path, FILE *load_file, List *old_todo_list, bool *reached_eof);
 bool write_notes_to_export_file(FILE *save_file, Todo *todo);
 
 bool create_dir_if_not_exists(char *dir_path);
@@ -51,16 +51,16 @@ bool save_todo_list();
 
 void initialize_notes(Todo *todo);
 
-Action_return action_add_todo(Input *input);
-Action_return action_add_at_todo(Input * input);
-Action_return action_clear_todos(Input * input);
-Action_return action_remove_todo(Input *input);
-Action_return action_move_todo(Input *input);
-Action_return action_edit_todo(Input *input);
-Action_return action_export_todo(Input *input);
-Action_return action_import_todo(Input *input);
-Action_return action_notes_todo_remove(Input *input);
-Action_return action_generate_html(Input *input);
+bool action_add_todo(Input *input);
+bool action_add_at_todo(Input * input);
+bool action_clear_todos(Input * input);
+bool action_remove_todo(Input *input);
+bool action_move_todo(Input *input);
+bool action_edit_todo(Input *input);
+bool action_export_todo(Input *input);
+bool action_import_todo(Input *input);
+bool action_notes_todo_remove(Input *input);
+bool action_generate_html(Input *input);
 extern Functionality todo_list_functionality[];
 extern unsigned int todo_list_functionality_count;
 

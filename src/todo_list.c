@@ -59,6 +59,7 @@ Todo *create_todo(char *name) {
   todo->hostname = malloc(hostname_size);
   if (gethostname(todo->hostname, hostname_size) == -1) {
     free(todo);
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to get the host name");
     return NULL;
   }
 
@@ -118,11 +119,12 @@ void *load_todo_from_binary_file(FILE *file) {
   return todo;
 }
 
-bool load_todo_from_export_file(FILE *load_file, List *old_todo_list, bool *reached_eof) {
-  if (!load_file || !reached_eof || !old_todo_list) return false;
+bool load_todo_from_export_file(const char *load_file_path, FILE *load_file, List *old_todo_list, bool *reached_eof) {
+  if (!load_file_path || !load_file || !reached_eof || !old_todo_list) return false;
   bool ret = true;
 
   String_builder line = sb_new();
+  unsigned int line_nr = 0;
   char *atribute = NULL;
   Todo *new_todo = NULL;
   Todo *old_todo = NULL;
@@ -135,6 +137,7 @@ bool load_todo_from_export_file(FILE *load_file, List *old_todo_list, bool *reac
   } state = NO_STATE;
 
   while ( state != STATE_EXIT && (sb_read_line(load_file, &line)) ) {
+    line_nr++;
     if (!line.length) continue;
 
     unsigned int indentation = 0;
@@ -161,6 +164,7 @@ bool load_todo_from_export_file(FILE *load_file, List *old_todo_list, bool *reac
 
         } else {
           ret = false;
+          APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: You must start the file with a ToDo ('todo' key)", load_file_path, line_nr);
           state = STATE_EXIT;
         }
         break;
@@ -176,6 +180,7 @@ bool load_todo_from_export_file(FILE *load_file, List *old_todo_list, bool *reac
         } else if (indentation == 1 && !strcmp(atribute, "name:")) {
           if (new_todo) {
             ret = false;
+            APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: The name was already specified (%s)", load_file_path, line_nr, new_todo->name);
             state = STATE_EXIT;
             break;
           }
@@ -185,6 +190,7 @@ bool load_todo_from_export_file(FILE *load_file, List *old_todo_list, bool *reac
           if (todo_exists(name)) {
             free(name);
             ret = false;
+            APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: Already exists another ToDo with the same name", load_file_path, line_nr);
             state = STATE_EXIT;
             break;
           }
@@ -205,8 +211,16 @@ bool load_todo_from_export_file(FILE *load_file, List *old_todo_list, bool *reac
           }
 
         } else if (indentation == 1 && !strcmp(atribute, "created:")) {
-          if (!new_todo || new_todo->creation_time != 0) {
+          if (!new_todo) {
             ret = false;
+            APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: No ToDo specified", load_file_path, line_nr);
+            state = STATE_EXIT;
+            break;
+          }
+
+          if (new_todo->creation_time != 0) {
+            ret = false;
+            APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: Created time was already provided", load_file_path, line_nr);
             state = STATE_EXIT;
             break;
           }
@@ -214,6 +228,7 @@ bool load_todo_from_export_file(FILE *load_file, List *old_todo_list, bool *reac
           char *creation_time_cstr = next_token(&line_input, 0);
           if (!creation_time_cstr) {
             ret = false;
+            APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: Creation time was not provided", load_file_path, line_nr);
             state = STATE_EXIT;
             break;
           }
@@ -223,31 +238,57 @@ bool load_todo_from_export_file(FILE *load_file, List *old_todo_list, bool *reac
           if (*end != '\0' || end == creation_time_cstr) {
             free(creation_time_cstr);
             ret = false;
+            APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: Unable to parse the creation time", load_file_path, line_nr);
             state = STATE_EXIT;
             break;
           }
           free(creation_time_cstr);
 
         } else if (indentation == 1 && !strcmp(atribute, "hostname:")) {
-          if (!new_todo || new_todo->hostname) {
+          if (!new_todo) {
             ret = false;
+            APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: No ToDo specified", load_file_path, line_nr);
+            state = STATE_EXIT;
+            break;
+          }
+
+          if (new_todo->hostname) {
+            ret = false;
+            APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: Host name already provided", load_file_path, line_nr);
             state = STATE_EXIT;
             break;
           }
 
           new_todo->hostname = next_token(&line_input, 0);
 
-        } else if (indentation == 1 && !strcmp(atribute, "notes_content:")) {
-          if (!new_todo || new_todo->notes || !sb_is_empty(todo_notes)) {
+          if (!new_todo->hostname) {
             ret = false;
+            APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: Empty hostname not allowed", load_file_path, line_nr);
             state = STATE_EXIT;
             break;
           }
 
+        } else if (indentation == 1 && !strcmp(atribute, "notes_content:")) {
+          if (!new_todo) {
+            ret = false;
+            APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: No ToDo specified", load_file_path, line_nr);
+            state = STATE_EXIT;
+            break;
+          }
+
+          if (new_todo->notes) {
+            ret = false;
+            APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: The ToDo already has notes", load_file_path, line_nr);
+            state = STATE_EXIT;
+            break;
+          }
+
+          if (!sb_is_empty(todo_notes)) abort();
           state = STATE_NOTES_CONTENT;
 
         } else {
           ret = false;
+          APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: Unknown attribute '%s'", load_file_path, line_nr, atribute);
           state = STATE_EXIT;
         }
         break;
@@ -255,6 +296,7 @@ bool load_todo_from_export_file(FILE *load_file, List *old_todo_list, bool *reac
       case STATE_NOTES_CONTENT:
         if (indentation == 2) {
           if (!new_todo) {
+            APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: No ToDo specified", load_file_path, line_nr);
             ret = false;
             state = STATE_EXIT;
             break;
@@ -276,6 +318,7 @@ bool load_todo_from_export_file(FILE *load_file, List *old_todo_list, bool *reac
 
         } else {
           sb_free(&todo_notes);
+          APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: Incorrect indentation. Expected notes content line", load_file_path, line_nr);
           ret = false;
           state = STATE_EXIT;
         }
@@ -298,6 +341,7 @@ bool load_todo_from_export_file(FILE *load_file, List *old_todo_list, bool *reac
   if (!sb_is_empty(todo_notes)) {
     sb_free(&todo_notes);
     ret = false;
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: Unclosed 'notes_content' (you need to end 'notes_content' with 'EOF')", load_file_path, line_nr);
   }
 
   if (old_todo) {
@@ -335,7 +379,7 @@ bool write_notes_to_export_file(FILE *save_file, Todo *todo) {
 
   // Every line in the notes content will always start with "| | [here is the content]"
   // I know a file ended when I encounter an "| EOF"
-  fputs("\n" EXPORT_FILE_INDENTATION "EOF\n", save_file);
+  if (fputs("\n" EXPORT_FILE_INDENTATION "EOF\n", save_file) == EOF) return false;
 
   return true;
 }
@@ -353,27 +397,44 @@ char *escape_backslash_cstr(String_builder *sb, char *cstr) {
 }
 
 bool save_todo_to_export_file(FILE *file, Todo *todo) {
-  if (fprintf(file, "todo\n") <= 0) return false;
+  if (fprintf(file, "todo\n") <= 0) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to write to the export file");
+    return false;
+  }
 
   String_builder sb = sb_new();
 
   sb_append(&sb, todo->name);
   sb_search_and_replace(&sb, "\\", "\\\\");
-  if (fprintf(file, EXPORT_FILE_INDENTATION "name: %s\n", sb.str) <= 0) return false;
+  if (fprintf(file, EXPORT_FILE_INDENTATION "name: %s\n", sb.str) <= 0) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to write to the export file");
+    return false;
+  }
   sb_clean(&sb);
 
-  sb_append(&sb, todo->hostname);
-  sb_search_and_replace(&sb, "\\", "\\\\");
-  if (fprintf(file, EXPORT_FILE_INDENTATION "hostname: %s\n", sb.str) <= 0) return false;
-  sb_clean(&sb);
+  if (todo->hostname) {
+    sb_append(&sb, todo->hostname);
+    sb_search_and_replace(&sb, "\\", "\\\\");
+    if (fprintf(file, EXPORT_FILE_INDENTATION "hostname: %s\n", sb.str) <= 0) {
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to write to the export file");
+      return false;
+    }
+    sb_clean(&sb);
+  }
 
-  if (fprintf(file, EXPORT_FILE_INDENTATION "created: %lu\n", todo->creation_time) <= 0) return false;
+  if (fprintf(file, EXPORT_FILE_INDENTATION "created: %lu\n", todo->creation_time) <= 0) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to write to the export file");
+    return false;
+  }
   sb_clean(&sb);
 
 
   sb_free(&sb);
 
-  if (todo->notes && !write_notes_to_export_file(file, todo)) return false;
+  if (todo->notes && !write_notes_to_export_file(file, todo)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to write the notes to the export file");
+    return false;
+  }
 
   return true;
 }
@@ -381,11 +442,16 @@ bool save_todo_to_export_file(FILE *file, Todo *todo) {
 bool save_todo_list() {
   String_builder path = sb_create("%s/" SAVE_FILENAME, idea_state.local_path);
   FILE *save_file = fopen(path.str, "wb");
+  if (!save_file) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to open the save file '%s'", path.str);
+    sb_free(&path);
+    return false;
+  }
   sb_free(&path);
-  if (!save_file) return false;
 
   if (!list_save_to_bfile(todo_list, (bool (*)(FILE *, void *)) save_todo_to_binary_file, save_file)) {
     fclose(save_file);
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to save all the ToDos in the save file");
     return false;
   }
 
@@ -408,7 +474,7 @@ bool create_dir_structure() {
   for (unsigned int i=0; i<dirs_count; i++) {
     char *path = dirs[i];
     if (!create_dir_if_not_exists(path)) {
-      printf("[ERROR] Unable to create the directory %s\n", path);
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to create the directory '%s'", path);
       return false;
     }
   }
@@ -432,60 +498,78 @@ bool load_todo_list() {
 }
 
 /// Functionality
-Action_return action_add_todo(Input *input) {
+bool action_add_todo(Input *input) {
   char *data = next_token(input, 0);
-  if (!data) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  if (!data) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You must specify the name of the ToDo");
+    return false;
+  }
 
   if (todo_exists(data)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Already exists a ToDo with the name '%s'", data);
     free(data);
-    return ACTION_RETURN(RETURN_ERROR, "Already exists a ToDo with that name");
+    return false;
   }
 
   Todo *todo = create_todo(data);
   if (!todo) {
     free(data);
-    return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "No more memory");
+    return false;
   }
 
   list_append(&todo_list, todo);
   todo_list_modified = true;
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 
-Action_return action_add_at_todo(Input *input) {
+bool action_add_at_todo(Input *input) {
   char *pos_str = next_token(input, ' ');
-  if (!pos_str) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  if (!pos_str) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You need to specify the index");
+    return false;
+  }
   unsigned int pos = atoi(pos_str);
   free(pos_str);
-  if (pos == 0 || pos > list_size(todo_list)+1) return ACTION_RETURN(RETURN_ERROR, "Invalid position");
+  if (pos == 0 || pos > list_size(todo_list)+1) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Invalid position (index)");
+    return false;
+  }
 
   char *data = next_token(input, 0);
-  if (!data) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  if (!data) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You need to specify the name of ToDo");
+    return false;
+  }
 
   if (todo_exists(data)) {
     free(data);
-    return ACTION_RETURN(RETURN_ERROR, "Already exists a ToDo with that name");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Already exists a ToDo with that name");
+    return false;
   }
 
   Todo *todo = create_todo(data);
   if (!todo) {
     free(data);
-    return ACTION_RETURN(RETURN_ERROR_AND_EXIT, "No more memory");
+    return false;
   }
 
   list_insert_at(&todo_list, todo, pos-1);
   todo_list_modified = true;
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 
-Action_return action_remove_todo(Input *input) {
+bool action_remove_todo(Input *input) {
   char *argument = next_token(input, 0);
-  if (!argument) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  if (!argument) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You need to specify the ToDo");
+    return false;
+  }
 
   unsigned int index;
   if (!search_todo_pos_by_name_or_pos(argument, &index)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to find the ToDo '%s'", argument);
     free(argument);
-    return ACTION_RETURN(RETURN_ERROR, "Unable to find the ToDo");
+    return false;
   }
   free(argument); argument = NULL;
 
@@ -493,96 +577,126 @@ Action_return action_remove_todo(Input *input) {
   todo_list_modified = true;
 
   free_todo(removed);
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 
-Action_return action_move_todo(Input *input) {
+bool action_move_todo(Input *input) {
   char *arg = next_token(input, ' ');
-  if (!arg) return ACTION_RETURN(RETURN_ERROR, "You need to specify the Name or the ID of the ToDo to move");
+  if (!arg) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You need to specify the Name or the ID of the ToDo to move");
+    return false;
+  }
   unsigned int pos_origin;
   if (!search_todo_pos_by_name_or_pos(arg, &pos_origin)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to find the ToDo '%s'", arg);
     free(arg);
-    return ACTION_RETURN(RETURN_ERROR, "Unable to find the ToDo");
+    return false;
   }
   free(arg); arg = NULL;
 
   arg = next_token(input, 0);
-  if (!arg) return ACTION_RETURN(RETURN_ERROR, "You need to specify the position to move the ToDo");
+  if (!arg) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You need to specify the position to move the ToDo");
+    return false;
+  }
   unsigned int pos_destination = atoi(arg);
   free(arg); arg = NULL;
-  if (pos_destination == 0 || pos_destination > list_size(todo_list)) return ACTION_RETURN(RETURN_ERROR, "Invalid destination position");
+  if (pos_destination == 0 || pos_destination > list_size(todo_list)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Invalid destination position");
+    return false;
+  }
 
-  if (pos_destination-1 /* 1-based to 0-based */ == pos_origin) return ACTION_RETURN(RETURN_INFO, "Moving to the same position");
+  if (pos_destination-1 /* 1-based to 0-based */ == pos_origin) {
+    APPEND_TO_BACKTRACE(BACKTRACE_INFO, "Moving to the same position");
+    return true;
+  }
 
   Todo *todo = list_remove(&todo_list, pos_origin);
   // if (pos_origin < pos_destination) pos_destination--;
   list_insert_at(&todo_list, todo, pos_destination-1);
   todo_list_modified = true;
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 
-Action_return action_edit_todo(Input *input) {
+bool action_edit_todo(Input *input) {
   char *arg = next_token(input, ' ');
-  if (!arg) return ACTION_RETURN(RETURN_ERROR, "You need to specify the Name or the ID of the ToDo to edit");
+  if (!arg) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You need to specify the Name or the ID of the ToDo to edit");
+    return false;
+  }
 
   unsigned int pos;
   if (!search_todo_pos_by_name_or_pos(arg, &pos)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to find the ToDo '%s'", arg);
     free(arg);
-    return ACTION_RETURN(RETURN_ERROR, "Unable to find the ToDo");
+    return false;
   }
   free(arg); arg = NULL;
 
   char *new_name = next_token(input, 0);
   if (!new_name) {
     free(new_name);
-    return ACTION_RETURN(RETURN_ERROR, "The ToDo can't have an empty name.");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "The ToDo can't have an empty name.");
+    return false;
   }
 
   if (todo_exists(new_name)) {
     free(new_name);
-    return ACTION_RETURN(RETURN_ERROR, "Already exists a ToDo with that name");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Already exists a ToDo with that name");
+    return false;
   }
 
   Todo *todo = list_get(todo_list, pos);
   free(todo->name);
   todo->name = new_name;
   todo_list_modified = true;
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 
-Action_return action_clear_todos(Input *input) {
+bool action_clear_todos(Input *input) {
   char *confirmation = next_token(input, 0);
-  if (!confirmation) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  if (!confirmation) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: you must confirm the operation by passing as an argument 'all'");
+    return false;
+  }
   if (strcmp(confirmation, "all")) {
     free(confirmation);
-    return ACTION_RETURN(RETURN_ERROR, "Specify 'all' as the first argument to clear all the ToDos");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Specify 'all' as the first argument to clear all the ToDos");
+    return false;
   }
   free(confirmation);
 
   list_destroy(&todo_list, (void (*)(void *))free_todo);
   todo_list_modified = true;
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 
-Action_return action_notes_todo_remove(Input *input) {
+bool action_notes_todo_remove(Input *input) {
   char *arg = next_token(input, 0);
-  if (!arg) return ACTION_RETURN(RETURN_ERROR, "Command malformed");
+  if (!arg) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You need to specify the ToDo");
+    return false;
+  }
 
   unsigned int pos;
   if (!search_todo_pos_by_name_or_pos(arg, &pos)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to find the ToDo '%s'", arg);
     free(arg);
-    return ACTION_RETURN(RETURN_ERROR, "Unable to find the ToDo");
+    return false;
   }
   Todo *todo = list_get(todo_list, pos);
   free(arg); arg = NULL;
 
-  if (!todo->notes) return ACTION_RETURN(RETURN_ERROR, "The todo doesn't have a notes file");
+  if (!todo->notes) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "The todo doesn't have a notes file");
+    return false;
+  }
 
   free(todo->notes);
   todo->notes = NULL;
   todo_list_modified = true;
 
-  return ACTION_RETURN(RETURN_SUCCESS, "");
+  return true;
 }
 
 void initialize_notes(Todo *todo) {
@@ -594,14 +708,15 @@ void initialize_notes(Todo *todo) {
   todo_list_modified = true;
 }
 
-Action_return action_generate_html(Input *input) {
+bool action_generate_html(Input *input) {
   List custom_todos = list_new();
   FILE *output_file = NULL;
-  Action_return ret = ACTION_RETURN(RETURN_SUCCESS, "");
+  bool ret = true;
 
   char *output_path = next_token(input, ' ');
   if (!output_path) {
-    ret = ACTION_RETURN(RETURN_ERROR, "You need to specify at least the HTML output path");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You need to specify at least the HTML output path");
+    ret = false;
     goto exit;
   }
 
@@ -609,18 +724,22 @@ Action_return action_generate_html(Input *input) {
   while ( (arg = next_token(input, ' ')) ) {
     unsigned int pos = 0;
     bool ok = search_todo_pos_by_name_or_pos(arg, &pos);
-    free(arg);
 
     if (!ok) {
-      ret = ACTION_RETURN(RETURN_ERROR, "Unable to find the ToDo");
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to find the ToDo '%s'", arg);
+      ret = false;
+      free(arg);
       goto exit;
     }
+    free(arg);
+
     list_append(&custom_todos, list_get(todo_list, pos));
   }
 
   output_file = fopen(output_path, "w");
   if (!output_file) {
-    ret = ACTION_RETURN(RETURN_ERROR, "Unable to open the path of the output HTML file");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to open the path of the output HTML file (%s)", output_path);
+    ret = false;
     goto exit;
   }
 

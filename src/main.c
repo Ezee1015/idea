@@ -1,25 +1,26 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
 #include "main.h"
 #include "todo_list.h"
 #include "tui.h"
 #include "cli.h"
+#include "utils/list.h"
 #include "utils/string.h"
 
 State idea_state = {0};
+List backtrace = {0};
 
 bool lock_file() {
   if (access(idea_state.lock_filepath, F_OK) == 0) {
-    printf("Idea is already running...\n");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Idea is already running...");
     return false;
   }
 
   FILE *lock_file = fopen(idea_state.lock_filepath, "w");
   if (!lock_file) {
-    printf("Error creating the lock...\n");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Error creating the lock...");
     return false;
   }
 
@@ -29,7 +30,7 @@ bool lock_file() {
 
 bool unlock_file() {
   bool removed = (remove(idea_state.lock_filepath) == 0);
-  if (!removed) printf("Unable to remove the lock file\n");
+  if (!removed) APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to remove the lock file");
   return removed;
 }
 
@@ -40,32 +41,21 @@ bool parse_commands_cli(char *commands[], int count) {
   cli_disable_colors = getenv("IDEA_CLI_DISABLE_COLORS");
 
   while (!something_went_wrong && i<count) {
-    Action_return result;
-    NESTED_ACTION(result = cli_parse_input(commands[i]), result);
-    switch (result.type) {
-      case RETURN_SUCCESS:
-      case RETURN_INFO:
-        if (result.message && strcmp(result.message, ""))
-          PRINT_MESSAGE("Message from the %dº command (%s)", i+1, commands[i]);
-        break;
+    bool result;
+    result = cli_parse_input(commands[i]);
 
-      case RETURN_ERROR:
-        something_went_wrong = true;
-        PRINT_MESSAGE("An ERROR occurred in the %dº command (%s)", i+1, commands[i]);
-        break;
-
-      case RETURN_ERROR_AND_EXIT:
-        something_went_wrong = true;
-        PRINT_MESSAGE("An ABORT occurred in the %dº command (%s)", i+1, commands[i]);
-        break;
+    if (result) {
+      if (!list_is_empty(backtrace)) {
+          APPEND_TO_BACKTRACE(BACKTRACE_INFO, "Message from the %dº command (%s)", i+1, commands[i]);
+      }
+    } else {
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "An ERROR occurred in the %dº command (%s). Idea is not saving the changes made in this instance", i+1, commands[i]);
+      todo_list_modified = false; // Try to not save it because it may be corrupted
+      something_went_wrong = true;
     }
-    i++;
-  }
+    cli_print_backtrace();
 
-  if (something_went_wrong) {
-    PRINT_TEXT("Idea is not saving the changes made in this instance\n");
-    todo_list_modified = false; // Try to not save it because it may be corrupted
-    return false;
+    i++;
   }
 
   if (todo_list_modified) action_print_todo(NULL);
@@ -80,11 +70,14 @@ bool load_paths() {
   sb = sb_new();
   if (sb_append_from_shell_variable(&sb, "IDEA_LOCAL_PATH")) {
     if (sb.str[sb.length-1] == '/') {
-      printf("IDEA_LOCAL_PATH can't end with '/'\n");
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "IDEA_LOCAL_PATH can't end with '/'");
       return false;
     }
   } else {
-    if (!sb_append_from_shell_variable(&sb, "HOME")) return false;
+    if (!sb_append_from_shell_variable(&sb, "HOME")) {
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Set the HOME environment variable...");
+      return false;
+    }
     sb_append(&sb, "/" LOCAL_PATH);
   }
   idea_state.local_path = sb.str;
@@ -99,6 +92,11 @@ void free_paths() {
   if (idea_state.tmp_path) free(idea_state.tmp_path);
   if (idea_state.lock_filepath) free(idea_state.lock_filepath);
   if (idea_state.local_path) free(idea_state.local_path);
+}
+
+void free_backtrace_item(Backtrace_item *b) {
+  free(b->message);
+  free(b);
 }
 
 int main(int argc, char *argv[]) {
@@ -117,13 +115,19 @@ int main(int argc, char *argv[]) {
   idea_state.program_path = argv[0];
   if (!load_paths()) {
     free_paths();
+    cli_print_backtrace();
     return RET_CODE_PATH_ERROR;
   }
 
-  if (!create_dir_structure()) return RET_CODE_CREATE_STRUCTURE_FAILED;
+  if (!create_dir_structure()) {
+    free_paths();
+    cli_print_backtrace();
+    return RET_CODE_CREATE_STRUCTURE_FAILED;
+  }
 
   if (!lock_file())  {
     free_paths();
+    cli_print_backtrace();
     return RET_CODE_LOCK_ERROR;
   }
 
@@ -148,5 +152,6 @@ int main(int argc, char *argv[]) {
 
   list_destroy(&todo_list, (void (*)(void *))free_todo);
   free_paths();
+  cli_print_backtrace();
   return ret;
 }

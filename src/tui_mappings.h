@@ -64,20 +64,17 @@
     tui_st.command_multiplier = 0;                                                                        \
   })                                                                                                      \
 \
-  X('s', "Save the changes to disk (same as :w)", {                \
-    Action_return ret = action_save(NULL);                         \
-    if (ret.type != RETURN_SUCCESS) message("ERROR", ret.message); \
-  })                                                               \
+  X('s', "Save the changes to disk (same as :w)", { \
+    action_save(NULL);                              \
+  })                                                \
   \
-  X('W', "Save and Exit idea (same as :wq)", {                     \
-    Action_return ret = action_save_and_quit(NULL);                \
-    if (ret.type != RETURN_SUCCESS) message("ERROR", ret.message); \
-    })                                                             \
+  X('W', "Save and Exit idea (same as :wq)", {      \
+    action_save_and_quit(NULL);                     \
+    })                                              \
 \
-  X('Q', "Exit idea without saving (same as :q)", {                \
-    Action_return ret = action_quit(NULL);                         \
-    if (ret.type != RETURN_SUCCESS) message("ERROR", ret.message); \
-  })                                   \
+  X('Q', "Exit idea without saving (same as :q)", { \
+    action_quit(NULL);                              \
+  })                                                \
 \
   X('q', "Confirm to save and Exit idea (similar to :q but asks whether to save)", { \
     if (todo_list_modified) {                                                  \
