@@ -260,6 +260,8 @@ bool parse_command() {
   }
   input[i] = '\0';
 
+  curs_set(0);
+
   if (c == ESCAPE_KEY || !strcmp(input, "")) {
     tui_st.mode = MODE_NORMAL;
     return true;

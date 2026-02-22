@@ -144,6 +144,7 @@
   X(':', "Enter command mode", {                                \
     if (tui_st.mode == MODE_NORMAL) tui_st.mode = MODE_COMMAND; \
     tui_st.command_multiplier = 0;                              \
+    curs_set(1);                                                \
   })                                                            \
 \
   X(ESCAPE_KEY, "Clear the command multiplier", {                 \
