@@ -160,22 +160,19 @@
   })                                                                   \
 \
   X('o', "Create a new ToDo below the cursor", {                                                                                \
-    tui_st.mode = MODE_COMMAND;                                                                                                 \
     unsigned int pos = (list_is_empty(todo_list)) ? 1 : tui_st.current_pos + 1 /* 0-based to 1-based) */ + 1 /* next pos */;    \
-    snprintf(input, sizeof(input), "add_at %d ", pos);                                                                          \
+    populate_input("add_at %d ", pos);                                                                                          \
     tui_st.command_multiplier = 0;                                                                                              \
   })                                                                                                                            \
 \
   X('O', "Create a new ToDo above the cursor", {                                                    \
-    tui_st.mode = MODE_COMMAND;                                                                     \
-    snprintf(input, sizeof(input), "add_at %d ", tui_st.current_pos + 1 /* 0-based to 1-based) */); \
+    populate_input("add_at %d ", tui_st.current_pos + 1 /* 0-based to 1-based) */);                 \
     tui_st.command_multiplier = 0;                                                                  \
-  })                                                                                                                            \
+  })                                                                                                \
 \
   X('a', "Change the name of the current ToDo", {                                                              \
-    tui_st.mode = MODE_COMMAND;                                                                                \
     const char *todo_name = ((Todo *)list_get(todo_list, tui_st.current_pos))->name;                           \
-    snprintf(input, sizeof(input), "edit %d %s", tui_st.current_pos + 1 /* 0-based to 1-based) */, todo_name); \
+    populate_input("edit %d %s", tui_st.current_pos + 1 /* 0-based to 1-based) */, todo_name);                 \
     tui_st.command_multiplier = 0;                                                                             \
   })
 

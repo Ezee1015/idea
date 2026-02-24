@@ -227,43 +227,237 @@ bool confirm(char *msg, Confirm_type type) {
   return ret;
 }
 
+bool vi_input_move_to_previous_space(int *cursor) {
+  while (*cursor > 0 && input[--(*cursor)] != ' ');
+  return (*cursor);
+}
+
+bool vi_input_move_to_next_space(int *cursor, int length) {
+  while (*cursor < length && input[++(*cursor)] != ' ');
+  return (*cursor < length);
+}
+
+void vi_input_remove_word(int *cursor, int *length, int *cursor_x, int cursor_y, bool around) {
+  int start = *cursor, end = *cursor;
+  vi_input_move_to_previous_space(&start);
+  vi_input_move_to_next_space(&end, *length);
+  // inside word
+  if (start) start++;
+  if (end) end--;
+
+  // around word
+  if (around) {
+    if (end != (*length)-1) end++;
+    else if (start != 0) start--;
+  }
+
+  *cursor_x -= (*cursor - start);
+
+  move(cursor_y, *cursor_x);
+  for (int x = 0; x < *length - end; x++) {
+    if (x != *length - end - 1) addch(input[(end+1)+x]);
+    input[start+x] = input[(end+1)+x];
+  }
+  for (int x = 0; x <= (end+1) - start; x++) addch(' ');
+  move(cursor_y, *cursor_x);
+  *length -= (end+1) - start;
+  *cursor = start;
+}
+
+void vi_input_refresh_characters(int chars_to_clear, int cursor_y, int *cursor_x, int *input_cursor, int input_len, char *input) {
+  *cursor_x -= chars_to_clear;
+  for (int z=0; z < chars_to_clear; z++) {
+    mvprintw(cursor_y, *cursor_x + z, "%c", (*input_cursor+z >= input_len) ? ' ' : input[*input_cursor+z]);
+  }
+  move(cursor_y, *cursor_x);
+}
+
 bool parse_command() {
-  unsigned int i = strlen(input);
+  int i = strlen(input);
+  int length = i;
   bool read = true;
   char c = 0;
 
+  enum {
+    VI_INSERT,
+    VI_NORMAL,
+  } vi_mode = VI_INSERT;
+
+  Point command_start = {
+    .x = getcurx(stdscr),
+    .y = getcury(stdscr),
+  };
+  switch (vi_mode) {
+    case VI_NORMAL: mvprintw(command_start.y, area_start.x, "[N]"); break;
+    case VI_INSERT: mvprintw(command_start.y, area_start.x, "[I]"); break;
+  }
+  move(command_start.y, command_start.x);
+
+  char vi_normal_buf[4] = {0};
+  int x = command_start.x, y = command_start.y;
   while (read) {
+    switch (vi_mode) {
+      case VI_NORMAL:
+        mvprintw(y, area_start.x, "[N]");
+        for (unsigned int x = 0; x < sizeof(vi_normal_buf); x++) {
+          mvaddch(y, area_start.x + area_size.width - x, ' ');
+        }
+        mvprintw(y, area_start.x + area_size.width - strlen(vi_normal_buf), "%s", vi_normal_buf);
+        break;
+
+      case VI_INSERT:
+        mvprintw(y, area_start.x, "[I]");
+        break;
+    }
+    move(y, x);
+
     c = getch();
+    x = getcurx(stdscr), y = getcury(stdscr);
 
-    unsigned int chars_to_clear = 0;
-    if (c == BACKSPACE_KEY) {
-      chars_to_clear = 2; // for the ^? symbol of backspace
-      if (i) {
-        input[i--] = '\0';
-        chars_to_clear++; // character to remove
+    switch (vi_mode) {
+      case VI_INSERT:
+        if (c == '`') {
+          vi_mode =  VI_NORMAL;
+          vi_input_refresh_characters(1, y, &x, &i, length, input);
+        }
+        else if (c == BACKSPACE_KEY) {
+          vi_input_refresh_characters(2, y, &x, &i, length, input); // for the ^? symbol of backspace
+          if (i) {
+            move(y, --x);
+            for (int z = i; z <= length; z++) {
+              input[z-1] = input[z];
+              addch((z == length) ? ' ' : input[z]);
+            }
+            move(y, x);
+            length--;
+            i--;
+          }
+        } else if (isalnum(c) || c == ' ' || c == '_' || c == '\\' || c == '.' || c == '/') {
+          if (i != length) {
+            for (int x = i; x < length; x++) addch(input[x]);
+            for (int x = length+1; x > i; x--) input[x] = input[x-1];
+          }
+          input[i++] = c;
+          length++;
+          move(y, x);
+        } else { // Not recognized character, so clear the character that was printed on the screen
+          vi_input_refresh_characters(1, y, &x, &i, length, input);
+        }
+        break;
+
+      case VI_NORMAL: {
+        // Backspace and Escape keys when pressed they print 2 characters
+        unsigned int chars_to_clear = (c == BACKSPACE_KEY || c == ESCAPE_KEY) ? 2 : 1;
+        vi_input_refresh_characters(chars_to_clear, y, &x, &i, length, input);
+
+        if (c == ESCAPE_KEY) {
+          if (vi_normal_buf[0] != '\0') {
+            vi_normal_buf[0] = '\0';
+            c = 0;
+          }
+          break;
+        } else if (c == BACKSPACE_KEY) {
+          break;
+        }
+
+        unsigned int vi_normal_buf_len = strlen(vi_normal_buf);
+        if (vi_normal_buf_len < sizeof(vi_normal_buf)-1) {
+          vi_normal_buf[vi_normal_buf_len++] = c;
+          vi_normal_buf[vi_normal_buf_len] = '\0';
+        } else {
+          for (unsigned int x = 0; x < sizeof(vi_normal_buf)-1; x++) vi_normal_buf[x] = vi_normal_buf[x+1];
+          vi_normal_buf[--vi_normal_buf_len] = c;
+        }
+
+        if (!strcmp(vi_normal_buf, "h")) {
+          if (i) { move(y, --x); i--; }
+          vi_normal_buf[0] = '\0';
+        } else if (!strcmp(vi_normal_buf, "q")) {
+          c = ESCAPE_KEY;
+          vi_normal_buf[0] = '\0';
+        } else if (!strcmp(vi_normal_buf, "l")) {
+          if (i < length) { move(y, ++x); i++; }
+          vi_normal_buf[0] = '\0';
+        } else if (!strcmp(vi_normal_buf, "`") || !strcmp(vi_normal_buf, "i")) {
+          vi_mode = VI_INSERT;
+          vi_normal_buf[0] = '\0';
+        } else if (!strcmp(vi_normal_buf, "a")) {
+          if (i != length) { i++; move(y, ++x); }
+          vi_mode = VI_INSERT;
+          vi_normal_buf[0] = '\0';
+        } else if (!strcmp(vi_normal_buf, "b")) {
+          unsigned int start = i;
+          if (i > 0) i--; // To skip the space at the left of the cursor when pressing multiple times 'b'
+          if (vi_input_move_to_previous_space(&i)) i++;
+          unsigned int delta = start - i;
+          move(y, x -= delta);
+          vi_normal_buf[0] = '\0';
+        } else if (!strcmp(vi_normal_buf, "w")) {
+          unsigned int start = i;
+          if (vi_input_move_to_next_space(&i, length)) i++;
+          unsigned int delta = i - start;
+          move(y, x+=delta);
+          vi_normal_buf[0] = '\0';
+        } else if (!strcmp(vi_normal_buf, "e")) {
+          unsigned int start = i;
+          if (i == length-1) {
+            i = length;
+          } else {
+            i++; // To skip the space at the right of the cursor when pressing multiple times 'e'
+            vi_input_move_to_next_space(&i, length);
+            i--; // Go to the last letter of the word
+          }
+          unsigned int delta = i - start;
+          move(y, x+=delta);
+          vi_normal_buf[0] = '\0';
+        } else if (!strcmp(vi_normal_buf, "0")) {
+          move(y, x-=i);
+          i = 0;
+          vi_normal_buf[0] = '\0';
+        } else if (!strcmp(vi_normal_buf, "I")) {
+          move(y, x-=i);
+          i = 0;
+          vi_mode = VI_INSERT;
+          vi_normal_buf[0] = '\0';
+        } else if (!strcmp(vi_normal_buf, "$")) {
+          move(y, x+=(length-i));
+          i = length;
+          vi_normal_buf[0] = '\0';
+        } else if (!strcmp(vi_normal_buf, "A")) {
+          move(y, x+=(length-i));
+          i = length;
+          vi_mode = VI_INSERT;
+          vi_normal_buf[0] = '\0';
+        } else if (!strcmp(vi_normal_buf, "diw")) {
+          vi_input_remove_word(&i, &length, &x, y, false);
+          vi_normal_buf[0] = '\0';
+        } else if (!strcmp(vi_normal_buf, "daw")) {
+          vi_input_remove_word(&i, &length, &x, y, true);
+          vi_normal_buf[0] = '\0';
+        } else if (!strcmp(vi_normal_buf, "ciw")) {
+          vi_input_remove_word(&i, &length, &x, y, false);
+          vi_mode = VI_INSERT;
+          vi_normal_buf[0] = '\0';
+        } else if (!strcmp(vi_normal_buf, "caw")) {
+          vi_input_remove_word(&i, &length, &x, y, true);
+          vi_mode = VI_INSERT;
+          vi_normal_buf[0] = '\0';
+        }
+        break;
       }
-    } else if (isalnum(c) || c == ' ' || c == '_' || c == '\\' || c == '.' || c == '/') {
-      input[i++] = c;
-    } else { // Not recognized character, so clear the character that was printed on the screen
-      chars_to_clear = 1;
     }
 
-    if (chars_to_clear) {
-      int x = getcurx(stdscr)-chars_to_clear, y = getcury(stdscr);
-      for (unsigned int i=0; i < chars_to_clear; i++) mvprintw(y, x+i, " ");
-      move(y, x);
-    }
-
-    read = (i < sizeof(input)-1)
+    read = (i < (int) sizeof(input)-2)
            && (c != ESCAPE_KEY)
            && (c != '\n');
   }
-  input[i] = '\0';
+  input[length] = '\0';
 
   curs_set(0);
 
   if (c == ESCAPE_KEY || !strcmp(input, "")) {
     tui_st.mode = MODE_NORMAL;
+    input[0] = '\0';
     return true;
   }
 
@@ -366,6 +560,16 @@ bool delete_selected() {
   // Reposition cursor if it's outside the bounds
   if (tui_st.current_pos > list_size(todo_list)-1) tui_st.current_pos = list_size(todo_list)-1;
   return true;
+}
+
+void populate_input(const char *fmt, ...) {
+  tui_st.mode = MODE_COMMAND;
+  curs_set(1);
+
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(input, sizeof(input), fmt, args);
+  va_end(args);
 }
 
 bool move_selected(int direction) { // direction should be 1 or -1

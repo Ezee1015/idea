@@ -76,6 +76,12 @@ bool action_add_at_todo_tui(Input *input);
 extern Functionality tui_functionality[];
 extern unsigned int tui_functionality_count;
 
+// Vi-like input in the TUI
+bool vi_input_move_to_previous_space(int *cursor);
+bool vi_input_move_to_next_space(int *cursor, int length);
+void vi_input_remove_word(int *cursor, int *length, int *cursor_x, int cursor_y, bool around);
+void vi_input_refresh_characters(int chars_to_clear, int cursor_y, int *cursor_x, int *input_cursor, int input_len, char *input);
+
 // Normal-Visual mode
 bool is_current_item_selected();
 bool select_current_item();
@@ -87,5 +93,6 @@ bool move_selected(int direction);
 bool delete_selected();
 void visual_move_cursor(int direction);
 void parse_normal();
+void populate_input(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
 #endif // TUI_H
