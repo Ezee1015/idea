@@ -58,6 +58,7 @@ clean_backups() {
     if [[ $DELTA -gt $THRESHOLD ]]; then
       echo "[INFO] $BACKUP is $(pretty_delta_time $DELTA) old! Removing it"
       rm "$BACKUP/todos.bin"
+      rm "$BACKUP/version"
       rmdir "$BACKUP"
     fi
   done
