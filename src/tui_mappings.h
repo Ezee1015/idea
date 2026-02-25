@@ -72,17 +72,12 @@
     action_save_and_quit(NULL);                     \
     })                                              \
 \
-  X('Q', "Exit idea without saving (same as :q)", { \
-    action_quit(NULL);                              \
-  })                                                \
+  X('Q', "Exit idea without saving (same as :q!)", { \
+    action_force_quit(NULL);                         \
+  })                                                 \
 \
-  X('q', "Confirm to save and Exit idea (similar to :q but asks whether to save)", { \
-    if (todo_list_modified) {                                                  \
-      bool save = confirm("Save?", CONFIRM_DEFAULT_YES);                       \
-      if (!save) todo_list_modified = false;                                   \
-    }                                                                          \
-                                                                               \
-    tui_st.exit_loop = true;                                                   \
+  X('q', "Confirm to Save and Exit idea (same as :q)", {                       \
+      action_quit(NULL);                                                       \
   })                                                                           \
 \
   X('V', "Enter or Exit visual mode", {                                        \

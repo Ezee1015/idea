@@ -332,7 +332,7 @@ bool parse_command() {
             length--;
             i--;
           }
-        } else if (isalnum(c) || c == ' ' || c == '_' || c == '\\' || c == '.' || c == '/') {
+        } else if (isalnum(c) || c == ' ' || c == '_' || c == '\\' || c == '.' || c == '/' || c == '!') {
           if (i != length) {
             for (int x = i; x < length; x++) addch(input[x]);
             for (int x = length+1; x > i; x--) input[x] = input[x-1];
@@ -803,15 +803,23 @@ bool action_tui_version(Input *input) {
 }
 #endif // COMMIT
 
-bool action_quit(Input *input) {
-  ACTION_NO_ARGS("quit", input);
+bool action_force_quit(Input *input) {
+  ACTION_NO_ARGS("quit!", input);
 
-  bool ok = confirm("Quit without saving?", CONFIRM_DEFAULT_NO);
-  if (ok) {
-    tui_st.exit_loop = true;
-    todo_list_modified = false;
+  todo_list_modified = false;
+  tui_st.exit_loop = true;
+  return true;
+}
+
+bool action_quit(Input *input) {
+  ACTION_NO_ARGS("quit!", input);
+
+  if (todo_list_modified) {
+    bool save = confirm("Save?", CONFIRM_DEFAULT_YES);
+    if (!save) todo_list_modified = false;
   }
 
+  tui_st.exit_loop = true;
   return true;
 }
 
@@ -861,7 +869,8 @@ bool action_add_at_todo_tui(Input *input) {
 Functionality tui_functionality[] = {
   { "add_at", "ap", action_add_at_todo_tui, MAN("Add a ToDo in the specified position", "[index] [name]") },
   { "write", "w", action_save, MAN("Write the changes to disk", NULL) },
-  { "quit", "q", action_quit, MAN("Exit the application without saving the changes", NULL) },
+  { "quit", "q", action_quit, MAN("Exit the application", NULL) },
+  { "quit!", "q!", action_force_quit, MAN("Exit the application without saving the changes", NULL) },
   { "write_quit", "wq", action_save_and_quit, MAN("Save the changes and exit", NULL) },
   { "help", "h", action_help, MAN("See the help menu", NULL) },
 #ifdef COMMIT
