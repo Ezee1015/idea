@@ -16,12 +16,19 @@
 List todo_list = list_new();
 bool todo_list_modified = false;
 
+bool is_a_number(const char *s) {
+  for (int i = 0; s[i]; i++) if (s[i] < '0' || s[i] > '9') return false;
+  return true;
+}
+
 bool search_todo_pos_by_name_or_pos(const char *name_or_position, unsigned int *index) { // `position` should be 1-based. `index` is 0-based
   if (list_is_empty(todo_list)) return false;
 
-  *index = atoi(name_or_position);
-
-  if (*index == 0) { // It's a string, not a number
+  if (is_a_number(name_or_position)) { // It's a string, not a number
+    *index = atoi(name_or_position);
+    (*index)--; // 1-based index to 0-based index
+    if (*index > list_size(todo_list)-1) return false;
+  } else {
     List_iterator iterator = list_iterator_create(todo_list);
     while (list_iterator_next(&iterator)) {
       const Todo *e = ((Todo *) list_iterator_element(iterator));
@@ -30,9 +37,27 @@ bool search_todo_pos_by_name_or_pos(const char *name_or_position, unsigned int *
 
     if (list_iterator_finished(iterator)) return false;
     *index = list_iterator_index(iterator);
-  } else {
-    (*index)--; // 1-based index to 0-based index
-    if (*index > list_size(todo_list)-1) return false;
+  }
+
+  return true;
+}
+
+bool is_a_valid_todo_name(char *name) {
+  if (!name) return false;
+
+  if (todo_exists(name)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Already exists a ToDo with the name '%s'", name);
+    return false;
+  }
+
+  if (is_a_number(name)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "The name of the ToDo can't be just numbers");
+    return false;
+  }
+
+  if (!strcmp(name, "")) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "The name of the ToDo can't be empty");
+    return false;
   }
 
   return true;
@@ -187,10 +212,11 @@ bool load_todo_from_export_file(const char *load_file_path, FILE *load_file, Lis
 
           char *name = next_token(&line_input, 0);
 
-          if (todo_exists(name)) {
+
+          if (!is_a_valid_todo_name(name)) {
             free(name);
             ret = false;
-            APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: Already exists another ToDo with the same name", load_file_path, line_nr);
+            APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: Invalid ToDo name", load_file_path, line_nr);
             state = STATE_EXIT;
             break;
           }
@@ -505,9 +531,9 @@ bool action_add_todo(Input *input) {
     return false;
   }
 
-  if (todo_exists(data)) {
-    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Already exists a ToDo with the name '%s'", data);
+  if (!is_a_valid_todo_name(data)) {
     free(data);
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Invalid ToDo name");
     return false;
   }
 
@@ -541,9 +567,9 @@ bool action_add_at_todo(Input *input) {
     return false;
   }
 
-  if (todo_exists(data)) {
+  if (!is_a_valid_todo_name(data)) {
     free(data);
-    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Already exists a ToDo with that name");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Invalid ToDo name");
     return false;
   }
 
@@ -640,9 +666,9 @@ bool action_edit_todo(Input *input) {
     return false;
   }
 
-  if (todo_exists(new_name)) {
+  if (!is_a_valid_todo_name(new_name)) {
     free(new_name);
-    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Already exists a ToDo with that name");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Invalid ToDo name");
     return false;
   }
 

@@ -31,6 +31,7 @@ Todo *create_todo(char *name);
 bool todo_exists(const char *name);
 bool search_todo_pos_by_name_or_pos(const char *name_or_position, unsigned int *index); // `position` should be 1-based. `index` is 0-based
 void free_todo(Todo *node);
+bool is_a_valid_todo_name(char *name);
 
 // DB
 bool save_string_to_binary_file(FILE *file, char *str);
