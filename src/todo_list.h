@@ -9,11 +9,11 @@
 #include "utils/list.h"
 #include "parser.h"
 
-#define EXPORT_FILE_INDENTATION " │"
+#define SAVE_FILE_INDENTATION " │"
 
 #define LOCK_FILENAME "lock"
 #define LOCAL_PATH ".local/share/idea"
-#define SAVE_FILENAME "todos.bin"
+#define SAVE_FILENAME "todos.txt"
 #define NOTES_TEMP_FILENAME "notes.md"
 
 typedef struct {
@@ -33,22 +33,16 @@ bool search_todo_pos_by_name_or_pos(const char *name_or_position, unsigned int *
 void free_todo(Todo *node);
 bool is_a_valid_todo_name(char *name);
 
-// DB
-bool save_string_to_binary_file(FILE *file, char *str);
-bool load_string_from_binary_file(FILE *file, char **str);
-bool save_todo_to_binary_file(FILE *file, Todo *todo);
-void *load_todo_from_binary_file(FILE *file);
-
 // Import/ Export file
-bool save_todo_to_export_file(FILE *file, Todo *todo);
-bool load_todo_from_export_file(const char *load_file_path, FILE *load_file, List *old_todo_list, bool *reached_eof);
-bool write_notes_to_export_file(FILE *save_file, Todo *todo);
+bool save_todo_to_file(FILE *file, Todo *todo);
+bool load_todo_from_file(const char *load_file_path, FILE *load_file, List *old_todo_list, bool *reached_eof);
+bool write_notes_to_file(FILE *save_file, Todo *todo);
 
 bool create_dir_if_not_exists(char *dir_path);
 bool create_dir_structure();
 
-bool load_todo_list();
-bool save_todo_list();
+bool load_todo_list(char *file_path, bool obligatory);
+bool save_todo_list(char *file_path);
 
 void initialize_notes(Todo *todo);
 

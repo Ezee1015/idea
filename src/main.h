@@ -39,6 +39,7 @@ typedef struct {
   char *local_path;
   char *tmp_path;
   char *lock_filepath;
+  char *todos_filepath;
 
   char *program_path;
 } State;

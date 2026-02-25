@@ -865,7 +865,7 @@ bool action_save_and_quit(Input *input) {
 bool action_save(Input *input) {
   ACTION_NO_ARGS("save", input);
 
-  if (!save_todo_list()) {
+  if (!save_todo_list(idea_state.todos_filepath)) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to save the ToDo list");
     return false;
   }

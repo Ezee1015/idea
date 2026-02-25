@@ -48,8 +48,8 @@ extern Functionality cli_functionality[];
 extern unsigned int cli_functionality_count;
 
 // Create a temporary file in the local directory to modify the notes of the ToDo
-bool write_notes_to_file(Todo *todo);
-bool load_notes_from_file(Todo *todo);
+bool write_notes_to_temporal_file(Todo *todo);
+bool load_notes_from_temporal_file(Todo *todo);
 
 bool clone_text_file(char *origin_path, char *clone_path);
 

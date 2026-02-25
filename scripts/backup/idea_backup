@@ -11,7 +11,7 @@ IDEA_EXE_PATH="$SCRIPT_DIR/idea"
 SCRIPT_DATA_PATH="$IDEA_LOCAL_PATH/scripts_data/backup"
 
 BACKUP_DIRECTORY="$SCRIPT_DATA_PATH"
-TODO_LIST_BIN=$IDEA_LOCAL_PATH/todos.bin
+TODO_LIST_BIN=$IDEA_LOCAL_PATH/todos.txt
 DAYS_TO_KEEP=10
 
 # You can toggle between this two variable to switch between:
@@ -57,7 +57,7 @@ clean_backups() {
     DELTA=$(expr $SECONDS_NOW - $BACKUP_TIME)
     if [[ $DELTA -gt $THRESHOLD ]]; then
       echo "[INFO] $BACKUP is $(pretty_delta_time $DELTA) old! Removing it"
-      rm "$BACKUP/todos.bin"
+      rm "$BACKUP/todos.txt"
       rm "$BACKUP/version"
       rmdir "$BACKUP"
     fi
@@ -160,7 +160,7 @@ elif [[ $1 == "--daemon" ]]; then
       inotifywait -e modify "$TODO_LIST_BIN" &> /dev/null
 
       LAST_BACKUP_NAME=$(ls "$SCRIPT_DATA_PATH" | tail -n 1)
-      if [[ ! -z "$(diff "$TODO_LIST_BIN" "$SCRIPT_DATA_PATH/$LAST_BACKUP_NAME/todos.bin")" ]]; then
+      if [[ ! -z "$(diff "$TODO_LIST_BIN" "$SCRIPT_DATA_PATH/$LAST_BACKUP_NAME/todos.txt")" ]]; then
         create_backup
       else
         echo "[INFO] Modification detected in idea but nothing changed (at $(date))"

@@ -82,8 +82,8 @@ bool load_paths() {
   }
   idea_state.local_path = sb.str;
 
-  sb = sb_create("%s/" LOCK_FILENAME, idea_state.local_path);
-  idea_state.lock_filepath = sb.str;
+  idea_state.todos_filepath = sb_create("%s/" SAVE_FILENAME, idea_state.local_path).str;
+  idea_state.lock_filepath = sb_create("%s/" LOCK_FILENAME, idea_state.local_path).str;
 
   return true;
 }
@@ -91,6 +91,7 @@ bool load_paths() {
 void free_paths() {
   if (idea_state.tmp_path) free(idea_state.tmp_path);
   if (idea_state.lock_filepath) free(idea_state.lock_filepath);
+  if (idea_state.todos_filepath) free(idea_state.todos_filepath);
   if (idea_state.local_path) free(idea_state.local_path);
 }
 
@@ -115,23 +116,26 @@ int main(int argc, char *argv[]) {
   idea_state.program_path = argv[0];
   if (!load_paths()) {
     free_paths();
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to load the paths");
     cli_print_backtrace();
     return RET_CODE_PATH_ERROR;
   }
 
   if (!create_dir_structure()) {
     free_paths();
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to create the directory structure");
     cli_print_backtrace();
     return RET_CODE_CREATE_STRUCTURE_FAILED;
   }
 
   if (!lock_file())  {
     free_paths();
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to create the lock file");
     cli_print_backtrace();
     return RET_CODE_LOCK_ERROR;
   }
 
-  if (load_todo_list()) {
+  if (load_todo_list(idea_state.todos_filepath, false)) {
     if (argc == 1) {
       // TUI Version
       ret = (window_app()) ? RET_CODE_SUCCESS : RET_CODE_TUI_ERROR;
@@ -145,10 +149,18 @@ int main(int argc, char *argv[]) {
   }
 
   if (ret == RET_CODE_SUCCESS && todo_list_modified) {
-    if (!save_todo_list()) ret = RET_CODE_SAVE_FILE_ERROR;
+    if (!save_todo_list(idea_state.todos_filepath)) {
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to save the ToDos in '%s'", idea_state.todos_filepath);
+      cli_print_backtrace();
+      ret = RET_CODE_SAVE_FILE_ERROR;
+    }
   }
 
-  if (!unlock_file()) ret = RET_CODE_UNLOCK_ERROR;
+  if (!unlock_file()) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to remove the lock file");
+    cli_print_backtrace();
+    ret = RET_CODE_UNLOCK_ERROR;
+  }
 
   list_destroy(&todo_list, (void (*)(void *))free_todo);
   free_paths();

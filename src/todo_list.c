@@ -101,50 +101,7 @@ bool todo_exists(const char *name) {
 }
 
 /// FILE OPERATIONS
-bool save_string_to_binary_file(FILE *file, char *str) {
-  if (!file) return false;
-  unsigned int size = (str) ? strlen(str)+1 : 0;
-  if (fwrite(&size, sizeof(unsigned int), 1, file) != 1) return false;
-  if (size && fwrite(str, size, 1, file) != 1) return false;
-  return true;
-}
-
-bool load_string_from_binary_file(FILE *file, char **str) {
-  if (!file || !str) return false;
-  unsigned int size;
-  if (fread(&size, sizeof(unsigned int), 1, file) != 1) return false;
-  if (size) {
-    *str = malloc(size);
-    if (fread(*str, size, 1, file) != 1) {
-      free(str);
-      return false;
-    }
-  } else {
-    *str = NULL;
-  }
-  return true;
-}
-
-bool save_todo_to_binary_file(FILE *file, Todo *todo) {
-  if (!save_string_to_binary_file(file, todo->name)) return false;
-  if (!save_string_to_binary_file(file, todo->hostname)) return false;
-  if (!fwrite(&todo->creation_time, sizeof(todo->creation_time), 1, file)) return false;
-  if (!save_string_to_binary_file(file, todo->notes)) return false;
-  return true;
-}
-
-void *load_todo_from_binary_file(FILE *file) {
-  Todo *todo = malloc(sizeof(Todo));
-  if (!todo) abort();
-
-  if (!load_string_from_binary_file(file, &todo->name)) return false;
-  if (!load_string_from_binary_file(file, &todo->hostname)) return false;
-  if (!fread(&todo->creation_time, sizeof(todo->creation_time), 1, file)) return false;
-  if (!load_string_from_binary_file(file, &todo->notes)) return false;
-  return todo;
-}
-
-bool load_todo_from_export_file(const char *load_file_path, FILE *load_file, List *old_todo_list, bool *reached_eof) {
+bool load_todo_from_file(const char *load_file_path, FILE *load_file, List *old_todo_list, bool *reached_eof) {
   if (!load_file_path || !load_file || !reached_eof || !old_todo_list) return false;
   bool ret = true;
 
@@ -166,11 +123,11 @@ bool load_todo_from_export_file(const char *load_file_path, FILE *load_file, Lis
     if (!line.length) continue;
 
     unsigned int indentation = 0;
-    while (cstr_starts_with(line.str + indentation * strlen(EXPORT_FILE_INDENTATION), EXPORT_FILE_INDENTATION)) indentation++;
+    while (cstr_starts_with(line.str + indentation * strlen(SAVE_FILE_INDENTATION), SAVE_FILE_INDENTATION)) indentation++;
 
     Input line_input = {
       .input = line.str,
-      .cursor = indentation * strlen(EXPORT_FILE_INDENTATION),
+      .cursor = indentation * strlen(SAVE_FILE_INDENTATION),
       .length = line.length
     };
     atribute = next_token(&line_input, ' ');
@@ -328,7 +285,7 @@ bool load_todo_from_export_file(const char *load_file_path, FILE *load_file, Lis
             break;
           }
 
-          line_input.cursor = indentation * strlen(EXPORT_FILE_INDENTATION);
+          line_input.cursor = indentation * strlen(SAVE_FILE_INDENTATION);
           char *file_content = next_token(&line_input, 0);
           if (!file_content) {
             sb_append(&todo_notes, "\n");
@@ -378,11 +335,11 @@ bool load_todo_from_export_file(const char *load_file_path, FILE *load_file, Lis
   return ret;
 }
 
-bool write_notes_to_export_file(FILE *save_file, Todo *todo) {
+bool write_notes_to_file(FILE *save_file, Todo *todo) {
   if (!todo || !save_file) return false;
   if (!todo->notes) return true;
 
-  if (fputs(EXPORT_FILE_INDENTATION "notes_content:\n" EXPORT_FILE_INDENTATION EXPORT_FILE_INDENTATION, save_file) == EOF) return false;
+  if (fputs(SAVE_FILE_INDENTATION "notes_content:\n" SAVE_FILE_INDENTATION SAVE_FILE_INDENTATION, save_file) == EOF) return false;
 
   unsigned int length = strlen(todo->notes);
   for (unsigned int i=0; i < length-1; i++) {
@@ -390,7 +347,7 @@ bool write_notes_to_export_file(FILE *save_file, Todo *todo) {
 
     switch (c) {
       case '\n' :
-        if (fputs("\n" EXPORT_FILE_INDENTATION EXPORT_FILE_INDENTATION, save_file) == EOF) return false;
+        if (fputs("\n" SAVE_FILE_INDENTATION SAVE_FILE_INDENTATION, save_file) == EOF) return false;
         break;
 
       case '\\':
@@ -405,7 +362,7 @@ bool write_notes_to_export_file(FILE *save_file, Todo *todo) {
 
   // Every line in the notes content will always start with "| | [here is the content]"
   // I know a file ended when I encounter an "| EOF"
-  if (fputs("\n" EXPORT_FILE_INDENTATION "EOF\n", save_file) == EOF) return false;
+  if (fputs("\n" SAVE_FILE_INDENTATION "EOF\n", save_file) == EOF) return false;
 
   return true;
 }
@@ -422,7 +379,7 @@ char *escape_backslash_cstr(String_builder *sb, char *cstr) {
   return sb->str;
 }
 
-bool save_todo_to_export_file(FILE *file, Todo *todo) {
+bool save_todo_to_file(FILE *file, Todo *todo) {
   if (fprintf(file, "todo\n") <= 0) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to write to the export file");
     return false;
@@ -432,7 +389,7 @@ bool save_todo_to_export_file(FILE *file, Todo *todo) {
 
   sb_append(&sb, todo->name);
   sb_search_and_replace(&sb, "\\", "\\\\");
-  if (fprintf(file, EXPORT_FILE_INDENTATION "name: %s\n", sb.str) <= 0) {
+  if (fprintf(file, SAVE_FILE_INDENTATION "name: %s\n", sb.str) <= 0) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to write to the export file");
     return false;
   }
@@ -441,14 +398,14 @@ bool save_todo_to_export_file(FILE *file, Todo *todo) {
   if (todo->hostname) {
     sb_append(&sb, todo->hostname);
     sb_search_and_replace(&sb, "\\", "\\\\");
-    if (fprintf(file, EXPORT_FILE_INDENTATION "hostname: %s\n", sb.str) <= 0) {
+    if (fprintf(file, SAVE_FILE_INDENTATION "hostname: %s\n", sb.str) <= 0) {
       APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to write to the export file");
       return false;
     }
     sb_clean(&sb);
   }
 
-  if (fprintf(file, EXPORT_FILE_INDENTATION "created: %lu\n", todo->creation_time) <= 0) {
+  if (fprintf(file, SAVE_FILE_INDENTATION "created: %lu\n", todo->creation_time) <= 0) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to write to the export file");
     return false;
   }
@@ -457,7 +414,7 @@ bool save_todo_to_export_file(FILE *file, Todo *todo) {
 
   sb_free(&sb);
 
-  if (todo->notes && !write_notes_to_export_file(file, todo)) {
+  if (todo->notes && !write_notes_to_file(file, todo)) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to write the notes to the export file");
     return false;
   }
@@ -465,20 +422,32 @@ bool save_todo_to_export_file(FILE *file, Todo *todo) {
   return true;
 }
 
-bool save_todo_list() {
-  String_builder path = sb_create("%s/" SAVE_FILENAME, idea_state.local_path);
-  FILE *save_file = fopen(path.str, "wb");
+bool save_todo_list(char *file_path) {
+  FILE *save_file = fopen(file_path, "w");
   if (!save_file) {
-    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to open the save file '%s'", path.str);
-    sb_free(&path);
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to create the save file '%s'", file_path);
     return false;
   }
-  sb_free(&path);
 
-  if (!list_save_to_bfile(todo_list, (bool (*)(FILE *, void *)) save_todo_to_binary_file, save_file)) {
+  if (fputs("-- File generated by idea. Edit this file with caution.\n", save_file) == EOF) {
     fclose(save_file);
-    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to save all the ToDos in the save file");
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to save the file header");
     return false;
+  }
+
+  List_iterator iterator = list_iterator_create(todo_list);
+  while (list_iterator_next(&iterator)) {
+    if (fputs("\n", save_file) == EOF) {
+      fclose(save_file);
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to print a new line in the export file");
+      return false;
+    }
+
+    if (!save_todo_to_file(save_file, list_iterator_element(iterator))) {
+      fclose(save_file);
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to save all the ToDos in the save file");
+      return false;
+    }
   }
 
   fclose(save_file);
@@ -508,19 +477,28 @@ bool create_dir_structure() {
   return true;
 }
 
-bool load_todo_list() {
+bool load_todo_list(char *file_path, bool obligatory) {
   if (!list_is_empty(todo_list)) abort();
 
-  String_builder path = sb_create("%s/" SAVE_FILENAME, idea_state.local_path);
+  FILE *save_file = fopen(file_path, "r");
+  if (!save_file) {
+    if (!obligatory) return true;
 
-  FILE *save_file = fopen(path.str, "rb");
-  sb_free(&path);
-  if (!save_file) return true; // First time running it
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to open the save file '%s'", file_path);
+    return false;
+  }
 
-  if (!list_load_from_bfile(&todo_list, load_todo_from_binary_file, save_file)) abort();
+  List old_todo_list = todo_list;
+  todo_list = list_new();
 
+  bool reached_eof = false;
+  while (load_todo_from_file(file_path, save_file, &old_todo_list, &reached_eof));
   fclose(save_file);
-  return true;
+  list_destroy(&old_todo_list, (void (*)(void *))free_todo);
+
+  if (!reached_eof) APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "An error has occured while parsing the ToDos file");
+
+  return reached_eof;
 }
 
 /// Functionality
