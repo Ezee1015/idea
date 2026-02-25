@@ -519,6 +519,11 @@ bool parse_command() {
 
     }
 
+    // If the cursor is out of bounds, update it.
+    // It can be cause by some functions in the todo_list_functionality, for
+    // example, by the remove function when the cursor is at the end of the list.
+    if (tui_st.current_pos >= list_size(todo_list)) tui_st.current_pos = list_size(todo_list)-1;
+
     free(instruction);
     input[0] = '\0';
   }
