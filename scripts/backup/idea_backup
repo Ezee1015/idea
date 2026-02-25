@@ -158,7 +158,13 @@ elif [[ $1 == "--daemon" ]]; then
   while [[ true ]]; do
     if [ -e "$TODO_LIST_BIN" ]; then
       inotifywait -e modify "$TODO_LIST_BIN" &> /dev/null
-      create_backup
+
+      LAST_BACKUP_NAME=$(ls "$SCRIPT_DATA_PATH" | tail -n 1)
+      if [[ ! -z "$(diff "$TODO_LIST_BIN" "$SCRIPT_DATA_PATH/$LAST_BACKUP_NAME/todos.bin")" ]]; then
+        create_backup
+      else
+        echo "[INFO] Modification detected in idea but nothing changed (at $(date))"
+      fi
     fi
 
     sleep 1
