@@ -77,8 +77,10 @@ extern Functionality tui_functionality[];
 extern unsigned int tui_functionality_count;
 
 // Vi-like input in the TUI
-bool vi_input_move_to_previous_space(int *cursor);
-bool vi_input_move_to_next_space(int *cursor, int length);
+bool vi_input_move_to_previous_character(int *input_cursor, char *stop_characters);
+bool vi_input_move_to_next_character(int *input_cursor, int input_length, char *stop_characters);
+void vi_input_adjust_around(int *start, int *end, int input_length);
+void vi_input_remove(int *input_cursor, int *input_length, int *cursor_x, int cursor_y, int start, int end);
 void vi_input_remove_word(int *cursor, int *length, int *cursor_x, int cursor_y, bool around);
 void vi_input_refresh_characters(int chars_to_clear, int cursor_y, int *cursor_x, int *input_cursor, int input_len, char *input);
 

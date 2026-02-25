@@ -227,41 +227,65 @@ bool confirm(char *msg, Confirm_type type) {
   return ret;
 }
 
-bool vi_input_move_to_previous_space(int *cursor) {
-  while (*cursor > 0 && input[--(*cursor)] != ' ');
-  return (*cursor);
-}
+bool vi_input_move_to_previous_character(int *input_cursor, char *stop_characters) {
+  bool found = false;
 
-bool vi_input_move_to_next_space(int *cursor, int length) {
-  while (*cursor < length && input[++(*cursor)] != ' ');
-  return (*cursor < length);
-}
-
-void vi_input_remove_word(int *cursor, int *length, int *cursor_x, int cursor_y, bool around) {
-  int start = *cursor, end = *cursor;
-  vi_input_move_to_previous_space(&start);
-  vi_input_move_to_next_space(&end, *length);
-  // inside word
-  if (start) start++;
-  if (end) end--;
-
-  // around word
-  if (around) {
-    if (end != (*length)-1) end++;
-    else if (start != 0) start--;
+  // In the first iteration I need to skip the consecutive character to avoid
+  // locking when the input cursor is on one of the stop characters
+  while (!found && *input_cursor > 0) {
+    (*input_cursor)--;
+    for (int i=0; stop_characters[i]; i++) {
+      if (input[*input_cursor] == stop_characters[i]) found = true;
+    }
   }
+  return found;
+}
 
-  *cursor_x -= (*cursor - start);
+bool vi_input_move_to_next_character(int *input_cursor, int input_length, char *stop_characters) {
+  bool found = false;
+
+  // In the first iteration I need to skip the consecutive character to avoid
+  // locking when the input cursor is on one of the stop characters
+  while (!found && *input_cursor < input_length) {
+    (*input_cursor)++;
+    for (int i=0; stop_characters[i]; i++) {
+      if (input[*input_cursor] == stop_characters[i]) found = true;
+    }
+  }
+  return found;
+}
+
+void vi_input_adjust_around(int *start, int *end, int input_length) {
+  if (*end != input_length-1) (*end)++;
+  else if (*start > 0) (*start)--;
+}
+
+void vi_input_remove(int *input_cursor, int *input_length, int *cursor_x, int cursor_y, int start, int end) {
+  *cursor_x -= (*input_cursor - start);
 
   move(cursor_y, *cursor_x);
-  for (int x = 0; x < *length - end; x++) {
-    if (x != *length - end - 1) addch(input[(end+1)+x]);
+  for (int x = 0; x < *input_length - end; x++) {
+    if (x != *input_length - end - 1) addch(input[(end+1)+x]);
     input[start+x] = input[(end+1)+x];
   }
   for (int x = 0; x <= (end+1) - start; x++) addch(' ');
   move(cursor_y, *cursor_x);
-  *length -= (end+1) - start;
-  *cursor = start;
+  *input_length -= (end+1) - start;
+  *input_cursor = start;
+}
+
+void vi_input_remove_word(int *cursor, int *length, int *cursor_x, int cursor_y, bool around) {
+  int start = *cursor, end = *cursor;
+  vi_input_move_to_previous_character(&start, (char[2]){' ', '\0'});
+  vi_input_move_to_next_character(&end, *length, (char[2]){' ', '\0'});
+
+  // inside word
+  if (start) start++;
+  if (end) end--;
+
+  if (around) vi_input_adjust_around(&start, &end, *length);
+
+  vi_input_remove(cursor, length, cursor_x, cursor_y, start, end);
 }
 
 void vi_input_refresh_characters(int chars_to_clear, int cursor_y, int *cursor_x, int *input_cursor, int input_len, char *input) {
@@ -296,12 +320,14 @@ bool parse_command() {
   char vi_normal_buf[4] = {0};
   int x = command_start.x, y = command_start.y;
   while (read) {
+    // Clear vi_normal_buf on the screen
+    for (unsigned int x = 0; x < sizeof(vi_normal_buf); x++) {
+      mvaddch(y, area_start.x + area_size.width - x, ' ');
+    }
+
     switch (vi_mode) {
       case VI_NORMAL:
         mvprintw(y, area_start.x, "[N]");
-        for (unsigned int x = 0; x < sizeof(vi_normal_buf); x++) {
-          mvaddch(y, area_start.x + area_size.width - x, ' ');
-        }
         mvprintw(y, area_start.x + area_size.width - strlen(vi_normal_buf), "%s", vi_normal_buf);
         break;
 
@@ -388,13 +414,13 @@ bool parse_command() {
         } else if (!strcmp(vi_normal_buf, "b")) {
           unsigned int start = i;
           if (i > 0) i--; // To skip the space at the left of the cursor when pressing multiple times 'b'
-          if (vi_input_move_to_previous_space(&i)) i++;
+          if (vi_input_move_to_previous_character(&i, (char[2]){' ', '\0'})) i++;
           unsigned int delta = start - i;
           move(y, x -= delta);
           vi_normal_buf[0] = '\0';
         } else if (!strcmp(vi_normal_buf, "w")) {
           unsigned int start = i;
-          if (vi_input_move_to_next_space(&i, length)) i++;
+          if (vi_input_move_to_next_character(&i, length, (char[2]){' ', '\0'})) i++;
           unsigned int delta = i - start;
           move(y, x+=delta);
           vi_normal_buf[0] = '\0';
@@ -404,7 +430,7 @@ bool parse_command() {
             i = length;
           } else {
             i++; // To skip the space at the right of the cursor when pressing multiple times 'e'
-            vi_input_move_to_next_space(&i, length);
+            vi_input_move_to_next_character(&i, length, (char[2]){' ', '\0'});
             i--; // Go to the last letter of the word
           }
           unsigned int delta = i - start;
@@ -419,7 +445,7 @@ bool parse_command() {
           i = 0;
           vi_mode = VI_INSERT;
           vi_normal_buf[0] = '\0';
-        } else if (!strcmp(vi_normal_buf, "$")) {
+        } else if (!strcmp(vi_normal_buf, "$") || !strcmp(vi_normal_buf, "gl")) {
           move(y, x+=(length-i));
           i = length;
           vi_normal_buf[0] = '\0';
