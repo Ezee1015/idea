@@ -24,9 +24,6 @@ typedef struct {
   char *notes;
 } Todo;
 
-extern List todo_list;
-extern bool todo_list_modified;
-
 Todo *create_todo(char *name);
 bool todo_exists(const char *name);
 bool search_todo_pos_by_name_or_pos(const char *name_or_position, unsigned int *index); // `position` should be 1-based. `index` is 0-based
@@ -41,8 +38,8 @@ bool write_notes_to_file(FILE *save_file, Todo *todo);
 bool create_dir_if_not_exists(char *dir_path);
 bool create_dir_structure();
 
-bool load_todo_list(char *file_path, bool obligatory);
-bool save_todo_list(char *file_path);
+bool load_todo_list(List *list, char *file_path, bool obligatory);
+bool save_todo_list(List list, char *file_path);
 
 void initialize_notes(Todo *todo);
 

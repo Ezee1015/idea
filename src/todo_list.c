@@ -13,9 +13,6 @@
 #include "todo_list.h"
 #include "template/template.h"
 
-List todo_list = list_new();
-bool todo_list_modified = false;
-
 bool is_a_number(const char *s) {
   for (int i = 0; s[i]; i++) if (s[i] < '0' || s[i] > '9') return false;
   return true;
@@ -102,12 +99,12 @@ bool todo_exists(const char *name) {
 
 /// FILE OPERATIONS
 bool load_todo_from_file(const char *load_file_path, FILE *load_file, List *old_todo_list, bool *reached_eof) {
-  if (!load_file_path || !load_file || !reached_eof || !old_todo_list) return false;
+  if (!load_file_path || !load_file || !reached_eof) return false;
   bool ret = true;
 
   String_builder line = sb_new();
   unsigned int line_nr = 0;
-  char *atribute = NULL;
+  char *attribute = NULL;
   Todo *new_todo = NULL;
   Todo *old_todo = NULL;
   String_builder todo_notes = sb_new();
@@ -130,18 +127,24 @@ bool load_todo_from_file(const char *load_file_path, FILE *load_file, List *old_
       .cursor = indentation * strlen(SAVE_FILE_INDENTATION),
       .length = line.length
     };
-    atribute = next_token(&line_input, ' ');
+    attribute = next_token(&line_input, ' ');
+    if (!attribute) {
+      // I can't just do 'continue' because if some ToDo has a
+      // space at the beginning of some line in its notes, it
+      // would not read that line.
+      attribute = malloc(1);
+      attribute[0] = '\0';
+    }
 
-
-    if (!indentation && !strcmp(atribute, "--")) {
+    if (!indentation && !strcmp(attribute, "--")) {
       sb_clean(&line);
-      free(atribute);
+      if (attribute) free(attribute);
       continue;
     }
 
     switch (state) {
       case NO_STATE:
-        if (!indentation && !strcmp(atribute, "todo")) {
+        if (!indentation && !strcmp(attribute, "todo")) {
           state = STATE_PROPERTIES;
 
         } else {
@@ -152,14 +155,14 @@ bool load_todo_from_file(const char *load_file_path, FILE *load_file, List *old_
         break;
 
       case STATE_PROPERTIES:
-        if (!indentation && !strcmp(atribute, "todo")) {
+        if (!indentation && !strcmp(attribute, "todo")) {
           // Rewind what it read and break out of the function because it's
           // reading the next todo, and this function only reads one ToDo
           fseek(load_file, -1 * ((int) line.length + 1 /* \n */), SEEK_CUR);
           state = STATE_EXIT;
           break;
 
-        } else if (indentation == 1 && !strcmp(atribute, "name:")) {
+        } else if (indentation == 1 && !strcmp(attribute, "name:")) {
           if (new_todo) {
             ret = false;
             APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: The name was already specified (%s)", load_file_path, line_nr, new_todo->name);
@@ -184,16 +187,18 @@ bool load_todo_from_file(const char *load_file_path, FILE *load_file, List *old_
           list_append(&todo_list, new_todo);
 
           // Search if the todo has a local version
-          List_iterator iterator = list_iterator_create(*old_todo_list);
-          while (list_iterator_next(&iterator)) {
-            Todo *element = list_iterator_element(iterator);
-            if (!strcmp(element->name, new_todo->name)) {
-              old_todo = list_remove(old_todo_list, list_iterator_index(iterator));
-              break;
+          if (old_todo_list) {
+            List_iterator iterator = list_iterator_create(*old_todo_list);
+            while (list_iterator_next(&iterator)) {
+              Todo *element = list_iterator_element(iterator);
+              if (!strcmp(element->name, new_todo->name)) {
+                old_todo = list_remove(old_todo_list, list_iterator_index(iterator));
+                break;
+              }
             }
           }
 
-        } else if (indentation == 1 && !strcmp(atribute, "created:")) {
+        } else if (indentation == 1 && !strcmp(attribute, "created:")) {
           if (!new_todo) {
             ret = false;
             APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: No ToDo specified", load_file_path, line_nr);
@@ -227,7 +232,7 @@ bool load_todo_from_file(const char *load_file_path, FILE *load_file, List *old_
           }
           free(creation_time_cstr);
 
-        } else if (indentation == 1 && !strcmp(atribute, "hostname:")) {
+        } else if (indentation == 1 && !strcmp(attribute, "hostname:")) {
           if (!new_todo) {
             ret = false;
             APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: No ToDo specified", load_file_path, line_nr);
@@ -251,7 +256,7 @@ bool load_todo_from_file(const char *load_file_path, FILE *load_file, List *old_
             break;
           }
 
-        } else if (indentation == 1 && !strcmp(atribute, "notes_content:")) {
+        } else if (indentation == 1 && !strcmp(attribute, "notes_content:")) {
           if (!new_todo) {
             ret = false;
             APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: No ToDo specified", load_file_path, line_nr);
@@ -271,7 +276,7 @@ bool load_todo_from_file(const char *load_file_path, FILE *load_file, List *old_
 
         } else {
           ret = false;
-          APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: Unknown attribute '%s'", load_file_path, line_nr, atribute);
+          APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: Unknown attribute '%s'", load_file_path, line_nr, attribute);
           state = STATE_EXIT;
         }
         break;
@@ -294,7 +299,7 @@ bool load_todo_from_file(const char *load_file_path, FILE *load_file, List *old_
           sb_append_with_format(&todo_notes, "%s\n", file_content);
           free(file_content);
 
-        } else if (indentation == 1 && !strcmp(atribute, "EOF")) {
+        } else if (indentation == 1 && !strcmp(attribute, "EOF")) {
           new_todo->notes = todo_notes.str;
           todo_notes = sb_new();
           state = STATE_PROPERTIES;
@@ -312,7 +317,7 @@ bool load_todo_from_file(const char *load_file_path, FILE *load_file, List *old_
         break;
     }
 
-    free(atribute); atribute = NULL;
+    free(attribute); attribute = NULL;
     sb_clean(&line);
   }
 
@@ -422,7 +427,7 @@ bool save_todo_to_file(FILE *file, Todo *todo) {
   return true;
 }
 
-bool save_todo_list(char *file_path) {
+bool save_todo_list(List list, char *file_path) {
   FILE *save_file = fopen(file_path, "w");
   if (!save_file) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to create the save file '%s'", file_path);
@@ -435,7 +440,7 @@ bool save_todo_list(char *file_path) {
     return false;
   }
 
-  List_iterator iterator = list_iterator_create(todo_list);
+  List_iterator iterator = list_iterator_create(list);
   while (list_iterator_next(&iterator)) {
     if (fputs("\n", save_file) == EOF) {
       fclose(save_file);
@@ -477,8 +482,8 @@ bool create_dir_structure() {
   return true;
 }
 
-bool load_todo_list(char *file_path, bool obligatory) {
-  if (!list_is_empty(todo_list)) abort();
+bool load_todo_list(List *list, char *file_path, bool obligatory) {
+  if (!list_is_empty(*list)) list_destroy(list, (void (*)(void *))free_todo);
 
   FILE *save_file = fopen(file_path, "r");
   if (!save_file) {
@@ -488,13 +493,13 @@ bool load_todo_list(char *file_path, bool obligatory) {
     return false;
   }
 
-  List old_todo_list = todo_list;
-  todo_list = list_new();
+  List old_list = *list;
+  *list = list_new();
 
   bool reached_eof = false;
-  while (load_todo_from_file(file_path, save_file, &old_todo_list, &reached_eof));
+  while (load_todo_from_file(file_path, save_file, &old_list, &reached_eof));
   fclose(save_file);
-  list_destroy(&old_todo_list, (void (*)(void *))free_todo);
+  list_destroy(&old_list, (void (*)(void *))free_todo);
 
   if (!reached_eof) APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "An error has occured while parsing the ToDos file");
 

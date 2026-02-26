@@ -7,6 +7,9 @@
 #include "utils/list.h"
 #include "utils/string.h"
 
+extern List todo_list;
+extern bool todo_list_modified;
+
 typedef enum {
   BACKTRACE_ERROR,
   BACKTRACE_INFO,

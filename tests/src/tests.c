@@ -35,8 +35,8 @@ Tests_state state = {
 // Lines of the export/state file that should not be compared,
 // because they are unique to the moment the program is run
 const char *incomparable_lines[] = {
-  EXPORT_FILE_INDENTATION "created:",
-  EXPORT_FILE_INDENTATION "hostname:",
+  SAVE_FILE_INDENTATION "created:",
+  SAVE_FILE_INDENTATION "hostname:",
 };
 const unsigned int incomparable_lines_count = sizeof(incomparable_lines) / sizeof(char *);
 
@@ -565,11 +565,16 @@ bool is_config_clean(Runner_data *runner_data, Test* t) {
     APPEND_TO_MESSAGES(runner_data, "Test", t->name, "Unable to open the ToDo list to see if it's empty");
     return false;
   }
-  unsigned int elements = list_peek_element_count_from_bfile(todos);
-  fclose(todos);
-  if (elements != 0) {
-    APPEND_TO_MESSAGES(runner_data, "Test", t->name, "There's still elements inside the ToDo list file");
-    return false;
+  // Read all the file. It should be ONE line (the header warning)
+  unsigned int expected_lines = 1;
+  char c = 0;
+  while ( (c = fgetc(todos)) != EOF) {
+    if (expected_lines == 0) {
+      APPEND_TO_MESSAGES(runner_data, "Test", t->name, "There's still elements inside the ToDo list file");
+      fclose(todos);
+      return false;
+    }
+    if (c == '\n') expected_lines--;
   }
 
   return true;

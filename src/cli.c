@@ -187,10 +187,9 @@ bool action_export_todos(Input *input) {
     return false;
   }
 
-  String_builder path = sb_create("%s/" SAVE_FILENAME, idea_state.local_path);
-  bool ret = save_todo_list(path.str);
-  sb_free(&path);
-  if (!ret) APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to export all the ToDos");
+  bool ret = save_todo_list(todo_list, export_path);
+  if (!ret) APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to export all the ToDos to '%s'", export_path);
+  free(export_path);
   return ret;
 }
 
@@ -243,7 +242,7 @@ bool action_import_todos(Input *input) {
     return false;
   }
 
-  bool ok = load_todo_list(import_path, true);
+  bool ok = load_todo_list(&todo_list, import_path, true);
   if (!ok) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import of '%s' failed!", import_path);
     free(import_path);
@@ -332,7 +331,7 @@ bool action_sync_todos(Input *input) {
     goto exit;
   }
 
-  if (!load_todo_list(local_path.str, true)) {
+  if (!load_todo_list(&todo_list, local_path.str, true)) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import failed");
     result = false;
     goto exit;

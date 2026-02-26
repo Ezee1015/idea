@@ -12,6 +12,9 @@
 State idea_state = {0};
 List backtrace = {0};
 
+List todo_list = list_new();
+bool todo_list_modified = false;
+
 bool lock_file() {
   if (access(idea_state.lock_filepath, F_OK) == 0) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Idea is already running...");
@@ -135,7 +138,7 @@ int main(int argc, char *argv[]) {
     return RET_CODE_LOCK_ERROR;
   }
 
-  if (load_todo_list(idea_state.todos_filepath, false)) {
+  if (load_todo_list(&todo_list, idea_state.todos_filepath, false)) {
     if (argc == 1) {
       // TUI Version
       ret = (window_app()) ? RET_CODE_SUCCESS : RET_CODE_TUI_ERROR;
@@ -149,7 +152,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (ret == RET_CODE_SUCCESS && todo_list_modified) {
-    if (!save_todo_list(idea_state.todos_filepath)) {
+    if (!save_todo_list(todo_list, idea_state.todos_filepath)) {
       APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to save the ToDos in '%s'", idea_state.todos_filepath);
       cli_print_backtrace();
       ret = RET_CODE_SAVE_FILE_ERROR;
