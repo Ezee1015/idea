@@ -1,174 +1,49 @@
 #ifndef MAPPINGS
 
+#include <stdbool.h>
+
 #define ESCAPE_KEY 27
 #define BACKSPACE_KEY 127
 #define ENTER_KEY 10
 
-// X(key, description, code_block)
-#define MAPPINGS() \
-\
-  X(' ', "Toggle select", { \
-    APPLY_MULTIPLIER({      \
-      toggle_select_item(); \
-      next_position();      \
-    });                     \
-  })                        \
-\
-  X('j', "Move the cursor down", {                       \
-    APPLY_MULTIPLIER({                                   \
-      switch (tui_st.mode) {                             \
-        case MODE_NORMAL:  next_position();       break; \
-        case MODE_VISUAL:  visual_move_cursor(1); break; \
-        case MODE_COMMAND: break; /* unreachable */      \
-      }                                                  \
-    });                                                  \
-  })                                                     \
-\
-  X('k', "Move the cursor up", {                         \
-    APPLY_MULTIPLIER({                                   \
-      switch (tui_st.mode) {                             \
-        case MODE_NORMAL: previous_position();    break; \
-        case MODE_VISUAL: visual_move_cursor(-1); break; \
-        case MODE_COMMAND: break; /* unreachable */      \
-      }                                                  \
-    });                                                  \
-  })                                                     \
-\
-  X('g', "Move the cursor and the selected items to the top", {                   \
-    switch (tui_st.mode) {                                                        \
-      case MODE_NORMAL:                                                           \
-        if (!list_is_empty(tui_st.selected)) {                                    \
-          while (move_selected(-1));                                              \
-        }                                                                         \
-        while (previous_position());                                              \
-        break;                                                                    \
-      case MODE_VISUAL: while (tui_st.current_pos) visual_move_cursor(-1); break; \
-      case MODE_COMMAND: break; /* unreachable */                                 \
-    }                                                                             \
-    tui_st.command_multiplier = 0;                                                \
-  })                                                                              \
-\
-  X('G', "Move the cursor and the selected items to the bottom", {                                        \
-    if (!list_is_empty(todo_list)) break;                                                                 \
-                                                                                                          \
-    switch (tui_st.mode) {                                                                                \
-      case MODE_NORMAL:                                                                                   \
-        if (!list_is_empty(tui_st.selected)) {                                                            \
-          while (move_selected(1));                                                                       \
-        }                                                                                                 \
-        while (next_position());                                                                          \
-        break;                                                                                            \
-      case MODE_VISUAL: while (tui_st.current_pos < list_size(todo_list)-1) visual_move_cursor(1); break; \
-      case MODE_COMMAND: break; /* unreachable  */                                                        \
-    }                                                                                                     \
-    tui_st.command_multiplier = 0;                                                                        \
-  })                                                                                                      \
-\
-  X('s', "Save the changes to disk (same as :w)", { \
-    action_save(NULL);                              \
-  })                                                \
-  \
-  X('W', "Save and Exit idea (same as :wq)", {      \
-    action_save_and_quit(NULL);                     \
-    })                                              \
-\
-  X('Q', "Exit idea without saving (same as :q!)", { \
-    action_force_quit(NULL);                         \
-  })                                                 \
-\
-  X('q', "Confirm to Save and Exit idea (same as :q)", {                       \
-      action_quit(NULL);                                                       \
-  })                                                                           \
-\
-  X('V', "Enter or Exit visual mode", {                                        \
-    switch (tui_st.mode) {                                                     \
-      case MODE_NORMAL:                                                        \
-        tui_st.visual_start_pos = tui_st.current_pos;                          \
-        tui_st.mode = MODE_VISUAL;                                             \
-        tui_st.visual_mode = (is_current_item_selected())                      \
-                             ? VISUAL_UNSELECT                                 \
-                             : VISUAL_SELECT;                                  \
-                                                                               \
-        APPLY_MULTIPLIER({                                                     \
-          switch (tui_st.visual_mode) {                                        \
-            case VISUAL_SELECT:   select_current_item();   break;              \
-            case VISUAL_UNSELECT: unselect_current_item(); break;              \
-          }                                                                    \
-          next_position();                                                     \
-        });                                                                    \
-                                                                               \
-        if (tui_st.current_pos != list_size(todo_list)-1) previous_position(); \
-        break;                                                                 \
-                                                                               \
-      case MODE_VISUAL:                                                        \
-        tui_st.mode = MODE_NORMAL;                                             \
-        tui_st.command_multiplier = 0;                                         \
-        break;                                                                 \
-                                                                               \
-      case MODE_COMMAND: break; /* unreachable */                              \
-    }                                                                          \
-  })                                                                           \
-\
-  X('J', "Move the selected ToDos down", {                           \
-    APPLY_MULTIPLIER({                                               \
-        if (move_selected(1)) {                                      \
-          next_position();                                           \
-          if (tui_st.mode == MODE_VISUAL) tui_st.visual_start_pos++; \
-          todo_list_modified = true;                                 \
-        }                                                            \
-    });                                                              \
-    break;                                                           \
-  })                                                                 \
-\
-  X('K', "Move the selected ToDos up", {                             \
-    APPLY_MULTIPLIER({                                               \
-        if (move_selected(-1)) {                                     \
-          previous_position();                                       \
-          if (tui_st.mode == MODE_VISUAL) tui_st.visual_start_pos--; \
-          todo_list_modified = true;                                 \
-        }                                                            \
-    });                                                              \
-  })                                                                 \
-\
-  X('u', "Unselect all the selected items", {                             \
-    if (tui_st.mode == MODE_NORMAL) list_destroy(&tui_st.selected, NULL); \
-    tui_st.command_multiplier = 0;                                        \
-    break;                                                                \
-  })                                                                      \
-\
-  X(':', "Enter command mode", {                                \
-    if (tui_st.mode == MODE_NORMAL) tui_st.mode = MODE_COMMAND; \
-    tui_st.command_multiplier = 0;                              \
-    curs_set(1);                                                \
-  })                                                            \
-\
-  X(ESCAPE_KEY, "Clear the command multiplier", {                 \
-    if (tui_st.command_multiplier) tui_st.command_multiplier = 0; \
-  })                                                              \
-\
-  X('d', "Delete the selected ToDos", {                                \
-    if (tui_st.mode == MODE_NORMAL) {                                  \
-      /* if (list_is_empty(tui_st.selected)) select_current_item(); */ \
-                                                                       \
-      if (delete_selected()) todo_list_modified = true;                \
-    }                                                                  \
-  })                                                                   \
-\
-  X('o', "Create a new ToDo below the cursor", {                                                                                \
-    unsigned int pos = (list_is_empty(todo_list)) ? 1 : tui_st.current_pos + 1 /* 0-based to 1-based) */ + 1 /* next pos */;    \
-    populate_input("add_at %d ", pos);                                                                                          \
-    tui_st.command_multiplier = 0;                                                                                              \
-  })                                                                                                                            \
-\
-  X('O', "Create a new ToDo above the cursor", {                                                    \
-    populate_input("add_at %d ", tui_st.current_pos + 1 /* 0-based to 1-based) */);                 \
-    tui_st.command_multiplier = 0;                                                                  \
-  })                                                                                                \
-\
-  X('a', "Change the name of the current ToDo", {                                                              \
-    const char *todo_name = ((Todo *)list_get(todo_list, tui_st.current_pos))->name;                           \
-    populate_input("edit %d %s", tui_st.current_pos + 1 /* 0-based to 1-based) */, todo_name);                 \
-    tui_st.command_multiplier = 0;                                                                             \
-  })
+#define STRINGIFY(...) (char[]){__VA_ARGS__, '\0'}
+
+#define APPLY_MULTIPLIER(command) do {                                                            \
+  if (tui_st.command_multiplier == 0) {                                                           \
+    command;                                                                                      \
+  } else {                                                                                        \
+    for (unsigned int i=0; i<tui_st.command_multiplier && i < list_size(todo_list); i++) command; \
+    tui_st.command_multiplier = 0;                                                                \
+  }                                                                                               \
+} while (0)
+
+typedef struct {
+  char *keys;
+  char *description;
+  void (*action)();
+} Normal_visual_map;
+
+void nv_map_toggle();
+void nv_map_cursor_down();
+void nv_map_cursor_up();
+void nv_map_move_to_top();
+void nv_map_move_to_bottom();
+void nv_map_save();
+void nv_map_save_and_exit();
+void nv_map_force_quit();
+void nv_map_quit();
+void nv_map_toggle_visual();
+void nv_map_move_down();
+void nv_map_move_up();
+void nv_map_unselect();
+void nv_map_command();
+void nv_map_clear_command_multiplier();
+void nv_map_delete();
+void nv_map_add_below_cursor();
+void nv_map_add_above_cursor();
+void nv_map_edit();
+
+extern Normal_visual_map nv_maps[];
+extern unsigned int nv_maps_count;
 
 #endif // MAPPINGS

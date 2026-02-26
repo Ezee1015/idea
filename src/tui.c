@@ -10,15 +10,6 @@
 #include "parser.h"
 #include "tui_mappings.h"
 
-#define APPLY_MULTIPLIER(command) do {                                                            \
-  if (tui_st.command_multiplier == 0) {                                                           \
-    command;                                                                                      \
-  } else {                                                                                        \
-    for (unsigned int i=0; i<tui_st.command_multiplier && i < list_size(todo_list); i++) command; \
-    tui_st.command_multiplier = 0;                                                                \
-  }                                                                                               \
-} while (0)
-
 #define i_div_ceil(dividend, divisor) (dividend % divisor)     \
                                       ? dividend / divisor + 1 \
                                       : dividend / divisor;
@@ -28,6 +19,14 @@ Point area_start = {0};
 Size area_size = {0};
 Tui_state tui_st = {0};
 char input[256] = {0};
+char map_buffer[4] = {0};
+
+void redraw_map_buffer() {
+  for (unsigned int x = 0; x < sizeof(map_buffer); x++) {
+    mvaddch(area_start.y, area_start.x + area_size.width - x, ' ');
+  }
+  mvprintw(area_start.y, area_start.x + area_size.width - strlen(map_buffer), "%s", map_buffer);
+}
 
 void draw_window(void) {
   int status_line_height = 2;
@@ -83,6 +82,8 @@ void draw_window(void) {
         area_start.x,
         "%s", cursor);
   }
+
+  redraw_map_buffer();
 
   if (tui_st.mode == MODE_COMMAND) {
     move(area_start.y, area_start.x + cursor_length + strlen(command) + strlen(input));
@@ -276,8 +277,8 @@ void vi_input_remove(int *input_cursor, int *input_length, int *cursor_x, int cu
 
 void vi_input_remove_word(int *cursor, int *length, int *cursor_x, int cursor_y, bool around) {
   int start = *cursor, end = *cursor;
-  vi_input_move_to_previous_character(&start, (char[2]){' ', '\0'});
-  vi_input_move_to_next_character(&end, *length, (char[2]){' ', '\0'});
+  vi_input_move_to_previous_character(&start, STRINGIFY(' '));
+  vi_input_move_to_next_character(&end, *length, STRINGIFY(' '));
 
   // inside word
   if (start) start++;
@@ -307,28 +308,11 @@ bool parse_command() {
     VI_NORMAL,
   } vi_mode = VI_INSERT;
 
-  Point command_start = {
-    .x = getcurx(stdscr),
-    .y = getcury(stdscr),
-  };
-  switch (vi_mode) {
-    case VI_NORMAL: mvprintw(command_start.y, area_start.x, "[N]"); break;
-    case VI_INSERT: mvprintw(command_start.y, area_start.x, "[I]"); break;
-  }
-  move(command_start.y, command_start.x);
-
-  char vi_normal_buf[4] = {0};
-  int x = command_start.x, y = command_start.y;
+  int x = getcurx(stdscr), y = getcury(stdscr);
   while (read) {
-    // Clear vi_normal_buf on the screen
-    for (unsigned int x = 0; x < sizeof(vi_normal_buf); x++) {
-      mvaddch(y, area_start.x + area_size.width - x, ' ');
-    }
-
     switch (vi_mode) {
       case VI_NORMAL:
         mvprintw(y, area_start.x, "[N]");
-        mvprintw(y, area_start.x + area_size.width - strlen(vi_normal_buf), "%s", vi_normal_buf);
         break;
 
       case VI_INSERT:
@@ -343,7 +327,7 @@ bool parse_command() {
     switch (vi_mode) {
       case VI_INSERT:
         if (c == '`') {
-          vi_mode =  VI_NORMAL;
+          vi_mode = VI_NORMAL;
           vi_input_refresh_characters(1, y, &x, &i, length, input);
         }
         else if (c == BACKSPACE_KEY) {
@@ -377,8 +361,9 @@ bool parse_command() {
         vi_input_refresh_characters(chars_to_clear, y, &x, &i, length, input);
 
         if (c == ESCAPE_KEY) {
-          if (vi_normal_buf[0] != '\0') {
-            vi_normal_buf[0] = '\0';
+          if (map_buffer[0] != '\0') {
+            clean_map_buffer();
+            redraw_map_buffer();
             c = 0;
           }
           break;
@@ -386,89 +371,84 @@ bool parse_command() {
           break;
         }
 
-        unsigned int vi_normal_buf_len = strlen(vi_normal_buf);
-        if (vi_normal_buf_len < sizeof(vi_normal_buf)-1) {
-          vi_normal_buf[vi_normal_buf_len++] = c;
-          vi_normal_buf[vi_normal_buf_len] = '\0';
-        } else {
-          for (unsigned int x = 0; x < sizeof(vi_normal_buf)-1; x++) vi_normal_buf[x] = vi_normal_buf[x+1];
-          vi_normal_buf[--vi_normal_buf_len] = c;
-        }
+        append_to_map_buffer(c);
 
-        if (!strcmp(vi_normal_buf, "h")) {
+        if (!strcmp(map_buffer, "h")) {
           if (i) { move(y, --x); i--; }
-          vi_normal_buf[0] = '\0';
-        } else if (!strcmp(vi_normal_buf, "q")) {
+          clean_map_buffer();
+        } else if (!strcmp(map_buffer, "q")) {
           c = ESCAPE_KEY;
-          vi_normal_buf[0] = '\0';
-        } else if (!strcmp(vi_normal_buf, "l")) {
+          clean_map_buffer();
+        } else if (!strcmp(map_buffer, "l")) {
           if (i < length) { move(y, ++x); i++; }
-          vi_normal_buf[0] = '\0';
-        } else if (!strcmp(vi_normal_buf, "`") || !strcmp(vi_normal_buf, "i")) {
+          clean_map_buffer();
+        } else if (!strcmp(map_buffer, "`") || !strcmp(map_buffer, "i")) {
           vi_mode = VI_INSERT;
-          vi_normal_buf[0] = '\0';
-        } else if (!strcmp(vi_normal_buf, "a")) {
+          clean_map_buffer();
+        } else if (!strcmp(map_buffer, "a")) {
           if (i != length) { i++; move(y, ++x); }
           vi_mode = VI_INSERT;
-          vi_normal_buf[0] = '\0';
-        } else if (!strcmp(vi_normal_buf, "b")) {
+          clean_map_buffer();
+        } else if (!strcmp(map_buffer, "b")) {
           unsigned int start = i;
           if (i > 0) i--; // To skip the space at the left of the cursor when pressing multiple times 'b'
-          if (vi_input_move_to_previous_character(&i, (char[2]){' ', '\0'})) i++;
+          if (vi_input_move_to_previous_character(&i, STRINGIFY(' '))) i++;
           unsigned int delta = start - i;
           move(y, x -= delta);
-          vi_normal_buf[0] = '\0';
-        } else if (!strcmp(vi_normal_buf, "w")) {
+          clean_map_buffer();
+        } else if (!strcmp(map_buffer, "w")) {
           unsigned int start = i;
-          if (vi_input_move_to_next_character(&i, length, (char[2]){' ', '\0'})) i++;
+          if (vi_input_move_to_next_character(&i, length, STRINGIFY(' '))) i++;
           unsigned int delta = i - start;
           move(y, x+=delta);
-          vi_normal_buf[0] = '\0';
-        } else if (!strcmp(vi_normal_buf, "e")) {
+          clean_map_buffer();
+        } else if (!strcmp(map_buffer, "e")) {
           unsigned int start = i;
           if (i == length-1) {
             i = length;
           } else {
             i++; // To skip the space at the right of the cursor when pressing multiple times 'e'
-            vi_input_move_to_next_character(&i, length, (char[2]){' ', '\0'});
+            vi_input_move_to_next_character(&i, length, STRINGIFY(' '));
             i--; // Go to the last letter of the word
           }
           unsigned int delta = i - start;
           move(y, x+=delta);
-          vi_normal_buf[0] = '\0';
-        } else if (!strcmp(vi_normal_buf, "0")) {
+          clean_map_buffer();
+        } else if (!strcmp(map_buffer, "0")) {
           move(y, x-=i);
           i = 0;
-          vi_normal_buf[0] = '\0';
-        } else if (!strcmp(vi_normal_buf, "I")) {
+          clean_map_buffer();
+        } else if (!strcmp(map_buffer, "I")) {
           move(y, x-=i);
           i = 0;
           vi_mode = VI_INSERT;
-          vi_normal_buf[0] = '\0';
-        } else if (!strcmp(vi_normal_buf, "$") || !strcmp(vi_normal_buf, "gl")) {
+          clean_map_buffer();
+        } else if (!strcmp(map_buffer, "$") || !strcmp(map_buffer, "gl")) {
           move(y, x+=(length-i));
           i = length;
-          vi_normal_buf[0] = '\0';
-        } else if (!strcmp(vi_normal_buf, "A")) {
+          clean_map_buffer();
+        } else if (!strcmp(map_buffer, "A")) {
           move(y, x+=(length-i));
           i = length;
           vi_mode = VI_INSERT;
-          vi_normal_buf[0] = '\0';
-        } else if (!strcmp(vi_normal_buf, "diw")) {
+          clean_map_buffer();
+        } else if (!strcmp(map_buffer, "diw")) {
           vi_input_remove_word(&i, &length, &x, y, false);
-          vi_normal_buf[0] = '\0';
-        } else if (!strcmp(vi_normal_buf, "daw")) {
+          clean_map_buffer();
+        } else if (!strcmp(map_buffer, "daw")) {
           vi_input_remove_word(&i, &length, &x, y, true);
-          vi_normal_buf[0] = '\0';
-        } else if (!strcmp(vi_normal_buf, "ciw")) {
+          clean_map_buffer();
+        } else if (!strcmp(map_buffer, "ciw")) {
           vi_input_remove_word(&i, &length, &x, y, false);
           vi_mode = VI_INSERT;
-          vi_normal_buf[0] = '\0';
-        } else if (!strcmp(vi_normal_buf, "caw")) {
+          clean_map_buffer();
+        } else if (!strcmp(map_buffer, "caw")) {
           vi_input_remove_word(&i, &length, &x, y, true);
           vi_mode = VI_INSERT;
-          vi_normal_buf[0] = '\0';
+          clean_map_buffer();
         }
+
+        redraw_map_buffer();
         break;
       }
     }
@@ -593,7 +573,7 @@ bool delete_selected() {
   return true;
 }
 
-void populate_input(const char *fmt, ...) {
+void populate_command_input(const char *fmt, ...) {
   tui_st.mode = MODE_COMMAND;
   curs_set(1);
 
@@ -768,14 +748,20 @@ bool action_help(Input *input) {
   unsigned int max_functionality_per_page = 5;
 
   // Create a temporary functionality list only to use the show_functionality_message()
-  const Functionality tui_mappings[] = {
-#define X(key, description, code_block) { (char [2]){key, '\0'}, NULL, NULL, MAN(description, NULL)},
-    MAPPINGS()
-#undef X
+  const unsigned int tui_mappings_count = nv_maps_count + 1;
+  Functionality *tui_mappings = malloc(tui_mappings_count * sizeof(Functionality));
+  if (!tui_mappings) return false;
+  for (unsigned int i=0; i<nv_maps_count; i++) {
+    tui_mappings[i].full_cmd = nv_maps[i].keys;
+    tui_mappings[i].abbreviation_cmd = NULL;
+    tui_mappings[i].function_cmd = NULL;
+    tui_mappings[i].man = MAN(nv_maps[i].description, NULL);
+  }
+  tui_mappings[nv_maps_count].full_cmd = "[1-9]";
+  tui_mappings[nv_maps_count].abbreviation_cmd = NULL;
+  tui_mappings[nv_maps_count].function_cmd = NULL;
+  tui_mappings[nv_maps_count].man = MAN("Number of times to repeat the command (command multiplier)", NULL);
 
-   { "[1-9]", NULL, NULL, MAN("Number of times to repeat the command (command multiplier)", NULL) },
-  };
-  const unsigned int tui_mappings_count = sizeof(tui_mappings) / sizeof(tui_mappings[0]);
 
   const struct {
     const char *name;
@@ -818,6 +804,7 @@ bool action_help(Input *input) {
     }
   } while (r != HELP_RETURN_QUIT);
 
+  free(tui_mappings);
   return true;
 }
 
@@ -910,17 +897,38 @@ Functionality tui_functionality[] = {
 };
 unsigned int tui_functionality_count = sizeof(tui_functionality) / sizeof(Functionality);
 
+void append_to_map_buffer(char c) {
+  unsigned int vi_normal_buf_len = strlen(map_buffer);
+  if (vi_normal_buf_len < sizeof(map_buffer)-1) {
+    map_buffer[vi_normal_buf_len++] = c;
+    map_buffer[vi_normal_buf_len] = '\0';
+  } else {
+    for (unsigned int x = 0; x < sizeof(map_buffer)-1; x++) map_buffer[x] = map_buffer[x+1];
+    map_buffer[--vi_normal_buf_len] = c;
+  }
+}
+
+void clean_map_buffer() {
+  map_buffer[0] = '\0';
+}
+
 void parse_normal() {
   char c = getch();
 
-  switch (c) {
-#define X(key, description, code_block) case key: code_block; break;
-    MAPPINGS()
-#undef X
+  if (isdigit(c)) {
+    tui_st.command_multiplier = (tui_st.command_multiplier * 10) + (c-'0');
+  } else if (c == ESCAPE_KEY) {
+    clean_map_buffer();
+  } else {
+    append_to_map_buffer(c);
 
-    default:
-      if (isdigit(c)) tui_st.command_multiplier = (tui_st.command_multiplier * 10) + (c-'0');
-      break;
+    for (unsigned int i=0; i<nv_maps_count; i++) {
+      if (!strcmp(map_buffer, nv_maps[i].keys)) {
+        nv_maps[i].action();
+        clean_map_buffer();
+        break;
+      }
+    }
   }
 }
 

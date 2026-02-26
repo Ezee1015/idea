@@ -5,6 +5,8 @@
 #include "utils/list.h"
 #include "todo_list.h"
 
+extern char input[];
+
 typedef struct {
   unsigned int width;
   unsigned int height;
@@ -37,6 +39,7 @@ typedef struct {
   unsigned int visual_start_pos;
 
 } Tui_state;
+extern Tui_state tui_st;
 
 typedef enum {
   CONFIRM_NORMAL,
@@ -61,12 +64,16 @@ void tui_print_backtrace();
 void update_area_x_axis();
 void update_area_y_axis();
 
+void append_to_map_buffer(char c);
+void clean_map_buffer();
+
 // Command mode
 Help_result show_functionality_message(const char *source, const unsigned source_index, const unsigned int source_count, const Functionality *functionality, const unsigned int functionality_count, bool are_commands, bool from_the_end, unsigned int *max_functionality_per_page);
 bool parse_command();
 
 // Actions for command mode
 bool action_quit(Input *input);
+bool action_force_quit(Input *input);
 bool action_save(Input *input);
 bool action_save_and_quit(Input *input);
 bool action_help(Input *input);
@@ -75,14 +82,6 @@ bool action_add_at_todo_tui(Input *input);
 
 extern Functionality tui_functionality[];
 extern unsigned int tui_functionality_count;
-
-// Vi-like input in the TUI
-bool vi_input_move_to_previous_character(int *input_cursor, char *stop_characters);
-bool vi_input_move_to_next_character(int *input_cursor, int input_length, char *stop_characters);
-void vi_input_adjust_around(int *start, int *end, int input_length);
-void vi_input_remove(int *input_cursor, int *input_length, int *cursor_x, int cursor_y, int start, int end);
-void vi_input_remove_word(int *cursor, int *length, int *cursor_x, int cursor_y, bool around);
-void vi_input_refresh_characters(int chars_to_clear, int cursor_y, int *cursor_x, int *input_cursor, int input_len, char *input);
 
 // Normal-Visual mode
 bool is_current_item_selected();
@@ -95,6 +94,6 @@ bool move_selected(int direction);
 bool delete_selected();
 void visual_move_cursor(int direction);
 void parse_normal();
-void populate_input(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+void populate_command_input(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
 #endif // TUI_H
