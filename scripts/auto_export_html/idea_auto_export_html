@@ -3,7 +3,7 @@
 if [[ -z $IDEA_LOCAL_PATH ]]; then
     IDEA_LOCAL_PATH="$HOME/.local/share/idea"
 fi
-TODO_LIST_BIN=$IDEA_LOCAL_PATH/todos.bin
+TODO_LIST_BIN=$IDEA_LOCAL_PATH/todos.txt
 
 # Source: https://stackoverflow.com/a/246128
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
