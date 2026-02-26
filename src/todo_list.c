@@ -372,18 +372,6 @@ bool write_notes_to_file(FILE *save_file, Todo *todo) {
   return true;
 }
 
-char *escape_backslash_cstr(String_builder *sb, char *cstr) {
-  sb_clean(sb);
-
-  unsigned int str_length = strlen(cstr);
-  for (unsigned int i=0; i<str_length; i++) {
-    if (cstr[i] == '\\') sb_append(sb, "\\\\");
-    else sb_append_char(sb, cstr[i]);
-  }
-
-  return sb->str;
-}
-
 bool save_todo_to_file(FILE *file, Todo *todo) {
   if (fprintf(file, "todo\n") <= 0) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to write to the export file");
