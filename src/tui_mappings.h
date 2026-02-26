@@ -7,6 +7,47 @@
 #define ENTER_KEY 10
 
 #define STRINGIFY(...) (char[]){__VA_ARGS__, '\0'}
+//////////////////////////////////////////////////////
+///////////////////// INPUT MAPS /////////////////////
+//////////////////////////////////////////////////////
+
+#define CMD_INPUT_MODE_KEY '`'
+
+typedef enum {
+  COMMAND_INSERT,
+  COMMAND_NORMAL,
+} Command_input_mode;
+extern Command_input_mode command_input_mode;
+
+typedef struct {
+  char *keys;
+  char *description;
+  void (*action)(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+} Command_map;
+
+void c_map_left(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_right(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_quit(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_insert(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_append(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_backward_word(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_forward_word(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_forward_word_end(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_start(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_end(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_insert_start(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_append_end(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_delete_inner_word(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_delete_around_word(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_change_inner_word(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_change_around_word(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+
+extern Command_map c_maps[];
+extern unsigned int c_maps_count;
+
+////////////////////////////////////////////////////////
+////////////////// Normal-Visual MAPS //////////////////
+////////////////////////////////////////////////////////
 
 #define APPLY_MULTIPLIER(command) do {                                                            \
   if (tui_st.command_multiplier == 0) {                                                           \

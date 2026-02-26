@@ -1,6 +1,154 @@
 #include "tui_mappings.h"
 #include "tui.h"
 
+#define UNUSED(var) (void) var;
+
+Command_input_mode command_input_mode = COMMAND_INSERT;
+
+//////////////////////////////////////////////////////
+///////////////////// INPUT MAPS /////////////////////
+//////////////////////////////////////////////////////
+
+void c_map_left(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  UNUSED(input_length);
+
+  if (!*input_cursor) return;
+  move(screen_y, --(*screen_x)); (*input_cursor)--;
+}
+
+void c_map_right(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  if (*input_cursor >= *input_length) return;
+  move(screen_y, ++(*screen_x));
+  (*input_cursor)++;
+}
+
+void c_map_quit(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  UNUSED(input_cursor);
+  UNUSED(input_length);
+  UNUSED(screen_y);
+  UNUSED(screen_x);
+
+  tui_st.mode = MODE_NORMAL;
+}
+
+void c_map_insert(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  UNUSED(input_cursor);
+  UNUSED(input_length);
+  UNUSED(screen_y);
+  UNUSED(screen_x);
+
+  command_input_mode = COMMAND_INSERT;
+}
+
+void c_map_append(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  if (*input_cursor == *input_length) return;
+  (*input_cursor)++;
+  move(screen_y, ++(*screen_x));
+  command_input_mode = COMMAND_INSERT;
+}
+
+void c_map_backward_word(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  UNUSED(input_length);
+
+  unsigned int start = *input_cursor;
+  if (*input_cursor > 0) (*input_cursor)--; // To skip the space at the left of the cursor when pressing multiple times 'b'
+  if (command_input_move_to_previous_character(input_cursor, STRINGIFY(' '))) (*input_cursor)++;
+  unsigned int delta = start - *input_cursor;
+  (*screen_x) -= delta;
+  move(screen_y, *screen_x);
+}
+
+void c_map_forward_word(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  unsigned int start = *input_cursor;
+  if (command_input_move_to_next_character(input_cursor, *input_length, STRINGIFY(' '))) (*input_cursor)++;
+  unsigned int delta = *input_cursor - start;
+  *screen_x += delta;
+  move(screen_y, *screen_x);
+}
+
+void c_map_forward_word_end(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  unsigned int start = *input_cursor;
+  if (*input_cursor == *input_length-1) {
+    *input_cursor = *input_length;
+  } else {
+    (*input_cursor)++; // To skip the space at the right of the cursor when pressing multiple times 'e'
+    command_input_move_to_next_character(input_cursor, *input_length, STRINGIFY(' '));
+    (*input_cursor)--; // Go to the last letter of the word
+  }
+  unsigned int delta = *input_cursor - start;
+  *screen_x += delta;
+  move(screen_y, *screen_x);
+}
+
+void c_map_start(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  UNUSED(input_length);
+
+  *screen_x -= *input_cursor;
+  move(screen_y, *screen_x);
+  *input_cursor = 0;
+}
+
+void c_map_end(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  *screen_x += *input_length - *input_cursor;
+  move(screen_y, *screen_x);
+  *input_cursor = *input_length;
+}
+
+void c_map_insert_start(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  c_map_start(input_cursor, input_length, screen_y, screen_x);
+  command_input_mode = COMMAND_INSERT;
+}
+
+void c_map_append_end(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  c_map_end(input_cursor, input_length, screen_y, screen_x);
+  command_input_mode = COMMAND_INSERT;
+}
+
+void c_map_delete_inner_word(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  command_input_remove_word(input_cursor, input_length, screen_x, screen_y, false);
+}
+
+void c_map_delete_around_word(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  command_input_remove_word(input_cursor, input_length, screen_x, screen_y, true);
+}
+
+void c_map_change_inner_word(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  c_map_delete_inner_word(input_cursor, input_length, screen_y, screen_x);
+  command_input_mode = COMMAND_INSERT;
+}
+
+void c_map_change_around_word(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  c_map_delete_around_word(input_cursor, input_length, screen_y, screen_x);
+  command_input_mode = COMMAND_INSERT;
+}
+
+Command_map c_maps[] = {
+  { STRINGIFY(CMD_INPUT_MODE_KEY), "INSERT-NORMAL: Switch the input between insert and normal mode", c_map_insert },
+  { "q"  , "NORMAL: Quit input"                            , c_map_quit },
+  { "i"  , "NORMAL: Insert"                                , c_map_insert },
+  { "a"  , "NORMAL: Append"                                , c_map_append },
+  { "h"  , "NORMAL: Move left"                             , c_map_left },
+  { "l"  , "NORMAL: Move right"                            , c_map_right },
+  { "b"  , "NORMAL: Move backward a word"                  , c_map_backward_word },
+  { "w"  , "NORMAL: Move forward a word"                   , c_map_forward_word },
+  { "e"  , "NORMAL: Move forward to the end of word"       , c_map_forward_word_end },
+  { "0"  , "NORMAL: Go to the first character of the input", c_map_start },
+  { "$"  , "NORMAL: Go to the last character of the input" , c_map_end },
+  { "gl" , "NORMAL: Go to the last character of the input" , c_map_end },
+  { "I"  , "NORMAL: Insert text at the start of the input" , c_map_insert_start },
+  { "A"  , "NORMAL: Append text at the end of the input"   , c_map_append_end },
+  { "diw", "NORMAL: Delete inner word"                     , c_map_delete_inner_word },
+  { "daw", "NORMAL: Delete a word"                         , c_map_delete_around_word },
+  { "ciw", "NORMAL: Change inner word"                     , c_map_change_inner_word },
+  { "caw", "NORMAL: Change a word"                         , c_map_change_around_word },
+};
+
+unsigned int c_maps_count = sizeof(c_maps) / sizeof(Command_map);
+
+////////////////////////////////////////////////////////
+////////////////// Normal-Visual MAPS //////////////////
+////////////////////////////////////////////////////////
+
 void nv_map_toggle() {
   APPLY_MULTIPLIER({
     toggle_select_item();

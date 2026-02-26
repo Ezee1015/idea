@@ -70,6 +70,13 @@ void clean_map_buffer();
 // Command mode
 Help_result show_functionality_message(const char *source, const unsigned source_index, const unsigned int source_count, const Functionality *functionality, const unsigned int functionality_count, bool are_commands, bool from_the_end, unsigned int *max_functionality_per_page);
 bool parse_command();
+// Command input generic actions
+bool command_input_move_to_previous_character(int *input_cursor, char *stop_characters);
+bool command_input_move_to_next_character(int *input_cursor, int input_length, char *stop_characters);
+void command_input_adjust_around(int *start, int *end, int input_length);
+void command_input_remove(int *input_cursor, int *input_length, int *cursor_x, int cursor_y, int start, int end);
+void command_input_remove_word(int *cursor, int *length, int *cursor_x, int cursor_y, bool around);
+void command_input_refresh_characters(int chars_to_clear, int cursor_y, int *cursor_x, int *input_cursor, int input_len, char *input);
 
 // Actions for command mode
 bool action_quit(Input *input);
