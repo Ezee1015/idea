@@ -76,7 +76,7 @@ bool command_input_move_to_next_character(int *input_cursor, int input_length, c
 void command_input_adjust_around(int *start, int *end, int input_length);
 void command_input_remove(int *input_cursor, int *input_length, int *screen_x, int screen_y, int start, int end);
 void command_input_remove_word(int *cursor, int *length, int *screen_x, int screen_y, bool around);
-void command_input_refresh_characters(int chars_to_clear, int screen_y, int *screen_x, int *input_cursor, int input_len, char *input);
+void command_input_refresh_characters(int chars_to_clear, int screen_y, int *screen_x, int *input_cursor, int input_len);
 
 // Actions for command mode
 bool action_quit(Input *input);

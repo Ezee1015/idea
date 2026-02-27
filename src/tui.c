@@ -1,4 +1,3 @@
-#include <ctype.h>
 #include <ncurses.h>
 #include <string.h>
 #include <stdlib.h>
@@ -289,7 +288,7 @@ void command_input_remove_word(int *cursor, int *length, int *screen_x, int scre
   command_input_remove(cursor, length, screen_x, screen_y, start, end);
 }
 
-void command_input_refresh_characters(int chars_to_clear, int screen_y, int *screen_x, int *input_cursor, int input_len, char *input) {
+void command_input_refresh_characters(int chars_to_clear, int screen_y, int *screen_x, int *input_cursor, int input_len) {
   *screen_x -= chars_to_clear;
   for (int z=0; z < chars_to_clear; z++) {
     mvprintw(screen_y, *screen_x + z, "%c", (*input_cursor+z >= input_len) ? ' ' : input[*input_cursor+z]);
@@ -318,10 +317,10 @@ bool parse_command() {
       case COMMAND_INSERT:
         if (c == CMD_INPUT_MODE_KEY) {
           command_input_mode = COMMAND_NORMAL;
-          command_input_refresh_characters(1, y, &x, &i, length, input);
+          command_input_refresh_characters(1, y, &x, &i, length);
         }
         else if (c == BACKSPACE_KEY) {
-          command_input_refresh_characters(2, y, &x, &i, length, input); // for the ^? symbol of backspace
+          command_input_refresh_characters(2, y, &x, &i, length); // for the ^? symbol of backspace
           if (i > 0) {
             bool is_after_last_char = (i > 1 && i == length);
             move(y, --x); i--;
@@ -337,7 +336,7 @@ bool parse_command() {
             // input.
             if (is_after_last_char) { move(y, ++x); i++; }
           }
-        } else if (isalnum(c) || c == ' ' || c == '_' || c == '\\' || c == '.' || c == '/' || c == '!') {
+        } else if (C_INPUT_IS_VALID_INSERT_CHAR(c)) {
           if (i != length) {
             for (int x = i; x < length; x++) addch(input[x]);
             for (int x = length+1; x > i; x--) input[x] = input[x-1];
@@ -346,14 +345,14 @@ bool parse_command() {
           length++;
           move(y, x);
         } else { // Not recognized character, so clear the character that was printed on the screen
-          command_input_refresh_characters(1, y, &x, &i, length, input);
+          command_input_refresh_characters(1, y, &x, &i, length);
         }
         break;
 
       case COMMAND_NORMAL: {
         // Backspace and Escape keys when pressed they print 2 characters
         unsigned int chars_to_clear = (c == BACKSPACE_KEY || c == ESCAPE_KEY) ? 2 : 1;
-        command_input_refresh_characters(chars_to_clear, y, &x, &i, length, input);
+        command_input_refresh_characters(chars_to_clear, y, &x, &i, length);
 
         if (c == ESCAPE_KEY && map_buffer[0] != '\0') {
           clean_map_buffer();
@@ -365,15 +364,17 @@ bool parse_command() {
         }
 
         append_to_map_buffer(c);
+        redraw_map_buffer();
+        move(y, x);
 
         for (unsigned int z=0; z<c_maps_count; z++) {
           if (!strcmp(map_buffer, c_maps[z].keys)) {
             c_maps[z].action(&i, &length, y, &x);
             clean_map_buffer();
+            redraw_map_buffer();
           }
         }
 
-        redraw_map_buffer();
         break;
       }
     }

@@ -137,6 +137,44 @@ void c_map_remove_char(int *input_cursor, int *input_length, int screen_y, int *
   move(screen_y, *screen_x);
 }
 
+void c_map_next_char(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  char c = getch();
+  (*screen_x)++;
+
+  // Backspace and Escape keys when pressed they print 2 characters
+  unsigned int chars_to_clear = (c == BACKSPACE_KEY || c == ESCAPE_KEY) ? 2 : 1;
+  command_input_refresh_characters(chars_to_clear, screen_y, screen_x, input_cursor, *input_length);
+
+  if (!C_INPUT_IS_VALID_INSERT_CHAR(c)) return;
+
+  int new_cursor = *input_cursor;
+  if (!command_input_move_to_next_character(&new_cursor, *input_length, STRINGIFY(c))) return;
+
+  unsigned int delta = new_cursor - *input_cursor;
+  *screen_x += delta;
+  move(screen_y, *screen_x);
+  *input_cursor = new_cursor;
+}
+
+void c_map_previous_char(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  char c = getch();
+  (*screen_x)++;
+
+  // Backspace and Escape keys when pressed they print 2 characters
+  unsigned int chars_to_clear = (c == BACKSPACE_KEY || c == ESCAPE_KEY) ? 2 : 1;
+  command_input_refresh_characters(chars_to_clear, screen_y, screen_x, input_cursor, *input_length);
+
+  if (!C_INPUT_IS_VALID_INSERT_CHAR(c)) return;
+
+  int new_cursor = *input_cursor;
+  if (!command_input_move_to_previous_character(&new_cursor, STRINGIFY(c))) return;
+
+  unsigned int delta = new_cursor - *input_cursor;
+  *screen_x += delta;
+  move(screen_y, *screen_x);
+  *input_cursor = new_cursor;
+}
+
 Command_map c_maps[] = {
   { STRINGIFY(CMD_INPUT_MODE_KEY), "INSERT-NORMAL: Switch the input between insert and normal mode", c_map_insert },
   { "q"  , "NORMAL: Quit input"                            , c_map_quit },
@@ -157,6 +195,8 @@ Command_map c_maps[] = {
   { "daw", "NORMAL: Delete a word"                         , c_map_delete_around_word },
   { "ciw", "NORMAL: Change inner word"                     , c_map_change_inner_word },
   { "caw", "NORMAL: Change a word"                         , c_map_change_around_word },
+  { "f"  , "NORMAL: Jump to the next given character"      , c_map_next_char },
+  { "F"  , "NORMAL: Jump to the previous given character"  , c_map_previous_char },
 };
 
 unsigned int c_maps_count = sizeof(c_maps) / sizeof(Command_map);

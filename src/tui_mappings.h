@@ -1,6 +1,7 @@
 #ifndef MAPPINGS
 
 #include <stdbool.h>
+#include <ctype.h>
 
 #define ESCAPE_KEY 27
 #define BACKSPACE_KEY 127
@@ -11,6 +12,7 @@
 ///////////////////// INPUT MAPS /////////////////////
 //////////////////////////////////////////////////////
 
+#define C_INPUT_IS_VALID_INSERT_CHAR(c) (isalnum(c) || c == ' ' || c == '_' || c == '\\' || c == '.' || c == '/' || c == '!')
 #define CMD_INPUT_MODE_KEY '`'
 
 typedef enum {
@@ -42,6 +44,8 @@ void c_map_delete_around_word(int *input_cursor, int *input_length, int screen_y
 void c_map_change_inner_word(int *input_cursor, int *input_length, int screen_y, int *screen_x);
 void c_map_change_around_word(int *input_cursor, int *input_length, int screen_y, int *screen_x);
 void c_map_remove_char(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_next_char(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_previous_char(int *input_cursor, int *input_length, int screen_y, int *screen_x);
 
 extern Command_map c_maps[];
 extern unsigned int c_maps_count;
