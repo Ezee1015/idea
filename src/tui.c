@@ -18,13 +18,22 @@ Point area_start = {0};
 Size area_size = {0};
 Tui_state tui_st = {0};
 char input[256] = {0};
-char map_buffer[4] = {0};
+char map_buffer[MAP_BUFFER_SIZE] = {0};
 
-void redraw_map_buffer() {
-  for (unsigned int x = 0; x < sizeof(map_buffer); x++) {
+void redraw_map_status() {
+  for (unsigned int x = 0; x < MAX_COMMAND_MULTIPLIER_LENGTH + MAP_BUFFER_SIZE; x++) {
     mvaddch(area_start.y, area_start.x + area_size.width - x, ' ');
   }
+  if (tui_st.command_multiplier != 0) {
+    mvprintw(area_start.y, area_start.x + area_size.width - strlen(map_buffer) - MAX_COMMAND_MULTIPLIER_LENGTH, "%u", tui_st.command_multiplier);
+  }
   mvprintw(area_start.y, area_start.x + area_size.width - strlen(map_buffer), "%s", map_buffer);
+}
+
+void add_to_command_multiplier(int n) {
+  unsigned int max_command_multiplier = 1;
+  for (int i = 0; i < MAX_COMMAND_MULTIPLIER_LENGTH; i++) max_command_multiplier *= 10;
+  tui_st.command_multiplier = ((tui_st.command_multiplier * 10) + n) % max_command_multiplier;
 }
 
 void draw_window(void) {
@@ -42,11 +51,7 @@ void draw_window(void) {
   //           area_start.x + area_size.width);
 
   if (todo_list_modified) {
-    mvprintw(area_start.y, area_start.x + area_size.width - strlen(changed), "%s", changed);
-  }
-
-  if (tui_st.command_multiplier) {
-    mvprintw(area_start.y, area_start.x, "%u", tui_st.command_multiplier);
+    mvprintw(area_start.y, area_start.x, "%s", changed);
   }
 
   if (tui_st.mode == MODE_COMMAND) {
@@ -82,7 +87,7 @@ void draw_window(void) {
         "%s", cursor);
   }
 
-  redraw_map_buffer();
+  redraw_map_status();
 
   if (tui_st.mode == MODE_COMMAND) {
     move(area_start.y, area_start.x + cursor_length + strlen(command) + strlen(input));
@@ -313,6 +318,7 @@ bool parse_command() {
     c = getch();
     x = getcurx(stdscr);
 
+    unsigned int chars_to_clear = 0;
     switch (tui_st.command_input_mode) {
       case COMMAND_INPUT_INSERT:
         if (c == CMD_INPUT_MODE_KEY) {
@@ -349,34 +355,42 @@ bool parse_command() {
         }
         break;
 
-      case COMMAND_INPUT_NORMAL: {
+      case COMMAND_INPUT_NORMAL:
         // Backspace and Escape keys when pressed they print 2 characters
-        unsigned int chars_to_clear = (c == BACKSPACE_KEY || c == ESCAPE_KEY) ? 2 : 1;
+        chars_to_clear = (c == BACKSPACE_KEY || c == ESCAPE_KEY) ? 2 : 1;
         command_input_refresh_characters(chars_to_clear, y, &x, &i, length);
 
-        if (c == ESCAPE_KEY && map_buffer[0] != '\0') {
-          clean_map_buffer();
-          redraw_map_buffer();
-          c = 0;
-          break;
-        } else if (c == BACKSPACE_KEY) {
-          break;
+        switch (c) {
+          case ESCAPE_KEY:
+            if (tui_st.command_multiplier != 0 || map_buffer[0] != '\0') {
+              clean_map();
+              redraw_map_status();
+              c = 0;
+            }
+            break;
+
+          case BACKSPACE_KEY:
+            break;
+
+          default:
+            if (isdigit(c)) add_to_command_multiplier(c-'0');
+            else append_to_map_buffer(c);
+            redraw_map_status();
+            move(y, x);
+
+            for (unsigned int z=0; z<c_maps_count; z++) {
+              if (!strcmp(map_buffer, c_maps[z].keys)) {
+                do {
+                  c_maps[z].action(&i, &length, y, &x);
+                  if (tui_st.command_multiplier > 0) tui_st.command_multiplier--;
+                } while(tui_st.command_multiplier > 0);
+
+                clean_map();
+                redraw_map_status();
+              }
+            }
+            break;
         }
-
-        append_to_map_buffer(c);
-        redraw_map_buffer();
-        move(y, x);
-
-        for (unsigned int z=0; z<c_maps_count; z++) {
-          if (!strcmp(map_buffer, c_maps[z].keys)) {
-            c_maps[z].action(&i, &length, y, &x);
-            clean_map_buffer();
-            redraw_map_buffer();
-          }
-        }
-
-        break;
-      }
     }
 
     read = (i < (int) sizeof(input)-2)
@@ -684,12 +698,12 @@ bool action_help(Input *input) {
     tui_nv_mappings[i].function_cmd = NULL;
     tui_nv_mappings[i].man = MAN(nv_maps[i].description, NULL);
   }
-  tui_nv_mappings[nv_maps_count].full_cmd = "[1-9]";
+  tui_nv_mappings[nv_maps_count].full_cmd = "[0-9]";
   tui_nv_mappings[nv_maps_count].abbreviation_cmd = NULL;
   tui_nv_mappings[nv_maps_count].function_cmd = NULL;
   tui_nv_mappings[nv_maps_count].man = MAN("Number of times to repeat the command (command multiplier)", NULL);
 
-  const unsigned int tui_c_mappings_count = c_maps_count;
+  const unsigned int tui_c_mappings_count = c_maps_count+1;
   Functionality *tui_c_mappings = malloc(tui_c_mappings_count * sizeof(Functionality));
   if (!tui_c_mappings) {
     free(tui_c_mappings);
@@ -701,6 +715,10 @@ bool action_help(Input *input) {
     tui_c_mappings[i].function_cmd = NULL;
     tui_c_mappings[i].man = MAN(c_maps[i].description, NULL);
   }
+  tui_c_mappings[c_maps_count].full_cmd = "[0-9]";
+  tui_c_mappings[c_maps_count].abbreviation_cmd = NULL;
+  tui_c_mappings[c_maps_count].function_cmd = NULL;
+  tui_c_mappings[c_maps_count].man = MAN("Number of times to repeat the command (command multiplier)", NULL);
 
   const struct {
     const char *name;
@@ -840,33 +858,34 @@ unsigned int tui_functionality_count = sizeof(tui_functionality) / sizeof(Functi
 
 void append_to_map_buffer(char c) {
   unsigned int vi_normal_buf_len = strlen(map_buffer);
-  if (vi_normal_buf_len < sizeof(map_buffer)-1) {
+  if (vi_normal_buf_len < MAP_BUFFER_SIZE-1) {
     map_buffer[vi_normal_buf_len++] = c;
     map_buffer[vi_normal_buf_len] = '\0';
   } else {
-    for (unsigned int x = 0; x < sizeof(map_buffer)-1; x++) map_buffer[x] = map_buffer[x+1];
+    for (unsigned int x = 0; x < MAP_BUFFER_SIZE-1; x++) map_buffer[x] = map_buffer[x+1];
     map_buffer[--vi_normal_buf_len] = c;
   }
 }
 
-void clean_map_buffer() {
+void clean_map() {
   map_buffer[0] = '\0';
+  tui_st.command_multiplier = 0;
 }
 
 void parse_normal() {
   char c = getch();
 
   if (isdigit(c)) {
-    tui_st.command_multiplier = (tui_st.command_multiplier * 10) + (c-'0');
+    add_to_command_multiplier(c-'0');
   } else if (c == ESCAPE_KEY) {
-    clean_map_buffer();
+    clean_map();
   } else {
     append_to_map_buffer(c);
 
     for (unsigned int i=0; i<nv_maps_count; i++) {
       if (!strcmp(map_buffer, nv_maps[i].keys)) {
         nv_maps[i].action();
-        clean_map_buffer();
+        clean_map();
         break;
       }
     }

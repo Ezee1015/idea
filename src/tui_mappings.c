@@ -146,7 +146,10 @@ void c_map_next_char(int *input_cursor, int *input_length, int screen_y, int *sc
   if (!C_INPUT_IS_VALID_INSERT_CHAR(c)) return;
 
   int new_cursor = *input_cursor;
-  if (!command_input_move_to_next_character(&new_cursor, *input_length, STRINGIFY(c))) return;
+  do {
+    if (!command_input_move_to_next_character(&new_cursor, *input_length, STRINGIFY(c))) return;
+    if (tui_st.command_multiplier > 0) tui_st.command_multiplier--;
+  } while(tui_st.command_multiplier > 0);
 
   unsigned int delta = new_cursor - *input_cursor;
   *screen_x += delta;
@@ -165,7 +168,10 @@ void c_map_previous_char(int *input_cursor, int *input_length, int screen_y, int
   if (!C_INPUT_IS_VALID_INSERT_CHAR(c)) return;
 
   int new_cursor = *input_cursor;
-  if (!command_input_move_to_previous_character(&new_cursor, STRINGIFY(c))) return;
+  do {
+    if (!command_input_move_to_previous_character(&new_cursor, STRINGIFY(c))) return;
+    if (tui_st.command_multiplier > 0) tui_st.command_multiplier--;
+  } while(tui_st.command_multiplier > 0);
 
   unsigned int delta = new_cursor - *input_cursor;
   *screen_x += delta;
@@ -184,8 +190,7 @@ Command_map c_maps[] = {
   { "w"  , "NORMAL: Move forward a word"                   , c_map_forward_word },
   { "e"  , "NORMAL: Move forward to the end of word"       , c_map_forward_word_end },
   { "x"  , "NORMAL: Remove the character under the cursor" , c_map_remove_char },
-  { "0"  , "NORMAL: Go to the first character of the input", c_map_start },
-  { "$"  , "NORMAL: Go to the last character of the input" , c_map_end },
+  { "gh" , "NORMAL: Go to the first character of the input", c_map_start },
   { "gl" , "NORMAL: Go to the last character of the input" , c_map_end },
   { "I"  , "NORMAL: Insert text at the start of the input" , c_map_insert_start },
   { "A"  , "NORMAL: Append text at the end of the input"   , c_map_append_end },
@@ -202,6 +207,14 @@ unsigned int c_maps_count = sizeof(c_maps) / sizeof(Command_map);
 ////////////////////////////////////////////////////////
 ////////////////// Normal-Visual MAPS //////////////////
 ////////////////////////////////////////////////////////
+
+#define APPLY_MULTIPLIER(command) do {                                                                \
+  if (tui_st.command_multiplier == 0) {                                                               \
+    command;                                                                                          \
+  } else {                                                                                            \
+    for (unsigned int _i=0; _i<tui_st.command_multiplier && _i < list_size(todo_list); _i++) command; \
+  }                                                                                                   \
+} while (0)
 
 void nv_map_toggle() {
   APPLY_MULTIPLIER({
@@ -241,7 +254,6 @@ void nv_map_move_to_top() {
     case MODE_VISUAL: while (tui_st.current_pos) visual_move_cursor(-1); break;
     case MODE_COMMAND: break; /* unreachable */
   }
-  tui_st.command_multiplier = 0;
 }
 void nv_map_move_to_bottom() {
   if (list_is_empty(todo_list)) return;
@@ -256,7 +268,6 @@ void nv_map_move_to_bottom() {
     case MODE_VISUAL: while (tui_st.current_pos < list_size(todo_list)-1) visual_move_cursor(1); break;
     case MODE_COMMAND: break; /* unreachable  */
   }
-  tui_st.command_multiplier = 0;
 }
 
 void nv_map_save() { action_save(NULL); }
@@ -286,7 +297,6 @@ void nv_map_toggle_visual() {
 
     case MODE_VISUAL:
       tui_st.mode = MODE_NORMAL;
-      tui_st.command_multiplier = 0;
       break;
 
     case MODE_COMMAND: break; /* unreachable */
@@ -314,18 +324,12 @@ void nv_map_move_up() {
 }
 void nv_map_unselect() {
   if (tui_st.mode == MODE_NORMAL) list_destroy(&tui_st.selected, NULL);
-  tui_st.command_multiplier = 0;
 }
 
 void nv_map_command() {
   if (tui_st.mode == MODE_NORMAL) tui_st.mode = MODE_COMMAND;
-  tui_st.command_multiplier = 0;
   curs_set(1);
   tui_st.command_input_mode = COMMAND_INPUT_INSERT;
-}
-
-void nv_map_clear_command_multiplier() {
-  if (tui_st.command_multiplier) tui_st.command_multiplier = 0;
 }
 
 void nv_map_delete() {
@@ -339,18 +343,15 @@ void nv_map_delete() {
 void nv_map_add_below_cursor() {
   unsigned int pos = (list_is_empty(todo_list)) ? 1 : tui_st.current_pos + 1 /* 0-based to 1-based) */ + 1 /* next pos */;
   populate_command_input("add_at %d ", pos);
-  tui_st.command_multiplier = 0;
 }
 
 void nv_map_add_above_cursor() {
   populate_command_input("add_at %d ", tui_st.current_pos + 1 /* 0-based to 1-based) */);
-  tui_st.command_multiplier = 0;
 }
 
 void nv_map_edit() {
   const char *todo_name = ((Todo *)list_get(todo_list, tui_st.current_pos))->name;
   populate_command_input("edit %d %s", tui_st.current_pos + 1 /* 0-based to 1-based) */, todo_name);
-  tui_st.command_multiplier = 0;
 }
 
 Normal_visual_map nv_maps[] = {
@@ -368,7 +369,6 @@ Normal_visual_map nv_maps[] = {
   { "K"                   , "Move the selected ToDos up"                          , nv_map_move_up },
   { "us"                  , "Unselect all the selected items"                     , nv_map_unselect },
   { ":"                   , "Enter command mode"                                  , nv_map_command },
-  { STRINGIFY(ESCAPE_KEY) , "Clear the command multiplier"                        , nv_map_clear_command_multiplier },
   { "d"                   , "Delete the selected ToDos"                           , nv_map_delete },
   { "o"                   , "Create a new ToDo below the cursor"                  , nv_map_add_below_cursor },
   { "O"                   , "Create a new ToDo above the cursor"                  , nv_map_add_above_cursor },

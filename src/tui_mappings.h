@@ -9,6 +9,9 @@
 
 #define STRINGIFY(...) (char[]){__VA_ARGS__, '\0'}
 
+#define MAX_COMMAND_MULTIPLIER_LENGTH 2
+#define MAP_BUFFER_SIZE 4
+
 //////////////////////////////////////////////////////
 ///////////////////// INPUT MAPS /////////////////////
 //////////////////////////////////////////////////////
@@ -48,15 +51,6 @@ extern unsigned int c_maps_count;
 ////////////////////////////////////////////////////////
 ////////////////// Normal-Visual MAPS //////////////////
 ////////////////////////////////////////////////////////
-
-#define APPLY_MULTIPLIER(command) do {                                                            \
-  if (tui_st.command_multiplier == 0) {                                                           \
-    command;                                                                                      \
-  } else {                                                                                        \
-    for (unsigned int i=0; i<tui_st.command_multiplier && i < list_size(todo_list); i++) command; \
-    tui_st.command_multiplier = 0;                                                                \
-  }                                                                                               \
-} while (0)
 
 typedef struct {
   char *keys;

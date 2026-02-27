@@ -70,7 +70,7 @@ void update_area_x_axis();
 void update_area_y_axis();
 
 void append_to_map_buffer(char c);
-void clean_map_buffer();
+void clean_map();
 
 // Command mode
 Help_result show_functionality_message(const char *source, const unsigned source_index, const unsigned int source_count, const Functionality *functionality, const unsigned int functionality_count, bool are_commands, bool from_the_end, unsigned int *max_functionality_per_page);
