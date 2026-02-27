@@ -122,6 +122,21 @@ void c_map_change_around_word(int *input_cursor, int *input_length, int screen_y
   command_input_mode = COMMAND_INSERT;
 }
 
+void c_map_remove_char(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  if (*input_length == 0 || *input_cursor == *input_length) return;
+
+  for (int z = *input_cursor; z < *input_length; z++) {
+    input[z] = input[z+1];
+    addch((z == *input_length-1) ? ' ' : input[z]);
+  }
+  (*input_length)--;
+  if (*input_cursor == *input_length && *input_cursor != 0) {
+    (*input_cursor)--;
+    (*screen_x)--;
+  }
+  move(screen_y, *screen_x);
+}
+
 Command_map c_maps[] = {
   { STRINGIFY(CMD_INPUT_MODE_KEY), "INSERT-NORMAL: Switch the input between insert and normal mode", c_map_insert },
   { "q"  , "NORMAL: Quit input"                            , c_map_quit },
@@ -132,6 +147,7 @@ Command_map c_maps[] = {
   { "b"  , "NORMAL: Move backward a word"                  , c_map_backward_word },
   { "w"  , "NORMAL: Move forward a word"                   , c_map_forward_word },
   { "e"  , "NORMAL: Move forward to the end of word"       , c_map_forward_word_end },
+  { "x"  , "NORMAL: Remove the character under the cursor" , c_map_remove_char },
   { "0"  , "NORMAL: Go to the first character of the input", c_map_start },
   { "$"  , "NORMAL: Go to the last character of the input" , c_map_end },
   { "gl" , "NORMAL: Go to the last character of the input" , c_map_end },

@@ -261,21 +261,21 @@ void command_input_adjust_around(int *start, int *end, int input_length) {
   else if (*start > 0) (*start)--;
 }
 
-void command_input_remove(int *input_cursor, int *input_length, int *cursor_x, int cursor_y, int start, int end) {
-  *cursor_x -= (*input_cursor - start);
+void command_input_remove(int *input_cursor, int *input_length, int *screen_x, int screen_y, int start, int end) {
+  *screen_x -= (*input_cursor - start);
 
-  move(cursor_y, *cursor_x);
+  move(screen_y, *screen_x);
   for (int x = 0; x < *input_length - end; x++) {
     if (x != *input_length - end - 1) addch(input[(end+1)+x]);
     input[start+x] = input[(end+1)+x];
   }
   for (int x = 0; x <= (end+1) - start; x++) addch(' ');
-  move(cursor_y, *cursor_x);
+  move(screen_y, *screen_x);
   *input_length -= (end+1) - start;
   *input_cursor = start;
 }
 
-void command_input_remove_word(int *cursor, int *length, int *cursor_x, int cursor_y, bool around) {
+void command_input_remove_word(int *cursor, int *length, int *screen_x, int screen_y, bool around) {
   int start = *cursor, end = *cursor;
   command_input_move_to_previous_character(&start, STRINGIFY(' '));
   command_input_move_to_next_character(&end, *length, STRINGIFY(' '));
@@ -286,15 +286,15 @@ void command_input_remove_word(int *cursor, int *length, int *cursor_x, int curs
 
   if (around) command_input_adjust_around(&start, &end, *length);
 
-  command_input_remove(cursor, length, cursor_x, cursor_y, start, end);
+  command_input_remove(cursor, length, screen_x, screen_y, start, end);
 }
 
-void command_input_refresh_characters(int chars_to_clear, int cursor_y, int *cursor_x, int *input_cursor, int input_len, char *input) {
-  *cursor_x -= chars_to_clear;
+void command_input_refresh_characters(int chars_to_clear, int screen_y, int *screen_x, int *input_cursor, int input_len, char *input) {
+  *screen_x -= chars_to_clear;
   for (int z=0; z < chars_to_clear; z++) {
-    mvprintw(cursor_y, *cursor_x + z, "%c", (*input_cursor+z >= input_len) ? ' ' : input[*input_cursor+z]);
+    mvprintw(screen_y, *screen_x + z, "%c", (*input_cursor+z >= input_len) ? ' ' : input[*input_cursor+z]);
   }
-  move(cursor_y, *cursor_x);
+  move(screen_y, *screen_x);
 }
 
 bool parse_command() {
@@ -322,15 +322,20 @@ bool parse_command() {
         }
         else if (c == BACKSPACE_KEY) {
           command_input_refresh_characters(2, y, &x, &i, length, input); // for the ^? symbol of backspace
-          if (i) {
-            move(y, --x);
-            for (int z = i; z <= length; z++) {
-              input[z-1] = input[z];
-              addch((z == length) ? ' ' : input[z]);
-            }
-            move(y, x);
-            length--;
-            i--;
+          if (i > 0) {
+            bool is_after_last_char = (i > 1 && i == length);
+            move(y, --x); i--;
+            c_map_remove_char(&i, &length, y, &x);
+            // Only reset the position if the cursor was at the end of the
+            // input, because when moving one position behind to remove the
+            // character, the cursor is at the last character and
+            // command_input_remove_character() is going to move the cursor back
+            // one position again (after removing the char) in order to make the
+            // cursor inside the bounds of the input. But as in Insert mode the
+            // cursor can be one position ahead of the last character I need to
+            // increment by one the cursor to make it one character ahead of the
+            // input.
+            if (is_after_last_char) { move(y, ++x); i++; }
           }
         } else if (isalnum(c) || c == ' ' || c == '_' || c == '\\' || c == '.' || c == '/' || c == '!') {
           if (i != length) {

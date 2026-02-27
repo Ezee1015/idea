@@ -41,6 +41,7 @@ void c_map_delete_inner_word(int *input_cursor, int *input_length, int screen_y,
 void c_map_delete_around_word(int *input_cursor, int *input_length, int screen_y, int *screen_x);
 void c_map_change_inner_word(int *input_cursor, int *input_length, int screen_y, int *screen_x);
 void c_map_change_around_word(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_remove_char(int *input_cursor, int *input_length, int screen_y, int *screen_x);
 
 extern Command_map c_maps[];
 extern unsigned int c_maps_count;
