@@ -55,6 +55,10 @@
                 opacity: 0;
             }
 
+            .todo_data .arrow_show {
+                padding-top: 10px;
+            }
+
             .todo_data {
                 padding: 12px;
                 padding-top: 0px;
@@ -211,6 +215,8 @@
                                     </c>
                                 </table>
                             <c> } </c>
+
+                            <p class="arrow_show unselectable">&#9650; Back to Top &#9650;</p>
                         </div>
                     </div>
                 <c> } </c>
@@ -248,55 +254,53 @@
     </body>
 
     <script>
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); // Source: https://stackoverflow.com/a/29509267
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) // Source: https://stackoverflow.com/a/29509267
         const todos = document.getElementsByClassName("todo")
 
         function getElementInsideTodoContainer(container, className) {
             const list = container.getElementsByClassName(className)
-            if (list.length != 1) console.log("Error. There's more then one `" + className + "` in a `todo_container`")
+            if (list.length != 1) console.log("Error. There's more than one `" + className + "` in a `todo_container`")
             return list[0]
         }
 
         for (const todo of todos) {
-            const data      = getElementInsideTodoContainer(todo, "todo_data")
-            const header    = getElementInsideTodoContainer(todo, "todo_header")
-            const arrow     = getElementInsideTodoContainer(todo, "arrow_show")
-            const info      = getElementInsideTodoContainer(todo, "todo_info")
-            const separator = getElementInsideTodoContainer(todo, "todo_header_separator")
+            const header      = getElementInsideTodoContainer(todo, "todo_header")
+            const arrowHeader = getElementInsideTodoContainer(header, "arrow_show")
+            const separator   = getElementInsideTodoContainer(todo, "todo_header_separator")
+            const data        = getElementInsideTodoContainer(todo, "todo_data")
+            const info        = getElementInsideTodoContainer(todo, "todo_info")
+            const arrowFooter = getElementInsideTodoContainer(data, "arrow_show")
 
             // I put display: none in the JS and not in the CSS because if the
             // browser doesn't execute the JS, the data can still be displayed
             separator.style.display = "none"
             data.style.display = "none"
+            arrowFooter.style.opacity = "1"
 
             if (!isMobile) {
                 // This gives some problems in mobile, because there's no cursor
-                arrow.style.transition = "opacity 0.15s"
-                header.onmouseenter= () => {
-                    arrow.style.opacity = "1"
-                }
-                header.onmouseleave = () => {
-                    arrow.style.opacity = "0"
-                }
+                arrowHeader.style.transition = "opacity 0.15s"
+                header.onmouseenter = () => { arrowHeader.style.opacity = "1" }
+                header.onmouseleave = () => { arrowHeader.style.opacity = "0" }
             }
 
-            header.onclick = () => {
+            function toggle_todo_data() {
                 if (data.style.display == "none") {
-                    if (isMobile) arrow.style.opacity = "1"
-                    arrow.innerHTML = "&#9650;"
+                    if (isMobile) arrowHeader.style.opacity = "1"
+                    arrowHeader.innerHTML = "&#9650;"
 
                     separator.style.display = ""
                     data.style.display = ""
                 } else {
-                    if (isMobile) arrow.style.opacity = "0"
-                    arrow.innerHTML = "&#9660;"
+                    if (isMobile) arrowHeader.style.opacity = "0"
+                    arrowHeader.innerHTML = "&#9660;"
 
                     separator.style.display = "none"
                     data.style.display = "none"
                 }
 
-                const rect = todo.getBoundingClientRect();
-                const shake = (data.style.display == "none") ? { y: 5, x: 5 } :  { y: -5, x: -5 };
+                const rect = todo.getBoundingClientRect()
+                const shake = (data.style.display == "none") ? { y: 5, x: 5 } :  { y: -5, x: -5 }
 
                 const shake_scale = {
                     x: (rect.width + shake.x) / rect.width,
@@ -309,6 +313,14 @@
                 ], {
                     duration: 100,
                 })
+            }
+
+            header.onclick = toggle_todo_data
+            arrowFooter.onclick = () => {
+                // toggle_todo_info()
+
+                // Source: https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView
+                header.scrollIntoView({behavior: "smooth", block: 'center'})
             }
         }
     </script>
