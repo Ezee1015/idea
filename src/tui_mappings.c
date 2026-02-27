@@ -283,6 +283,7 @@ void nv_map_command() {
   if (tui_st.mode == MODE_NORMAL) tui_st.mode = MODE_COMMAND;
   tui_st.command_multiplier = 0;
   curs_set(1);
+  command_input_mode = COMMAND_INSERT;
 }
 
 void nv_map_clear_command_multiplier() {
