@@ -3,8 +3,6 @@
 
 #define UNUSED(var) (void) var;
 
-Command_input_mode command_input_mode = COMMAND_INSERT;
-
 //////////////////////////////////////////////////////
 ///////////////////// INPUT MAPS /////////////////////
 //////////////////////////////////////////////////////
@@ -37,14 +35,14 @@ void c_map_insert(int *input_cursor, int *input_length, int screen_y, int *scree
   UNUSED(screen_y);
   UNUSED(screen_x);
 
-  command_input_mode = COMMAND_INSERT;
+  tui_st.command_input_mode = COMMAND_INPUT_INSERT;
 }
 
 void c_map_append(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
   if (*input_cursor == *input_length) return;
   (*input_cursor)++;
   move(screen_y, ++(*screen_x));
-  command_input_mode = COMMAND_INSERT;
+  tui_st.command_input_mode = COMMAND_INPUT_INSERT;
 }
 
 void c_map_backward_word(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
@@ -96,12 +94,12 @@ void c_map_end(int *input_cursor, int *input_length, int screen_y, int *screen_x
 
 void c_map_insert_start(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
   c_map_start(input_cursor, input_length, screen_y, screen_x);
-  command_input_mode = COMMAND_INSERT;
+  tui_st.command_input_mode = COMMAND_INPUT_INSERT;
 }
 
 void c_map_append_end(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
   c_map_end(input_cursor, input_length, screen_y, screen_x);
-  command_input_mode = COMMAND_INSERT;
+  tui_st.command_input_mode = COMMAND_INPUT_INSERT;
 }
 
 void c_map_delete_inner_word(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
@@ -114,12 +112,12 @@ void c_map_delete_around_word(int *input_cursor, int *input_length, int screen_y
 
 void c_map_change_inner_word(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
   c_map_delete_inner_word(input_cursor, input_length, screen_y, screen_x);
-  command_input_mode = COMMAND_INSERT;
+  tui_st.command_input_mode = COMMAND_INPUT_INSERT;
 }
 
 void c_map_change_around_word(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
   c_map_delete_around_word(input_cursor, input_length, screen_y, screen_x);
-  command_input_mode = COMMAND_INSERT;
+  tui_st.command_input_mode = COMMAND_INPUT_INSERT;
 }
 
 void c_map_remove_char(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
@@ -323,7 +321,7 @@ void nv_map_command() {
   if (tui_st.mode == MODE_NORMAL) tui_st.mode = MODE_COMMAND;
   tui_st.command_multiplier = 0;
   curs_set(1);
-  command_input_mode = COMMAND_INSERT;
+  tui_st.command_input_mode = COMMAND_INPUT_INSERT;
 }
 
 void nv_map_clear_command_multiplier() {

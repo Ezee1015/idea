@@ -304,19 +304,19 @@ bool parse_command() {
 
   int x = getcurx(stdscr), y = getcury(stdscr);
   while (read) {
-    switch (command_input_mode) {
-      case COMMAND_NORMAL: mvprintw(y, area_start.x, "[N]"); break;
-      case COMMAND_INSERT: mvprintw(y, area_start.x, "[I]"); break;
+    switch (tui_st.command_input_mode) {
+      case COMMAND_INPUT_NORMAL: mvprintw(y, area_start.x, "[N]"); break;
+      case COMMAND_INPUT_INSERT: mvprintw(y, area_start.x, "[I]"); break;
     }
     move(y, x);
 
     c = getch();
     x = getcurx(stdscr);
 
-    switch (command_input_mode) {
-      case COMMAND_INSERT:
+    switch (tui_st.command_input_mode) {
+      case COMMAND_INPUT_INSERT:
         if (c == CMD_INPUT_MODE_KEY) {
-          command_input_mode = COMMAND_NORMAL;
+          tui_st.command_input_mode = COMMAND_INPUT_NORMAL;
           command_input_refresh_characters(1, y, &x, &i, length);
         }
         else if (c == BACKSPACE_KEY) {
@@ -349,7 +349,7 @@ bool parse_command() {
         }
         break;
 
-      case COMMAND_NORMAL: {
+      case COMMAND_INPUT_NORMAL: {
         // Backspace and Escape keys when pressed they print 2 characters
         unsigned int chars_to_clear = (c == BACKSPACE_KEY || c == ESCAPE_KEY) ? 2 : 1;
         command_input_refresh_characters(chars_to_clear, y, &x, &i, length);

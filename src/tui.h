@@ -36,6 +36,11 @@ typedef struct {
     VISUAL_UNSELECT
   } visual_mode;
 
+  enum {
+    COMMAND_INPUT_INSERT,
+    COMMAND_INPUT_NORMAL,
+  } command_input_mode;
+
   unsigned int visual_start_pos;
 
 } Tui_state;

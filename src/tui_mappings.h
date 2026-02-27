@@ -8,18 +8,13 @@
 #define ENTER_KEY 10
 
 #define STRINGIFY(...) (char[]){__VA_ARGS__, '\0'}
+
 //////////////////////////////////////////////////////
 ///////////////////// INPUT MAPS /////////////////////
 //////////////////////////////////////////////////////
 
 #define C_INPUT_IS_VALID_INSERT_CHAR(c) (isalnum(c) || c == ' ' || c == '_' || c == '\\' || c == '.' || c == '/' || c == '!')
 #define CMD_INPUT_MODE_KEY '`'
-
-typedef enum {
-  COMMAND_INSERT,
-  COMMAND_NORMAL,
-} Command_input_mode;
-extern Command_input_mode command_input_mode;
 
 typedef struct {
   char *keys;
