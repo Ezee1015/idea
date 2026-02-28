@@ -45,6 +45,10 @@ void c_map_change_around_word(int *input_cursor, int *input_length, int screen_y
 void c_map_remove_char(int *input_cursor, int *input_length, int screen_y, int *screen_x);
 void c_map_next_char(int *input_cursor, int *input_length, int screen_y, int *screen_x);
 void c_map_previous_char(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_get_and_jump_next_char(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_get_and_jump_previous_char(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_jump_previous_char(int *input_cursor, int *input_length, int screen_y, int *screen_x);
+void c_map_jump_next_char(int *input_cursor, int *input_length, int screen_y, int *screen_x);
 
 extern Command_map c_maps[];
 extern unsigned int c_maps_count;

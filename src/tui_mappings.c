@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 #include "tui_mappings.h"
 #include "tui.h"
 
@@ -6,6 +8,17 @@
 //////////////////////////////////////////////////////
 ///////////////////// INPUT MAPS /////////////////////
 //////////////////////////////////////////////////////
+typedef enum {
+  JUMP_TO_CHAR_UNSET,
+  JUMP_TO_CHAR_FORWARD,
+  JUMP_TO_CHAR_BACKWARD,
+} Jump_to_char_direction;
+
+typedef struct {
+  char c;
+  Jump_to_char_direction direction;
+} Jump_to_char;
+Jump_to_char last_jump_to_char = {0};
 
 void c_map_left(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
   UNUSED(input_length);
@@ -27,6 +40,7 @@ void c_map_quit(int *input_cursor, int *input_length, int screen_y, int *screen_
   UNUSED(screen_x);
 
   tui_st.mode = MODE_NORMAL;
+  last_jump_to_char = (Jump_to_char){0};
 }
 
 void c_map_insert(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
@@ -135,7 +149,7 @@ void c_map_remove_char(int *input_cursor, int *input_length, int screen_y, int *
   move(screen_y, *screen_x);
 }
 
-void c_map_next_char(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+char get_character_to_jump(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
   char c = getch();
   (*screen_x)++;
 
@@ -143,11 +157,25 @@ void c_map_next_char(int *input_cursor, int *input_length, int screen_y, int *sc
   unsigned int chars_to_clear = (c == BACKSPACE_KEY || c == ESCAPE_KEY) ? 2 : 1;
   command_input_refresh_characters(chars_to_clear, screen_y, screen_x, input_cursor, *input_length);
 
-  if (!C_INPUT_IS_VALID_INSERT_CHAR(c)) return;
+  return (C_INPUT_IS_VALID_INSERT_CHAR(c)) ? c : 0;
+}
+
+void jump_to_char(Jump_to_char jump, int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  if (jump.direction == JUMP_TO_CHAR_UNSET) return;
 
   int new_cursor = *input_cursor;
   do {
-    if (!command_input_move_to_next_character(&new_cursor, *input_length, STRINGIFY(c))) return;
+    switch (jump.direction) {
+      case JUMP_TO_CHAR_FORWARD:
+        if (!command_input_move_to_next_character(&new_cursor, *input_length, STRINGIFY(jump.c))) return;
+        break;
+
+      case JUMP_TO_CHAR_BACKWARD:
+        if (!command_input_move_to_previous_character(&new_cursor, STRINGIFY(jump.c))) return;
+        break;
+
+      case JUMP_TO_CHAR_UNSET: abort(); // Unreachable
+    }
     if (tui_st.command_multiplier > 0) tui_st.command_multiplier--;
   } while(tui_st.command_multiplier > 0);
 
@@ -157,49 +185,67 @@ void c_map_next_char(int *input_cursor, int *input_length, int screen_y, int *sc
   *input_cursor = new_cursor;
 }
 
-void c_map_previous_char(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
-  char c = getch();
-  (*screen_x)++;
+void c_map_get_and_jump_next_char(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  char c = get_character_to_jump(input_cursor, input_length, screen_y, screen_x);
+  if (c == '\0') return;
 
-  // Backspace and Escape keys when pressed they print 2 characters
-  unsigned int chars_to_clear = (c == BACKSPACE_KEY || c == ESCAPE_KEY) ? 2 : 1;
-  command_input_refresh_characters(chars_to_clear, screen_y, screen_x, input_cursor, *input_length);
+  last_jump_to_char = (Jump_to_char) {
+      .c = c,
+      .direction = JUMP_TO_CHAR_FORWARD,
+  };
 
-  if (!C_INPUT_IS_VALID_INSERT_CHAR(c)) return;
+  jump_to_char(last_jump_to_char, input_cursor, input_length, screen_y, screen_x);
+}
 
-  int new_cursor = *input_cursor;
-  do {
-    if (!command_input_move_to_previous_character(&new_cursor, STRINGIFY(c))) return;
-    if (tui_st.command_multiplier > 0) tui_st.command_multiplier--;
-  } while(tui_st.command_multiplier > 0);
+void c_map_get_and_jump_previous_char(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  char c = get_character_to_jump(input_cursor, input_length, screen_y, screen_x);
+  if (c == '\0') return;
 
-  unsigned int delta = new_cursor - *input_cursor;
-  *screen_x += delta;
-  move(screen_y, *screen_x);
-  *input_cursor = new_cursor;
+  last_jump_to_char = (Jump_to_char) {
+      .c = c,
+      .direction = JUMP_TO_CHAR_BACKWARD,
+  };
+
+  jump_to_char(last_jump_to_char, input_cursor, input_length, screen_y, screen_x);
+}
+
+void c_map_jump_previous_char(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  Jump_to_char jump = last_jump_to_char;
+  switch (last_jump_to_char.direction) {
+    case JUMP_TO_CHAR_UNSET: break;
+    case JUMP_TO_CHAR_FORWARD: jump.direction = JUMP_TO_CHAR_BACKWARD; break;
+    case JUMP_TO_CHAR_BACKWARD: jump.direction = JUMP_TO_CHAR_FORWARD; break;
+  }
+  jump_to_char(jump, input_cursor, input_length, screen_y, screen_x);
+}
+
+void c_map_jump_next_char(int *input_cursor, int *input_length, int screen_y, int *screen_x) {
+  jump_to_char(last_jump_to_char, input_cursor, input_length, screen_y, screen_x);
 }
 
 Command_map c_maps[] = {
   { STRINGIFY(CMD_INPUT_MODE_KEY), "INSERT-NORMAL: Switch the input between insert and normal mode", c_map_insert },
-  { "q"  , "NORMAL: Quit input"                            , c_map_quit },
-  { "i"  , "NORMAL: Insert"                                , c_map_insert },
-  { "a"  , "NORMAL: Append"                                , c_map_append },
-  { "h"  , "NORMAL: Move left"                             , c_map_left },
-  { "l"  , "NORMAL: Move right"                            , c_map_right },
-  { "b"  , "NORMAL: Move backward a word"                  , c_map_backward_word },
-  { "w"  , "NORMAL: Move forward a word"                   , c_map_forward_word },
-  { "e"  , "NORMAL: Move forward to the end of word"       , c_map_forward_word_end },
-  { "x"  , "NORMAL: Remove the character under the cursor" , c_map_remove_char },
-  { "gh" , "NORMAL: Go to the first character of the input", c_map_start },
-  { "gl" , "NORMAL: Go to the last character of the input" , c_map_end },
-  { "I"  , "NORMAL: Insert text at the start of the input" , c_map_insert_start },
-  { "A"  , "NORMAL: Append text at the end of the input"   , c_map_append_end },
-  { "diw", "NORMAL: Delete inner word"                     , c_map_delete_inner_word },
-  { "daw", "NORMAL: Delete a word"                         , c_map_delete_around_word },
-  { "ciw", "NORMAL: Change inner word"                     , c_map_change_inner_word },
-  { "caw", "NORMAL: Change a word"                         , c_map_change_around_word },
-  { "f"  , "NORMAL: Jump to the next given character"      , c_map_next_char },
-  { "F"  , "NORMAL: Jump to the previous given character"  , c_map_previous_char },
+  { "q"  , "NORMAL: Quit input"                                          , c_map_quit },
+  { "i"  , "NORMAL: Insert"                                              , c_map_insert },
+  { "a"  , "NORMAL: Append"                                              , c_map_append },
+  { "h"  , "NORMAL: Move left"                                           , c_map_left },
+  { "l"  , "NORMAL: Move right"                                          , c_map_right },
+  { "b"  , "NORMAL: Move backward a word"                                , c_map_backward_word },
+  { "w"  , "NORMAL: Move forward a word"                                 , c_map_forward_word },
+  { "e"  , "NORMAL: Move forward to the end of word"                     , c_map_forward_word_end },
+  { "x"  , "NORMAL: Remove the character under the cursor"               , c_map_remove_char },
+  { "gh" , "NORMAL: Go to the first character of the input"              , c_map_start },
+  { "gl" , "NORMAL: Go to the last character of the input"               , c_map_end },
+  { "I"  , "NORMAL: Insert text at the start of the input"               , c_map_insert_start },
+  { "A"  , "NORMAL: Append text at the end of the input"                 , c_map_append_end },
+  { "diw", "NORMAL: Delete inner word"                                   , c_map_delete_inner_word },
+  { "daw", "NORMAL: Delete a word"                                       , c_map_delete_around_word },
+  { "ciw", "NORMAL: Change inner word"                                   , c_map_change_inner_word },
+  { "caw", "NORMAL: Change a word"                                       , c_map_change_around_word },
+  { "f"  , "NORMAL: Jump to the next given character"                    , c_map_get_and_jump_next_char },
+  { "F"  , "NORMAL: Jump to the previous given character"                , c_map_get_and_jump_previous_char },
+  { ";"  , "NORMAL: Jump to the next character given by 'f' or 'F'"      , c_map_jump_next_char },
+  { ","  , "NORMAL: Jump to the previous character given by 'f' or 'F'"  , c_map_jump_previous_char },
 };
 
 unsigned int c_maps_count = sizeof(c_maps) / sizeof(Command_map);
