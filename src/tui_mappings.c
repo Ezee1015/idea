@@ -400,6 +400,23 @@ void nv_map_edit() {
   populate_command_input("edit %d %s", tui_st.current_pos + 1 /* 0-based to 1-based) */, todo_name);
 }
 
+void nv_map_export_html() {
+  String_builder sb = sb_create("html ");
+  const unsigned int html_filename_index = sb.length;
+
+  List_iterator iterator = list_iterator_create(tui_st.selected);
+  while (list_iterator_next(&iterator)) {
+    const Todo *t = list_iterator_element(iterator);
+    const int index = list_get_index_of(todo_list, t);
+    if (index == -1) abort();
+    sb_append_with_format(&sb, " %d", index + 1 /* 0-based to 1-based */);
+  }
+
+  populate_command_input("%s", sb.str);
+  tui_st.input_cursor = html_filename_index; // "html "
+  sb_free(&sb);
+}
+
 Normal_visual_map nv_maps[] = {
   { " "                   , "Toggle select"                                       , nv_map_toggle },
   { "j"                   , "Move the cursor down"                                , nv_map_cursor_down },
@@ -419,6 +436,7 @@ Normal_visual_map nv_maps[] = {
   { "o"                   , "Create a new ToDo below the cursor"                  , nv_map_add_below_cursor },
   { "O"                   , "Create a new ToDo above the cursor"                  , nv_map_add_above_cursor },
   { "a"                   , "Change the name of the current ToDo"                 , nv_map_edit },
+  { "e"                   , "Export the selected ToDos to HTML"                   , nv_map_export_html },
 };
 
 unsigned int nv_maps_count = sizeof(nv_maps) / sizeof(Normal_visual_map);

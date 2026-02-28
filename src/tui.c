@@ -87,7 +87,7 @@ void draw_window(void) {
   redraw_map_status();
 
   if (tui_st.mode == MODE_COMMAND) {
-    move(area_start.y, area_start.x + cursor_length + strlen(command) + strlen(tui_st.input));
+    move(area_start.y, area_start.x + cursor_length + strlen(command) + tui_st.input_cursor);
   }
 }
 
@@ -299,8 +299,6 @@ void command_input_refresh_characters(int chars_to_clear, int screen_y, int *scr
 }
 
 bool parse_command() {
-  int i = strlen(tui_st.input);
-  int length = i;
   bool read = true;
   char c = 0;
 
@@ -320,14 +318,14 @@ bool parse_command() {
       case COMMAND_INPUT_INSERT:
         if (c == CMD_INPUT_MODE_KEY) {
           tui_st.command_input_mode = COMMAND_INPUT_NORMAL;
-          command_input_refresh_characters(1, y, &x, &i, length);
+          command_input_refresh_characters(1, y, &x, &tui_st.input_cursor, tui_st.input_length);
         }
         else if (c == BACKSPACE_KEY) {
-          command_input_refresh_characters(2, y, &x, &i, length); // for the ^? symbol of backspace
-          if (i > 0) {
-            bool is_after_last_char = (i > 1 && i == length);
-            move(y, --x); i--;
-            c_map_remove_char(&i, &length, y, &x);
+          command_input_refresh_characters(2, y, &x, &tui_st.input_cursor, tui_st.input_length); // for the ^? symbol of backspace
+          if (tui_st.input_cursor > 0) {
+            bool is_after_last_char = (tui_st.input_cursor > 1 && tui_st.input_cursor == tui_st.input_length);
+            move(y, --x); tui_st.input_cursor--;
+            c_map_remove_char(&tui_st.input_cursor, &tui_st.input_length, y, &x);
             // Only reset the position if the cursor was at the end of the
             // input, because when moving one position behind to remove the
             // character, the cursor is at the last character and
@@ -337,25 +335,25 @@ bool parse_command() {
             // cursor can be one position ahead of the last character I need to
             // increment by one the cursor to make it one character ahead of the
             // input.
-            if (is_after_last_char) { move(y, ++x); i++; }
+            if (is_after_last_char) { move(y, ++x); tui_st.input_cursor++; }
           }
         } else if (C_INPUT_IS_VALID_INSERT_CHAR(c)) {
-          if (i != length) {
-            for (int x = i; x < length; x++) addch(tui_st.input[x]);
-            for (int x = length+1; x > i; x--) tui_st.input[x] = tui_st.input[x-1];
+          if (tui_st.input_cursor != tui_st.input_length) {
+            for (int x = tui_st.input_cursor; x < tui_st.input_length; x++) addch(tui_st.input[x]);
+            for (int x = tui_st.input_length+1; x > tui_st.input_cursor; x--) tui_st.input[x] = tui_st.input[x-1];
           }
-          tui_st.input[i++] = c;
-          length++;
+          tui_st.input[tui_st.input_cursor++] = c;
+          tui_st.input_length++;
           move(y, x);
         } else { // Not recognized character, so clear the character that was printed on the screen
-          command_input_refresh_characters(1, y, &x, &i, length);
+          command_input_refresh_characters(1, y, &x, &tui_st.input_cursor, tui_st.input_length);
         }
         break;
 
       case COMMAND_INPUT_NORMAL:
         // Backspace and Escape keys when pressed they print 2 characters
         chars_to_clear = (c == BACKSPACE_KEY || c == ESCAPE_KEY) ? 2 : 1;
-        command_input_refresh_characters(chars_to_clear, y, &x, &i, length);
+        command_input_refresh_characters(chars_to_clear, y, &x, &tui_st.input_cursor, tui_st.input_length);
 
         switch (c) {
           case ESCAPE_KEY:
@@ -378,7 +376,7 @@ bool parse_command() {
             for (unsigned int z=0; z<c_maps_count; z++) {
               if (!strcmp(tui_st.map_buffer, c_maps[z].keys)) {
                 do {
-                  c_maps[z].action(&i, &length, y, &x);
+                  c_maps[z].action(&tui_st.input_cursor, &tui_st.input_length, y, &x);
                   if (tui_st.command_multiplier > 0) tui_st.command_multiplier--;
                 } while(tui_st.command_multiplier > 0);
 
@@ -390,18 +388,21 @@ bool parse_command() {
         }
     }
 
-    read = (i < (int) INPUT_SIZE-2)
+    read = (tui_st.input_cursor < (int) INPUT_SIZE-2)
            && (c != ESCAPE_KEY)
            && (c != '\n')
            && (tui_st.mode == MODE_COMMAND);
   }
-  tui_st.input[length] = '\0';
+  tui_st.input[tui_st.input_length] = '\0';
 
   curs_set(0);
 
   if (tui_st.mode != MODE_COMMAND || c == ESCAPE_KEY || !strcmp(tui_st.input, "")) {
     tui_st.mode = MODE_NORMAL;
+    tui_st.command_input_mode = COMMAND_INPUT_INSERT;
     tui_st.input[0] = '\0';
+    tui_st.input_length = 0;
+    tui_st.input_cursor = 0;
     return true;
   }
 
@@ -444,6 +445,8 @@ bool parse_command() {
 
     free(instruction);
     tui_st.input[0] = '\0';
+    tui_st.input_length = 0;
+    tui_st.input_cursor = 0;
   }
 
   return true;
@@ -519,6 +522,9 @@ void populate_command_input(const char *fmt, ...) {
   va_start(args, fmt);
   vsnprintf(tui_st.input, INPUT_SIZE, fmt, args);
   va_end(args);
+
+  tui_st.input_length = strlen(tui_st.input);
+  tui_st.input_cursor = tui_st.input_length;
 }
 
 bool move_selected(int direction) { // direction should be 1 or -1

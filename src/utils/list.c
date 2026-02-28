@@ -21,6 +21,14 @@ void *list_get(List list, unsigned int pos) {
   return ((List_node *) list_node_get(list, pos))->pointer;
 }
 
+int list_get_index_of(List list, const void *element) {
+  List_iterator iterator = list_iterator_create(list);
+  while (list_iterator_next(&iterator)) {
+    if (list_iterator_element(iterator) == element) return list_iterator_index(iterator);
+  }
+  return -1;
+}
+
 void list_insert_at(List *list, void *element, unsigned int pos) {
   if (!list) abort();
   if (!element) abort();

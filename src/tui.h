@@ -46,6 +46,8 @@ typedef struct {
   unsigned int visual_start_pos;
 
   char input[INPUT_SIZE];
+  int input_cursor;
+  int input_length;
 
   char map_buffer[MAP_BUFFER_SIZE];
 

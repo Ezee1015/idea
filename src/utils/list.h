@@ -39,6 +39,9 @@ List_node *list_node_get(List list, unsigned int pos);
 
 void *list_get(List list, unsigned int pos);
 
+// Returns -1 on error
+int list_get_index_of(List list, const void *element);
+
 unsigned int list_size(List list);
 
 bool list_is_empty(List list);
