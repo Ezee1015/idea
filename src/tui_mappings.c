@@ -124,8 +124,8 @@ void c_map_remove_char(int *input_cursor, int *input_length, int screen_y, int *
   if (*input_length == 0 || *input_cursor == *input_length) return;
 
   for (int z = *input_cursor; z < *input_length; z++) {
-    input[z] = input[z+1];
-    addch((z == *input_length-1) ? ' ' : input[z]);
+    tui_st.input[z] = tui_st.input[z+1];
+    addch((z == *input_length-1) ? ' ' : tui_st.input[z]);
   }
   (*input_length)--;
   if (*input_cursor == *input_length && *input_cursor != 0) {

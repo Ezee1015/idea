@@ -7,7 +7,6 @@
 #include "utils/list.h"
 #include "utils/string.h"
 #include "parser.h"
-#include "tui_mappings.h"
 
 #define i_div_ceil(dividend, divisor) (dividend % divisor)     \
                                       ? dividend / divisor + 1 \
@@ -17,17 +16,15 @@ Size window_size = {0};
 Point area_start = {0};
 Size area_size = {0};
 Tui_state tui_st = {0};
-char input[256] = {0};
-char map_buffer[MAP_BUFFER_SIZE] = {0};
 
 void redraw_map_status() {
   for (unsigned int x = 0; x < MAX_COMMAND_MULTIPLIER_LENGTH + MAP_BUFFER_SIZE; x++) {
     mvaddch(area_start.y, area_start.x + area_size.width - x, ' ');
   }
   if (tui_st.command_multiplier != 0) {
-    mvprintw(area_start.y, area_start.x + area_size.width - strlen(map_buffer) - MAX_COMMAND_MULTIPLIER_LENGTH, "%u", tui_st.command_multiplier);
+    mvprintw(area_start.y, area_start.x + area_size.width - strlen(tui_st.map_buffer) - MAX_COMMAND_MULTIPLIER_LENGTH, "%u", tui_st.command_multiplier);
   }
-  mvprintw(area_start.y, area_start.x + area_size.width - strlen(map_buffer), "%s", map_buffer);
+  mvprintw(area_start.y, area_start.x + area_size.width - strlen(tui_st.map_buffer), "%s", tui_st.map_buffer);
 }
 
 void add_to_command_multiplier(int n) {
@@ -56,7 +53,7 @@ void draw_window(void) {
 
   if (tui_st.mode == MODE_COMMAND) {
     mvprintw(area_start.y, area_start.x + cursor_length, "%s", command);
-    if (strcmp(input, "")) printw("%s", input);
+    if (strcmp(tui_st.input, "")) printw("%s", tui_st.input);
   }
 
   if (tui_st.mode == MODE_VISUAL) {
@@ -90,7 +87,7 @@ void draw_window(void) {
   redraw_map_status();
 
   if (tui_st.mode == MODE_COMMAND) {
-    move(area_start.y, area_start.x + cursor_length + strlen(command) + strlen(input));
+    move(area_start.y, area_start.x + cursor_length + strlen(command) + strlen(tui_st.input));
   }
 }
 
@@ -240,7 +237,7 @@ bool command_input_move_to_previous_character(int *input_cursor, char *stop_char
   while (!found && *input_cursor > 0) {
     (*input_cursor)--;
     for (int i=0; stop_characters[i]; i++) {
-      if (input[*input_cursor] == stop_characters[i]) found = true;
+      if (tui_st.input[*input_cursor] == stop_characters[i]) found = true;
     }
   }
   return found;
@@ -254,7 +251,7 @@ bool command_input_move_to_next_character(int *input_cursor, int input_length, c
   while (!found && *input_cursor < input_length) {
     (*input_cursor)++;
     for (int i=0; stop_characters[i]; i++) {
-      if (input[*input_cursor] == stop_characters[i]) found = true;
+      if (tui_st.input[*input_cursor] == stop_characters[i]) found = true;
     }
   }
   return found;
@@ -270,8 +267,8 @@ void command_input_remove(int *input_cursor, int *input_length, int *screen_x, i
 
   move(screen_y, *screen_x);
   for (int x = 0; x < *input_length - end; x++) {
-    if (x != *input_length - end - 1) addch(input[(end+1)+x]);
-    input[start+x] = input[(end+1)+x];
+    if (x != *input_length - end - 1) addch(tui_st.input[(end+1)+x]);
+    tui_st.input[start+x] = tui_st.input[(end+1)+x];
   }
   for (int x = 0; x <= (end+1) - start; x++) addch(' ');
   move(screen_y, *screen_x);
@@ -296,13 +293,13 @@ void command_input_remove_word(int *cursor, int *length, int *screen_x, int scre
 void command_input_refresh_characters(int chars_to_clear, int screen_y, int *screen_x, int *input_cursor, int input_len) {
   *screen_x -= chars_to_clear;
   for (int z=0; z < chars_to_clear; z++) {
-    mvprintw(screen_y, *screen_x + z, "%c", (*input_cursor+z >= input_len) ? ' ' : input[*input_cursor+z]);
+    mvprintw(screen_y, *screen_x + z, "%c", (*input_cursor+z >= input_len) ? ' ' : tui_st.input[*input_cursor+z]);
   }
   move(screen_y, *screen_x);
 }
 
 bool parse_command() {
-  int i = strlen(input);
+  int i = strlen(tui_st.input);
   int length = i;
   bool read = true;
   char c = 0;
@@ -344,10 +341,10 @@ bool parse_command() {
           }
         } else if (C_INPUT_IS_VALID_INSERT_CHAR(c)) {
           if (i != length) {
-            for (int x = i; x < length; x++) addch(input[x]);
-            for (int x = length+1; x > i; x--) input[x] = input[x-1];
+            for (int x = i; x < length; x++) addch(tui_st.input[x]);
+            for (int x = length+1; x > i; x--) tui_st.input[x] = tui_st.input[x-1];
           }
-          input[i++] = c;
+          tui_st.input[i++] = c;
           length++;
           move(y, x);
         } else { // Not recognized character, so clear the character that was printed on the screen
@@ -362,7 +359,7 @@ bool parse_command() {
 
         switch (c) {
           case ESCAPE_KEY:
-            if (tui_st.command_multiplier != 0 || map_buffer[0] != '\0') {
+            if (tui_st.command_multiplier != 0 || tui_st.map_buffer[0] != '\0') {
               clean_map();
               redraw_map_status();
               c = 0;
@@ -379,7 +376,7 @@ bool parse_command() {
             move(y, x);
 
             for (unsigned int z=0; z<c_maps_count; z++) {
-              if (!strcmp(map_buffer, c_maps[z].keys)) {
+              if (!strcmp(tui_st.map_buffer, c_maps[z].keys)) {
                 do {
                   c_maps[z].action(&i, &length, y, &x);
                   if (tui_st.command_multiplier > 0) tui_st.command_multiplier--;
@@ -393,27 +390,27 @@ bool parse_command() {
         }
     }
 
-    read = (i < (int) sizeof(input)-2)
+    read = (i < (int) INPUT_SIZE-2)
            && (c != ESCAPE_KEY)
            && (c != '\n')
            && (tui_st.mode == MODE_COMMAND);
   }
-  input[length] = '\0';
+  tui_st.input[length] = '\0';
 
   curs_set(0);
 
-  if (tui_st.mode != MODE_COMMAND || c == ESCAPE_KEY || !strcmp(input, "")) {
+  if (tui_st.mode != MODE_COMMAND || c == ESCAPE_KEY || !strcmp(tui_st.input, "")) {
     tui_st.mode = MODE_NORMAL;
-    input[0] = '\0';
+    tui_st.input[0] = '\0';
     return true;
   }
 
-  if (input[0] != '\0') {
+  if (tui_st.input[0] != '\0') {
     tui_st.mode = MODE_NORMAL;
 
     Input cmd = {
-      .input = input,
-      .length = strlen(input),
+      .input = tui_st.input,
+      .length = strlen(tui_st.input),
       .cursor = 0,
     };
     char *instruction = next_token(&cmd, ' ');
@@ -446,7 +443,7 @@ bool parse_command() {
     if (tui_st.current_pos >= list_size(todo_list)) tui_st.current_pos = list_size(todo_list)-1;
 
     free(instruction);
-    input[0] = '\0';
+    tui_st.input[0] = '\0';
   }
 
   return true;
@@ -520,7 +517,7 @@ void populate_command_input(const char *fmt, ...) {
 
   va_list args;
   va_start(args, fmt);
-  vsnprintf(input, sizeof(input), fmt, args);
+  vsnprintf(tui_st.input, INPUT_SIZE, fmt, args);
   va_end(args);
 }
 
@@ -857,18 +854,18 @@ Functionality tui_functionality[] = {
 unsigned int tui_functionality_count = sizeof(tui_functionality) / sizeof(Functionality);
 
 void append_to_map_buffer(char c) {
-  unsigned int vi_normal_buf_len = strlen(map_buffer);
-  if (vi_normal_buf_len < MAP_BUFFER_SIZE-1) {
-    map_buffer[vi_normal_buf_len++] = c;
-    map_buffer[vi_normal_buf_len] = '\0';
+  unsigned int map_buffer_len = strlen(tui_st.map_buffer);
+  if (map_buffer_len < MAP_BUFFER_SIZE-1) {
+    tui_st.map_buffer[map_buffer_len++] = c;
+    tui_st.map_buffer[map_buffer_len] = '\0';
   } else {
-    for (unsigned int x = 0; x < MAP_BUFFER_SIZE-1; x++) map_buffer[x] = map_buffer[x+1];
-    map_buffer[--vi_normal_buf_len] = c;
+    for (unsigned int x = 0; x < MAP_BUFFER_SIZE-1; x++) tui_st.map_buffer[x] = tui_st.map_buffer[x+1];
+    tui_st.map_buffer[--map_buffer_len] = c;
   }
 }
 
 void clean_map() {
-  map_buffer[0] = '\0';
+  tui_st.map_buffer[0] = '\0';
   tui_st.command_multiplier = 0;
 }
 
@@ -883,7 +880,7 @@ void parse_normal() {
     append_to_map_buffer(c);
 
     for (unsigned int i=0; i<nv_maps_count; i++) {
-      if (!strcmp(map_buffer, nv_maps[i].keys)) {
+      if (!strcmp(tui_st.map_buffer, nv_maps[i].keys)) {
         nv_maps[i].action();
         clean_map();
         break;

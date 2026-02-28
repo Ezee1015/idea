@@ -1,4 +1,5 @@
 #ifndef MAPPINGS
+#define MAPPINGS
 
 #include <stdbool.h>
 #include <ctype.h>

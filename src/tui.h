@@ -2,10 +2,12 @@
 #define TUI_H
 
 #include <ncurses.h>
+
 #include "utils/list.h"
 #include "todo_list.h"
+#include "tui_mappings.h"
 
-extern char input[];
+#define INPUT_SIZE 128
 
 typedef struct {
   unsigned int width;
@@ -42,6 +44,10 @@ typedef struct {
   } command_input_mode;
 
   unsigned int visual_start_pos;
+
+  char input[INPUT_SIZE];
+
+  char map_buffer[MAP_BUFFER_SIZE];
 
 } Tui_state;
 extern Tui_state tui_st;
