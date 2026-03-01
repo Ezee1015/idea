@@ -417,6 +417,20 @@ void nv_map_export_html() {
   sb_free(&sb);
 }
 
+void nv_map_reload() {
+  if (!todo_list_modified) return;
+
+  bool ok = confirm("Discard the changes and reload the ToDo list?", CONFIRM_DEFAULT_NO);
+  if (!ok) return;
+
+  if (!load_todo_list(&todo_list, idea_state.todos_filepath, true)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to reload the ToDo list!");
+    return;
+  }
+
+  todo_list_modified = false;
+}
+
 Normal_visual_map nv_maps[] = {
   { " "                   , "Toggle select"                                       , nv_map_toggle },
   { "j"                   , "Move the cursor down"                                , nv_map_cursor_down },
@@ -437,6 +451,7 @@ Normal_visual_map nv_maps[] = {
   { "O"                   , "Create a new ToDo above the cursor"                  , nv_map_add_above_cursor },
   { "a"                   , "Change the name of the current ToDo"                 , nv_map_edit },
   { "e"                   , "Export the selected ToDos to HTML"                   , nv_map_export_html },
+  { "r"                   , "Discar all the changes and reload the ToDo list"     , nv_map_reload },
 };
 
 unsigned int nv_maps_count = sizeof(nv_maps) / sizeof(Normal_visual_map);

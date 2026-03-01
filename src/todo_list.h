@@ -32,7 +32,7 @@ bool is_a_valid_todo_name(char *name);
 
 // Import/ Export file
 bool save_todo_to_file(FILE *file, Todo *todo);
-bool load_todo_from_file(const char *load_file_path, FILE *load_file, List *old_todo_list, bool *reached_eof);
+bool load_todo_from_file(const char *load_file_path, FILE *load_file, bool *reached_eof);
 bool write_notes_to_file(FILE *save_file, Todo *todo);
 
 bool create_dir_if_not_exists(char *dir_path);

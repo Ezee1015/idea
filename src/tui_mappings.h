@@ -83,6 +83,7 @@ void nv_map_add_below_cursor();
 void nv_map_add_above_cursor();
 void nv_map_edit();
 void nv_map_export_html();
+void nv_map_reload();
 
 extern Normal_visual_map nv_maps[];
 extern unsigned int nv_maps_count;

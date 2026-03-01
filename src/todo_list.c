@@ -98,7 +98,7 @@ bool todo_exists(const char *name) {
 }
 
 /// FILE OPERATIONS
-bool load_todo_from_file(const char *load_file_path, FILE *load_file, List *old_todo_list, bool *reached_eof) {
+bool load_todo_from_file(const char *load_file_path, FILE *load_file, bool *reached_eof) {
   if (!load_file_path || !load_file || !reached_eof) return false;
   bool ret = true;
 
@@ -106,7 +106,6 @@ bool load_todo_from_file(const char *load_file_path, FILE *load_file, List *old_
   unsigned int line_nr = 0;
   char *attribute = NULL;
   Todo *new_todo = NULL;
-  Todo *old_todo = NULL;
   String_builder todo_notes = sb_new();
   enum State {
     NO_STATE,
@@ -185,18 +184,6 @@ bool load_todo_from_file(const char *load_file_path, FILE *load_file, List *old_
           memset(new_todo, 0, sizeof(Todo));
           new_todo->name = name;
           list_append(&todo_list, new_todo);
-
-          // Search if the todo has a local version
-          if (old_todo_list) {
-            List_iterator iterator = list_iterator_create(*old_todo_list);
-            while (list_iterator_next(&iterator)) {
-              Todo *element = list_iterator_element(iterator);
-              if (!strcmp(element->name, new_todo->name)) {
-                old_todo = list_remove(old_todo_list, list_iterator_index(iterator));
-                break;
-              }
-            }
-          }
 
         } else if (indentation == 1 && !strcmp(attribute, "created:")) {
           if (!new_todo) {
@@ -330,10 +317,6 @@ bool load_todo_from_file(const char *load_file_path, FILE *load_file, List *old_
     sb_free(&todo_notes);
     ret = false;
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Import file %s:%u: Unclosed 'notes_content' (you need to end 'notes_content' with 'EOF')", load_file_path, line_nr);
-  }
-
-  if (old_todo) {
-    free_todo(old_todo);
   }
 
   sb_free(&line);
@@ -471,8 +454,6 @@ bool create_dir_structure() {
 }
 
 bool load_todo_list(List *list, char *file_path, bool obligatory) {
-  if (!list_is_empty(*list)) list_destroy(list, (void (*)(void *))free_todo);
-
   FILE *save_file = fopen(file_path, "r");
   if (!save_file) {
     if (!obligatory) return true;
@@ -481,13 +462,12 @@ bool load_todo_list(List *list, char *file_path, bool obligatory) {
     return false;
   }
 
-  List old_list = *list;
+  if (!list_is_empty(*list)) list_destroy(list, (void (*)(void *))free_todo);
   *list = list_new();
 
   bool reached_eof = false;
-  while (load_todo_from_file(file_path, save_file, &old_list, &reached_eof));
+  while (load_todo_from_file(file_path, save_file, &reached_eof));
   fclose(save_file);
-  list_destroy(&old_list, (void (*)(void *))free_todo);
 
   if (!reached_eof) APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "An error has occured while parsing the ToDos file");
 
