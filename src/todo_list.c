@@ -462,14 +462,20 @@ bool load_todo_list(List *list, char *file_path, bool obligatory) {
     return false;
   }
 
-  if (!list_is_empty(*list)) list_destroy(list, (void (*)(void *))free_todo);
+  List old_list = *list;
   *list = list_new();
 
   bool reached_eof = false;
   while (load_todo_from_file(file_path, save_file, &reached_eof));
   fclose(save_file);
 
-  if (!reached_eof) APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "An error has occured while parsing the ToDos file");
+  if (reached_eof) {
+    if (!list_is_empty(old_list)) list_destroy(&old_list, (void (*)(void *))free_todo);
+  } else {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "An error has occured while parsing the ToDos file");
+    if (!list_is_empty(*list)) list_destroy(list, (void (*)(void *))free_todo);
+    *list = old_list;
+  }
 
   return reached_eof;
 }
