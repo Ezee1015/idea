@@ -249,11 +249,24 @@ command: edit 1
 should_fail
 
 -- ----------
+-- NOTES_PRINT
+-- ----------
+-- I can't test if the notes were printed correctly. I can only test if the
+-- program finishes successfully
+
+name: notes_print
+initial_state: 5_basic_todos
+command: notes_print 3
+state_unchanged
+
+name: notes_print_with_no_notes
+initial_state: 5_basic_todos
+command: notes_print 2
+should_fail
+
+-- ----------
 -- NOTES_REMOVE
 -- ----------
-
--- I can't test if the notes file was in fact removed. I can only test if the
--- program finishes successfully and the ToDo is no longer linked to that file
 
 name: notes_remove
 initial_state: 5_basic_todos
