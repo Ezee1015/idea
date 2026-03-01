@@ -444,7 +444,7 @@ Normal_visual_map nv_maps[] = {
   { "V"                   , "Enter or Exit visual mode"                           , nv_map_toggle_visual },
   { "J"                   , "Move the selected ToDos down"                        , nv_map_move_down },
   { "K"                   , "Move the selected ToDos up"                          , nv_map_move_up },
-  { "us"                  , "Unselect all the selected items"                     , nv_map_unselect },
+  { "uv"                  , "Unselect all the selected items"                     , nv_map_unselect },
   { ":"                   , "Enter command mode"                                  , nv_map_command },
   { "d"                   , "Delete the selected ToDos"                           , nv_map_delete },
   { "o"                   , "Create a new ToDo below the cursor"                  , nv_map_add_below_cursor },
