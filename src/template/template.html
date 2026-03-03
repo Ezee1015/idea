@@ -223,6 +223,10 @@
                 padding-right: 5px;
             }
 
+            .todo_hostname, .todo_creation_time {
+                font-weight: bold;
+            }
+
             /* Header */
 
             hr {
@@ -348,7 +352,7 @@
 
                         <hr class="todo_header_separator">
                         <div class="todo_data">
-                            <p class="todo_info">Created on <b><c>TIME(e->creation_time)</c></b> on <b><c>CSTR(e->hostname)</c></b></p>
+                            <p class="todo_info">Created on <span class="todo_creation_time"><c>TIME(e->creation_time)</c></span> on <span class="todo_hostname"><c>CSTR(e->hostname)</c></span></p>
 
                             <c> if (e->notes) { </c>
                                 <h3>Notes:</h3>
@@ -464,6 +468,10 @@
                             variable += notes_lines[i].innerText
                         }
                         break
+
+                    case "host":
+                        variable = getElementInsideContainer(todo, "todo_hostname").innerText
+                        break;
                 }
 
                 let filterText = inputText
@@ -545,7 +553,7 @@
                 filter()
             }
 
-            const fields = ["Name", "Notes"]
+            const fields = ["Name", "Notes", "Host"]
 
             const fieldSelect = document.createElement("select")
             fieldSelect.classList.add("filter_field")
