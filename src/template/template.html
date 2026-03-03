@@ -13,6 +13,7 @@
             :root {
                 --bg: #181818;
                 --bg-light: #1b1b1b;
+                --bg-lighter: #242424;
 
                 --fg: #e4e4ef;
                 --fg-dark: #515151;
@@ -27,11 +28,138 @@
                 color: var(--fg);
             }
 
+            /* Menu */
+            .menu {
+                width: 50%;
+                margin-left: 25%;
+                border-radius: 0px 0px 10px 10px;
+                border-left: 1px solid var(--fg);
+                border-bottom: 1px solid var(--fg);
+                border-right: 1px solid var(--fg);
+            }
+
+            .menu_title {
+                color: var(--fg);
+                padding-left: 25px;
+                cursor: pointer;
+            }
+
+            .menu_separator {
+                border-top: 1px solid white;
+            }
+
+            .menu_content {
+                padding-left: 25px;
+                padding-right: 25px;
+                padding-bottom: 25px;
+            }
+
+            .menu_subtitle {
+                display: flex;
+                justify-content: center;
+            }
+
+            select {
+                background: var(--bg);
+                border-radius: 15px;
+                color: white;
+                padding-bottom: 2px;
+                padding-left: 10px;
+                padding-right: 5px;
+
+                border-color: white;
+                /* border: 1px solid white; */
+            }
+
+            select:hover {
+                border-color: var(--green);
+                color: var(--green);
+            }
+
+            button {
+                background: var(--bg);
+                border: 1px solid var(--fg);
+                color: var(--fg);
+                border-radius: 15px;
+                padding: 5px 10px 5px 10px;
+            }
+
+            button:hover {
+                color: var(--green);
+                border-color: var(--green);
+            }
+
+            /* Source: <https://stackoverflow.com/questions/24322599/why-cannot-change-checkbox-color-whatever-i-do> */
+            .checkbox {
+                accent-color: var(--green);
+            }
+
+            /* Filters */
+
+            #add_search_filter {
+                margin-bottom: 15px;
+            }
+
+            #search_filter_container div {
+                margin-bottom: 10px;
+
+                display: flex;
+            }
+
+            .filter_remove {
+                border-radius: 50%;
+                width: 25px;
+                height: 25px;
+                padding: 0px;
+
+                margin-right: 20px;
+            }
+
+            .filter_input {
+                background: var(--bg);
+                border-radius: 15px;
+                color: white;
+                padding-bottom: 2px;
+                padding-left: 10px;
+                padding-right: 10px;
+
+                border-color: white;
+                /* border: 1px solid white; */
+
+                margin-left: 10px;
+                margin-right: 10px;
+
+                /* Flexbox */
+                /* Source: <https://stackoverflow.com/a/76670135> and <https://stackoverflow.com/a/37751019> */
+                flex: 1;
+                min-width: 0;
+            }
+
+            .filter_input:focus, .filter_input:hover {
+                color: var(--green);
+                border-color: var(--green);
+            }
+
+            .ignore_case_label {
+                line-height: 25px;
+            }
+
+            #filter_options {
+                display: flex;
+                justify-content: space-between;
+            }
+
+            /* ToDos */
+
+            #todos_container {
+                margin-top: 40px;
+            }
+
             .todo {
                 background: var(--bg-light);
-                width: 50%;
+                width: 60%;
                 margin-top: 25px;
-                margin-left: 25%;
+                margin-left: 20%;
 
                 border-radius: 15px;
                 border: 2px solid var(--fg-dark);
@@ -45,12 +173,17 @@
                 margin-bottom: 0px;
             }
 
+            .todo_header {
+                cursor: pointer;
+            }
+
             .arrow_show {
                 color: var(--fg-dark);
                 width: 100%;
                 text-align: center;
                 margin: 0px;
                 font-size: 15px;
+                cursor: pointer;
 
                 opacity: 0;
             }
@@ -90,6 +223,8 @@
                 padding-right: 5px;
             }
 
+            /* Header */
+
             hr {
                 border: 1px solid var(--fg-dark);
             }
@@ -106,6 +241,7 @@
                 top: 0px;
             }
 
+            /* Footer */
             footer {
                 text-align: center;
             }
@@ -131,7 +267,7 @@
             }
 
             @media (max-device-width: 640px), (max-width: 1100px), print {
-                .todo {
+                .todo, .menu {
                     width: 98%;
                     margin-left: 1%;
                 }
@@ -164,6 +300,42 @@
         </header>
 
         <main>
+            <div class="menu">
+                <p class="menu_title unselectable"><span class="menu_arrow">&#9654</span> <b>Filters</b></p>
+
+                <hr class="menu_separator">
+
+                <div class="menu_content">
+                    <p class="menu_subtitle"><u>ToDo filters</u></p>
+                    <ul>
+                        <li>
+                            <select id="notes_filter">
+                                <option value="all">Show ToDos With or Without notes </option>
+                                <option value="with">Show ToDos With notes </option>
+                                <option value="without">Show ToDos Without notes </option>
+                            </select>
+                        </li>
+                    </ul>
+
+                    <hr>
+
+                    <p class="menu_subtitle"><u>Search filters</u></p>
+
+                    <button id="add_search_filter" onclick="addFilter()">+ Add Search Filter</button>
+                    <div id="search_filter_container"> </div>
+
+                    <hr>
+
+                    <div id="filter_options">
+                        <div>
+                            <button id="filter_button" onclick="filter()">Filter</button>
+                            <input id="auto_apply_filters" class="checkbox" type="checkbox" checked onchange="autoApplyFilter()"> <label for="auto_apply_filters"> Auto-apply filters</label>
+                        </div>
+                        <button id="reset_filters_button" onclick="resetFilters()">Reset filters</button>
+                    </div>
+                </div>
+            </div>
+
             <div id="todos_container">
                 <c> List_iterator iterator = list_iterator_create(todo_list); </c>
                 <c> while (list_iterator_next(&iterator)) { </c>
@@ -256,20 +428,190 @@
     <script>
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) // Source: https://stackoverflow.com/a/29509267
         const todos = document.getElementsByClassName("todo")
+        const menus = document.getElementsByClassName("menu")
 
-        function getElementInsideTodoContainer(container, className) {
+        function getElementInsideContainer(container, className) {
             const list = container.getElementsByClassName(className)
             if (list.length != 1) console.log("Error. There's more than one `" + className + "` in a `todo_container`")
             return list[0]
         }
 
+        function applySearchFilter(filter_element) {
+            // Filter options
+            const ignoreCase = getElementInsideContainer(filter_element, "ignore_case").checked
+            const inputText = getElementInsideContainer(filter_element, "filter_input").value
+            const fieldText = getElementInsideContainer(filter_element, "filter_field").value
+
+            for (const todo of todos) {
+                if (todo.style.display == "none") continue
+
+                const header = getElementInsideContainer(todo, "todo_header")
+
+                // Get the title
+                const title_list = header.getElementsByTagName("h2")
+                if (title_list.length != 1) console.log("Error. There's more than one h2 in a `todo_header`")
+                const title = title_list[0]
+
+                let variable = ""
+                switch (fieldText) {
+                    case "name":
+                        variable = title.innerText
+                        break
+
+                    case "notes":
+                        const notes_lines = todo.getElementsByClassName("todo_notes_line")
+                        for (let i=0; i < notes_lines.length; i++) {
+                            variable += notes_lines[i].innerText
+                        }
+                        break
+                }
+
+                let filterText = inputText
+                if (ignoreCase) {
+                    variable = variable.toLowerCase()
+                    filterText = filterText.toLowerCase()
+                }
+
+                if (!variable.includes(filterText)) {
+                    todo.style.display = "none"
+                }
+            }
+        }
+
+        function applyStaticFilters() {
+            for (const todo of todos) {
+                const notes = todo.getElementsByClassName("todo_notes");
+
+                // Notes filter
+                switch (notes_filter.value) {
+                    case "all": break;
+
+                    case "with":
+                        if (notes.length == 0) {
+                            todo.style.display = "none"
+                            continue;
+                        }
+                        break;
+
+                    case "without":
+                        if (notes.length != 0) {
+                            todo.style.display = "none"
+                            continue;
+                        }
+                        break;
+                }
+            }
+        }
+
+        function filter() {
+            for (const todo of todos) todo.style.display = ""
+
+            applyStaticFilters()
+
+            const searchFilters = search_filter_container.children
+            for (f of searchFilters) applySearchFilter(f)
+        }
+
+        function autoApplyFilter() {
+            // Filter button
+            filter_button.style.display = (auto_apply_filters.checked) ? "none" : ""
+
+            // Static filters
+            notes_filter.onclick = (auto_apply_filters.checked) ? filter : undefined
+
+            // Search filters
+            const filters = search_filter_container.children
+            for (f of filters) {
+                const input = getElementInsideContainer(f, "filter_input")
+                const field = getElementInsideContainer(f, "filter_field")
+
+                input.onkeyup  = (auto_apply_filters.checked) ? filter : undefined
+                field.onchange = (auto_apply_filters.checked) ? filter : undefined
+            }
+
+            filter()
+        }
+
+        function addFilter() {
+            const container = document.createElement("div")
+            search_filter_container.appendChild(container)
+
+            const remove = document.createElement("button")
+            remove.classList.add("filter_remove")
+            container.appendChild(remove)
+            remove.innerText = "X"
+            remove.onclick = () => {
+                search_filter_container.removeChild(container)
+                filter()
+            }
+
+            const fields = ["Name", "Notes"]
+
+            const fieldSelect = document.createElement("select")
+            fieldSelect.classList.add("filter_field")
+            if (auto_apply_filters.checked) fieldSelect.onchange = filter
+            container.appendChild(fieldSelect)
+            fields.forEach(value => {
+                const field = document.createElement("option")
+                field.textContent = value
+                field.value = value.toLowerCase()
+                fieldSelect.appendChild(field)
+            })
+
+            const input = document.createElement("input")
+            input.classList.add("filter_input")
+            if (auto_apply_filters.checked) input.onkeyup = filter
+            container.appendChild(input)
+
+            const ignoreCase = document.createElement("input")
+            ignoreCase.classList.add("ignore_case", "checkbox")
+            ignoreCase.onclick = filter;
+            ignoreCase.type = "checkbox"
+            ignoreCase.value = "on"
+            container.appendChild(ignoreCase)
+            const ignoreCaseLabel = document.createElement("label")
+            ignoreCaseLabel.classList.add("ignore_case_label")
+            ignoreCaseLabel.innerText = "Ignore case"
+            container.appendChild(ignoreCaseLabel)
+        }
+
+        function resetFilters() {
+            // Static filters
+            notes_filter.value = "all"
+
+            // Search filters
+            search_filter_container.innerHTML = ""
+
+            for (const todo of todos) todo.style.display = ""
+        }
+
+        // Configure Menus
+
+        for (menu of menus) {
+            const header    = getElementInsideContainer(menu, "menu_title")
+            const separator = getElementInsideContainer(menu, "menu_separator")
+            const content   = getElementInsideContainer(menu, "menu_content")
+            const arrow     = getElementInsideContainer(header, "menu_arrow")
+
+            content.style.display = "none"
+            separator.style.display = "none"
+
+            header.onclick = () => {
+                content.style.display   = (content.style.display != "none") ? "none"   : ""
+                separator.style.display = (content.style.display != "none") ? "none"   : ""
+                arrow.innerHTML         = (content.style.display != "none") ? "&#9654" : "&#9660"
+            }
+        }
+
+        // Configure ToDos
+
         for (const todo of todos) {
-            const header      = getElementInsideTodoContainer(todo, "todo_header")
-            const arrowHeader = getElementInsideTodoContainer(header, "arrow_show")
-            const separator   = getElementInsideTodoContainer(todo, "todo_header_separator")
-            const data        = getElementInsideTodoContainer(todo, "todo_data")
-            const info        = getElementInsideTodoContainer(todo, "todo_info")
-            const arrowFooter = getElementInsideTodoContainer(data, "arrow_show")
+            const header      = getElementInsideContainer(todo, "todo_header")
+            const arrowHeader = getElementInsideContainer(header, "arrow_show")
+            const separator   = getElementInsideContainer(todo, "todo_header_separator")
+            const data        = getElementInsideContainer(todo, "todo_data")
+            const info        = getElementInsideContainer(todo, "todo_info")
+            const arrowFooter = getElementInsideContainer(data, "arrow_show")
 
             // I put display: none in the JS and not in the CSS because if the
             // browser doesn't execute the JS, the data can still be displayed
@@ -285,19 +627,13 @@
             }
 
             function toggle_todo_data() {
-                if (data.style.display == "none") {
-                    if (isMobile) arrowHeader.style.opacity = "1"
-                    arrowHeader.innerHTML = "&#9650;"
-
-                    separator.style.display = ""
-                    data.style.display = ""
-                } else {
-                    if (isMobile) arrowHeader.style.opacity = "0"
-                    arrowHeader.innerHTML = "&#9660;"
-
-                    separator.style.display = "none"
-                    data.style.display = "none"
+                if (isMobile) {
+                    arrowHeader.style.opacity = (data.style.display == "none") ? "1" : "0"
                 }
+
+                arrowHeader.innerHTML   = (data.style.display == "none") ? "&#9650;" : "&#9660;"
+                separator.style.display = (data.style.display == "none") ? ""        : "none"
+                data.style.display      = (data.style.display == "none") ? ""        : "none"
 
                 const rect = todo.getBoundingClientRect()
                 const shake = (data.style.display == "none") ? { y: 5, x: 5 } :  { y: -5, x: -5 }
@@ -323,5 +659,7 @@
                 header.scrollIntoView({behavior: "smooth", block: 'center'})
             }
         }
+
+        autoApplyFilter()
     </script>
 </html>
