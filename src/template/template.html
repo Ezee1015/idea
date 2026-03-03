@@ -19,6 +19,7 @@
                 --fg-dark: #515151;
 
                 --green: #73c936;
+                --green-light: #BFE6A2;
                 --blue-dark: #1e2030;
                 --blue-light: #222436;
             }
@@ -59,34 +60,31 @@
                 justify-content: center;
             }
 
-            select {
+            .clickable {
                 background: var(--bg);
-                border-radius: 15px;
                 color: var(--fg);
-                padding-bottom: 2px;
-                padding-left: 10px;
-                padding-right: 5px;
+                border-radius: 15px;
 
                 border-color: var(--fg);
                 /* border: 1px solid var(--fg); */
             }
 
-            select:hover, select:focus {
+            .clickable:hover {
+                border-color: var(--green-light);
+                color: var(--green-light);
+            }
+
+            .clickable:focus {
                 border-color: var(--green);
                 color: var(--green);
+            }
+
+            select {
+                padding: 1px 5px 2px 10px;
             }
 
             button {
-                background: var(--bg);
-                border: 1px solid var(--fg);
-                color: var(--fg);
-                border-radius: 15px;
                 padding: 5px 10px 5px 10px;
-            }
-
-            button:focus, button:hover {
-                color: var(--green);
-                border-color: var(--green);
             }
 
             /* Source: <https://stackoverflow.com/questions/24322599/why-cannot-change-checkbox-color-whatever-i-do> */
@@ -94,20 +92,15 @@
                 accent-color: var(--green);
             }
 
+            .checkbox:not(:checked):hover {
+                opacity: 0.8;
+            }
+
             .date_input {
-                background: var(--bg);
-                color: var(--fg);
-                border-color: var(--fg);
-                border-radius: 15px;
                 padding-left: 5px;
                 padding-right: 5px;
                 margin-left: 5px;
                 margin-right: 5px;
-            }
-
-            .date_input:focus, .date_input:hover {
-                color: var(--green);
-                border-color: var(--green);
             }
 
             /* Filters */
@@ -134,15 +127,9 @@
             }
 
             .filter_input {
-                background: var(--bg);
-                border-radius: 15px;
-                color: var(--fg);
                 padding-bottom: 2px;
                 padding-left: 10px;
                 padding-right: 10px;
-
-                border-color: var(--fg);
-                /* border: 1px solid var(--fg); */
 
                 margin-left: 10px;
                 margin-right: 10px;
@@ -151,11 +138,6 @@
                 /* Source: <https://stackoverflow.com/a/76670135> and <https://stackoverflow.com/a/37751019> */
                 flex: 1;
                 min-width: 0;
-            }
-
-            .filter_input:focus, .filter_input:hover {
-                color: var(--green);
-                border-color: var(--green);
             }
 
             .ignore_case_label {
@@ -331,14 +313,14 @@
                     <p class="menu_subtitle"><u>ToDo filters</u></p>
                     <ul id="static_filters_container">
                         <li class="filter">
-                            <select id="notes_filter">
+                            <select id="notes_filter" class="clickable">
                                 <option value="all">Show ToDos With or Without notes </option>
                                 <option value="with">Show ToDos With notes </option>
                                 <option value="without">Show ToDos Without notes </option>
                             </select>
                         </li>
                         <li class="filter">
-                            <label>Creation date from </label><input id="creation_start_filter" class="date_input" type="date"><label> to </label><input id="creation_end_filter" class="date_input" type="date">
+                            <label>Creation date from </label><input id="creation_start_filter" class="date_input clickable" type="date"><label> to </label><input id="creation_end_filter" class="date_input clickable" type="date">
                         </li>
                     </ul>
 
@@ -346,17 +328,17 @@
 
                     <p class="menu_subtitle"><u>Search filters</u></p>
 
-                    <button id="add_search_filter" onclick="addSearchFilter()">+ Add Search Filter</button>
+                    <button id="add_search_filter" class="clickable" onclick="addSearchFilter()">+ Add Search Filter</button>
                     <div id="search_filter_container"> </div>
 
                     <hr>
 
                     <div id="filter_options">
                         <div>
-                            <button id="filter_button" onclick="filter()">Filter</button>
-                            <input id="auto_apply_filters" class="checkbox" type="checkbox" checked onchange="autoApplyFilter()"> <label for="auto_apply_filters"> Auto-apply filters</label>
+                            <button id="filter_button" class="clickable" onclick="filter()">Filter</button>
+                            <input id="auto_apply_filters" class="checkbox clickable" type="checkbox" checked onchange="autoApplyFilter()"> <label for="auto_apply_filters"> Auto-apply filters</label>
                         </div>
-                        <button id="reset_filters_button" onclick="resetFilters()">Reset filters</button>
+                        <button id="reset_filters_button" class="clickable" onclick="resetFilters()">Reset filters</button>
                     </div>
                 </div>
             </div>
@@ -584,7 +566,7 @@
             search_filter_container.appendChild(container)
 
             const remove = document.createElement("button")
-            remove.classList.add("filter_remove")
+            remove.classList.add("filter_remove", "clickable")
             container.appendChild(remove)
             remove.innerText = "X"
             remove.onclick = () => {
@@ -595,7 +577,7 @@
             const fields = ["Name", "Notes", "Host"]
 
             const fieldSelect = document.createElement("select")
-            fieldSelect.classList.add("filter_field")
+            fieldSelect.classList.add("filter_field", "clickable")
             if (auto_apply_filters.checked) fieldSelect.onchange = filter
             container.appendChild(fieldSelect)
             fields.forEach(value => {
@@ -606,7 +588,7 @@
             })
 
             const input = document.createElement("input")
-            input.classList.add("filter_input")
+            input.classList.add("filter_input", "clickable")
             if (auto_apply_filters.checked) input.onkeyup = filter
             container.appendChild(input)
 
