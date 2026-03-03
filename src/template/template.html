@@ -305,7 +305,7 @@
 
         <main>
             <div class="menu">
-                <p class="menu_title unselectable"><span class="menu_arrow">&#9654</span> <b>Filters</b></p>
+                <p role="button" tabindex="0" class="menu_title unselectable keyboard_clickable"><span class="menu_arrow">&#9654</span> <b>Filters</b></p>
 
                 <hr class="menu_separator">
 
@@ -348,9 +348,9 @@
                 <c> while (list_iterator_next(&iterator)) { </c>
                     <c> Todo *e = list_iterator_element(iterator); </c>
                     <div class="todo">
-                        <div class="todo_header">
-                            <h2 class="unselectable"><c>CSTR(e->name)</c></h2>
-                            <p class="arrow_show unselectable">&#9660;</p>
+                        <div role="button" tabindex="0" class="todo_header unselectable keyboard_clickable">
+                            <h2><c>CSTR(e->name)</c></h2>
+                            <p class="arrow_show">&#9660;</p>
                         </div>
 
                         <hr class="todo_header_separator">
@@ -395,7 +395,7 @@
                                 </table>
                             <c> } </c>
 
-                            <p class="arrow_show unselectable">&#9650; Back to Top &#9650;</p>
+                            <p role="button" tabindex="0" class="arrow_show unselectable keyboard_clickable">&#9650; Back to Top &#9650;</p>
                         </div>
                     </div>
                 <c> } </c>
@@ -696,5 +696,14 @@
         }
 
         autoApplyFilter()
+
+        // Add keyboard compatibility
+        // Source: <https://developer.brianshim.com/make-html-tag-selectable-using-tab-accessibility/>
+        document.addEventListener("keydown", function(e) {
+            if (e.target.classList.contains("keyboard_clickable") && (e.key == "Enter" || e.key == " " /* Space */)) {
+                e.preventDefault() // Prevent the scrolling from the Space key
+                e.target.click()
+            }
+        })
     </script>
 </html>
