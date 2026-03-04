@@ -475,6 +475,88 @@ bool action_do_nothing(Input *input) {
   return true;
 }
 
+bool action_loop(Input *input) {
+  ACTION_NO_ARGS("loop", input);
+
+  const char *information_commands[] = { // CLI commands that print to stdout without using the Backtrace
+    "help", "-h",
+    "version", "-v",
+    "notes_print"
+  };
+
+  char command[128] = {0};
+  while (true) {
+    printf("%s%s", ANSI_CLEAR_SCREEN, ANSI_GRAY);
+    printf("Loop special commands:\n");
+    printf("- w, write ........ Save the ToDo list\n");
+    printf("- q, quit ......... Exit idea\n");
+    printf("- wq, write_quit .. Save the changes and quit idea\n");
+    printf("- [empty] ......... Print the ToDo list\n");
+    printf("\n%s", ANSI_RESET);
+    action_print_todo(NULL);
+    printf("\n%s%sidea%s>%s ", ANSI_BLUE, (todo_list_modified) ? "[+] " : "",ANSI_GRAY, ANSI_RESET);
+    fgets(command, sizeof(command), stdin);
+    command[strlen(command)-1] = '\0'; // Remove the last '\n'
+
+    if (!strcmp(command, "q") || !strcmp(command, "quit")) {
+      if (todo_list_modified) {
+        printf("\n%sExit without saving? [y/N]%s>%s ", ANSI_BLUE, ANSI_GRAY, ANSI_RESET);
+        fgets(command, sizeof(command), stdin);
+        command[strlen(command)-1] = '\0'; // Remove the last '\n'
+
+        if (!strcmp(command, "y") || !strcmp(command, "Y")) {
+          todo_list_modified = false;
+          return true;
+        } else {
+          continue;
+        }
+      } else {
+        return true;
+      }
+
+    } else if (!strcmp(command, "w") || !strcmp(command, "write")) {
+      save_todo_list(todo_list, idea_state.todos_filepath);
+      todo_list_modified = false;
+      continue;
+
+    } else if (!strcmp(command, "wq") || !strcmp(command, "write_quit")) {
+      save_todo_list(todo_list, idea_state.todos_filepath);
+      return true;
+
+    } else if (!strcmp(command, "")) {
+      continue;
+    }
+
+    bool result = cli_parse_input(command);
+
+    if (result) {
+      if (!list_is_empty(backtrace)) {
+          APPEND_TO_BACKTRACE(BACKTRACE_INFO, "Message from the command '%s'", command);
+          cli_print_backtrace();
+          printf("\n%sPress a key to continue...%s>%s ", ANSI_BLUE, ANSI_GRAY, ANSI_RESET);
+          getchar();
+      }
+
+      // If I can clear the screen, then ask to press a key to continue, because
+      // there may be something printed to stdout
+      if (!cli_disable_colors) {
+        for (size_t i=0; i < sizeof(information_commands) / sizeof(char*); i++) {
+          if (!strcmp(command, information_commands[i])) {
+            printf("\n%sPress a key to continue...%s>%s ", ANSI_BLUE, ANSI_GRAY, ANSI_RESET);
+            getchar();
+            continue;
+          }
+        }
+      }
+    } else {
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "An ERROR occurred in the command '%s'", command);
+      cli_print_backtrace();
+      printf("\n%sPress a key to continue...%s>%s ", ANSI_BLUE, ANSI_GRAY, ANSI_RESET);
+      getchar();
+    }
+  }
+}
+
 Functionality cli_functionality[] = {
   { "--", "", action_do_nothing, MAN("Comment. Mostly used in file exports/imports and executing files", "[text]") }, // Comment and empty lines
   { "list", "-l", action_print_todo, MAN("List all ToDos", NULL) },
@@ -485,6 +567,7 @@ Functionality cli_functionality[] = {
   { "help", "-h", action_print_help, MAN("Help page", NULL) },
   { "notes", NULL, action_notes_todo, MAN("Open the ToDo's notes", "[index]", "[name]") },
   { "notes_print", NULL, action_print_notes, MAN("Print the ToDo's notes", "[index]", "[name]", "[index] number", "[name] number") },
+  { "loop", NULL, action_loop, MAN("Go into the CLI loop. You can execute `rlwrap idea loop` for a better experience", NULL) },
 #ifdef COMMIT
   { "version", "-v", action_version, MAN("Print the commit hash and version", NULL) },
 #endif // COMMIT

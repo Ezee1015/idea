@@ -16,13 +16,14 @@
 #define TEXT_EDITOR "nvim"
 #define DIFFTOOL_CMD "nvim -d"
 
-#define ANSI_RED       (cli_disable_colors) ? "" : "\033[0;31m"
-#define ANSI_GREEN     (cli_disable_colors) ? "" : "\033[0;32m"
-#define ANSI_YELLOW    (cli_disable_colors) ? "" : "\033[0;33m"
-#define ANSI_BLUE      (cli_disable_colors) ? "" : "\033[0;34m"
-#define ANSI_GRAY      (cli_disable_colors) ? "" : "\033[0;90m"
-#define ANSI_RESET     (cli_disable_colors) ? "" : "\033[0m"
-#define ANSI_UNDERLINE (cli_disable_colors) ? "" : "\033[4m"
+#define ANSI_RED          (cli_disable_colors) ? "" : "\033[0;31m"
+#define ANSI_GREEN        (cli_disable_colors) ? "" : "\033[0;32m"
+#define ANSI_YELLOW       (cli_disable_colors) ? "" : "\033[0;33m"
+#define ANSI_BLUE         (cli_disable_colors) ? "" : "\033[0;34m"
+#define ANSI_GRAY         (cli_disable_colors) ? "" : "\033[0;90m"
+#define ANSI_RESET        (cli_disable_colors) ? "" : "\033[0m"
+#define ANSI_UNDERLINE    (cli_disable_colors) ? "" : "\033[4m"
+#define ANSI_CLEAR_SCREEN (cli_disable_colors) ? "" : "\033[2J"
 
 #define DIFF_FORMAT_FMT  "'%s<<< changes\n%s%%>%s===\n%s%%<%s>>> local%s\n'"
 #define DIFF_FORMAT_ARGS ANSI_BLUE, ANSI_GREEN, ANSI_BLUE, ANSI_RED, ANSI_BLUE, ANSI_RESET
@@ -45,6 +46,7 @@ bool action_print_notes(Input *input);
 bool action_execute_commands(Input *input);
 bool action_do_nothing(Input *input);
 bool action_print_help(Input *input);
+bool action_loop(Input *input);
 extern Functionality cli_functionality[];
 extern unsigned int cli_functionality_count;
 
