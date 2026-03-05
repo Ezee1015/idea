@@ -64,7 +64,9 @@ extern unsigned int todo_list_functionality_count;
 
 // Tasks (taken from the ToDo's notes)
 void free_task(Task *task);
-bool is_a_task(char *cstr, unsigned int length);
 List get_tasks_from_todo(Todo todo);
+
+// Tags (taken from the ToDo's notes)
+List get_tags_from_todo(Todo todo);
 
 #endif

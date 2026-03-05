@@ -686,7 +686,7 @@ void initialize_notes(Todo *todo) {
   if (todo->notes) return;
 
   // Default ToDo note template
-  String_builder sb = sb_create("# %s\n\n\n", todo->name);
+  String_builder sb = sb_create("# %s\n\ntags: \n\n---\n\n\n", todo->name);
   todo->notes = sb.str;
   todo_list_modified = true;
 }
@@ -843,4 +843,47 @@ List get_tasks_from_todo(Todo todo) {
   }
 
   return tasks;
+}
+
+List get_tags_from_todo(Todo todo) {
+  if (!todo.notes) return list_new();
+
+  List tags = list_new();
+  unsigned int notes_length = strlen(todo.notes);
+
+  bool new_line = true;
+  for (unsigned int i=0; i < notes_length; i++) {
+    const char c = todo.notes[i];
+
+    if (c == '\n') {
+      new_line = true;
+      continue;
+    }
+
+    if (!new_line || c == ' ') continue;
+
+    if (cstr_starts_with(todo.notes+i, "tags: ")) {
+      i += 6;
+      unsigned int end_tags = i;
+      while (end_tags < notes_length && todo.notes[end_tags] != '\n') end_tags++;
+
+      Input tags_input = {
+        .input = todo.notes + i,
+        .cursor = 0,
+        .length = end_tags - i,
+      };
+      char *tag = NULL;
+      while ( (tag = next_token(&tags_input, ' ')) ) {
+        const unsigned int tag_length = strlen(tag);
+        if (tag[tag_length-1] == '\n') tag[tag_length-1] = '\0';
+        list_append(&tags, tag);
+      }
+
+      break;
+    }
+
+    new_line = false;
+  }
+
+  return tags;
 }

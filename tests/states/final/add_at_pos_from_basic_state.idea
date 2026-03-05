@@ -27,6 +27,10 @@ todo
  │notes_content:
  │ │# This ToDo has a note
  │ │
+ │ │tags: example
+ │ │
+ │ │---
+ │ │
  │ │ isn't that cool?
  │EOF
 
