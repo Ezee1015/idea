@@ -139,13 +139,6 @@ char message(char *title, char *msg) {
 
   erase();
 
-  // Draw the box
-  draw_rect(
-      box_start.y,
-      box_start.x,
-      box_start.y + box_size.height - 1,
-      box_start.x + box_size.width - 1
-  );
   // Title bar
   mvhline(box_start.y + 2,
           box_start.x,
@@ -165,6 +158,7 @@ char message(char *title, char *msg) {
   const unsigned int start_y = box_start.y + 1 + padding.height + 2,
                      start_x = box_start.x + padding.width;
 
+  bool strange_character = false; // For example accented characters
   unsigned int cur_y = start_y,
                cur_x = start_x;
   move(cur_y, cur_x);
@@ -178,8 +172,19 @@ char message(char *title, char *msg) {
 
     if (msg[i] != '\n') {
       printw("%c", msg[i]);
+      if (msg[i] < 0) strange_character = true;
       cur_x++;
     }
+  }
+
+  // Draw the box
+  if (!strange_character) {
+    draw_rect(
+        box_start.y,
+        box_start.x,
+        box_start.y + box_size.height - 1,
+        box_start.x + box_size.width - 1
+        );
   }
 
   return getch();

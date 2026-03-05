@@ -431,6 +431,25 @@ void nv_map_reload() {
   todo_list_modified = false;
 }
 
+void nv_map_todo_information() {
+  Todo *todo = list_get(todo_list, tui_st.current_pos);
+
+  // Tasks
+  const unsigned int tasks_level_indentation = 4;
+  List tasks = get_tasks_from_todo(*todo);
+  String_builder sb = sb_new();
+  sb_append(&sb, "Tasks:\n");
+  List_iterator iterator = list_iterator_create(tasks);
+  while (list_iterator_next(&iterator)) {
+    const Task *t = list_iterator_element(iterator);
+    for (unsigned int x = 0; x < t->level * tasks_level_indentation; x++) sb_append_char(&sb, ' ');
+    sb_append_with_format(&sb, "  - [%c] %s\n", t->state, t->msg);
+  }
+  message("Information about the ToDo", sb.str);
+  list_destroy(&tasks, (void (*)(void *)) free_task);
+  sb_free(&sb);
+}
+
 Normal_visual_map nv_maps[] = {
   { " "                   , "Toggle select"                                       , nv_map_toggle },
   { "j"                   , "Move the cursor down"                                , nv_map_cursor_down },
@@ -451,7 +470,8 @@ Normal_visual_map nv_maps[] = {
   { "O"                   , "Create a new ToDo above the cursor"                  , nv_map_add_above_cursor },
   { "a"                   , "Change the name of the current ToDo"                 , nv_map_edit },
   { "e"                   , "Export the selected ToDos to HTML"                   , nv_map_export_html },
-  { "r"                   , "Discar all the changes and reload the ToDo list"     , nv_map_reload },
+  { "r"                   , "Discard all the changes and reload the ToDo list"    , nv_map_reload },
+  { "i"                   , "Show the information about the ToDo"                 , nv_map_todo_information },
 };
 
 unsigned int nv_maps_count = sizeof(nv_maps) / sizeof(Normal_visual_map);

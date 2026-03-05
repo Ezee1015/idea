@@ -107,6 +107,12 @@ void _sb_append_fmt(String_builder *sb, const char *fmt, va_list args) {
             break;
           }
 
+          case 'c': {
+            char c = va_arg(args, int);
+            sb_append_char(sb, c);
+            break;
+          }
+
           case 'd': {
             int n = va_arg(args, int);
             if (size) {

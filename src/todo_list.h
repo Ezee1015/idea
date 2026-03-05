@@ -24,6 +24,12 @@ typedef struct {
   char *notes;
 } Todo;
 
+typedef struct {
+  char *msg;
+  char state;
+  unsigned int level;
+} Task;
+
 Todo *create_todo(char *name);
 bool todo_exists(const char *name);
 bool search_todo_pos_by_name_or_pos(const char *name_or_position, unsigned int *index); // `position` should be 1-based. `index` is 0-based
@@ -55,5 +61,10 @@ bool action_notes_todo_remove(Input *input);
 bool action_generate_html(Input *input);
 extern Functionality todo_list_functionality[];
 extern unsigned int todo_list_functionality_count;
+
+// Tasks (taken from the ToDo's notes)
+void free_task(Task *task);
+bool is_a_task(char *cstr, unsigned int length);
+List get_tasks_from_todo(Todo todo);
 
 #endif

@@ -56,8 +56,6 @@ bool load_notes_from_temporal_file(Todo *todo);
 
 bool clone_text_file(char *origin_path, char *clone_path);
 
-void print_todo(unsigned int index, Todo todo);
-
 bool cli_parse_input(char *input);
 
 #endif // CLI_H

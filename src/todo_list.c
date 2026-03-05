@@ -747,3 +747,100 @@ Functionality todo_list_functionality[] = {
   { "html", NULL, action_generate_html, MAN("Generate an HTML file with the ToDos", "[HTML file path]", "[HTML file path] [ToDo name 1] [ToDo name 2] [...]", "[HTML file path] [ToDo index 1] [ToDo index 2] [...]") },
 };
 unsigned int todo_list_functionality_count = sizeof(todo_list_functionality) / sizeof(Functionality);
+
+void free_task(Task *task) {
+  free(task->msg);
+  free(task);
+}
+
+bool is_a_task(char *cstr, unsigned int length) {
+  if (!cstr || *cstr == '\0') return false;
+
+  unsigned int i=0;
+
+  bool bullet = (cstr[i] == '-' || cstr[i] == '+' || cstr[i] == '*');
+  if (!bullet) return false;
+
+  i++;
+  bool space_before_open_bracket = (i < length && cstr[i] == ' ');
+  if (!space_before_open_bracket) return false;
+
+  i++;
+  bool open_bracket = (i < length && cstr[i] == '[');
+  if (!open_bracket) return false;
+
+  i++;
+  bool status = (i < length && (cstr[i] == ' ' || cstr[i] == 'x' || cstr[i] == '?' || cstr[i] == '-'));
+  if (!status) return false;
+
+  i++;
+  bool close_bracket = (i < length && cstr[i] == ']');
+  if (!close_bracket) return false;
+
+  i++;
+  bool space_before_title = (i < length && cstr[i] == ' ');
+  if (!space_before_title) return false;
+
+  return true;
+}
+
+List get_tasks_from_todo(Todo todo) {
+  if (!todo.notes) return list_new();
+
+  List tasks = list_new();
+  unsigned int notes_length = strlen(todo.notes);
+  unsigned int indentation = 0;
+
+  bool new_line = true;
+  unsigned int spaces = 0;
+  for (unsigned int i=0; i < notes_length; i++) {
+    const char c = todo.notes[i];
+
+    if (c == '\n') {
+      new_line = true;
+      spaces = 0;
+      continue;
+    }
+
+    if (!new_line) continue;
+
+    if (c == ' ') {
+      spaces++;
+
+    } else if (is_a_task(todo.notes+i, notes_length - i)){
+      // Auto-detect indentation with the indentation of the first checkbox
+      // that has some indentation
+      if (indentation == 0 && spaces != 0) {
+        indentation = spaces;
+      }
+
+      Task *t = malloc(sizeof(Task));
+      t->level = (indentation) ? spaces / indentation : 0;
+      t->state = *(todo.notes + i + 3);
+
+      // Read the message from the checkbox
+      i += 6;
+      unsigned int x = i;
+      while (x < notes_length && todo.notes[x] != '\n') x++;
+      unsigned int msg_length = x - i;
+      if (msg_length == 0) {
+        free(t);
+        new_line = true;
+        continue;
+      }
+
+      t->msg = malloc(msg_length + 1);
+      strncpy(t->msg, todo.notes + i, msg_length);
+      t->msg[msg_length] = '\0';
+      list_append(&tasks, t);
+
+      new_line = true;
+      spaces = 0;
+
+    } else {
+      new_line = false;
+    }
+  }
+
+  return tasks;
+}
