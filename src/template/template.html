@@ -227,6 +227,14 @@
                 font-weight: bold;
             }
 
+            .tag {
+                list-style: none;
+            }
+
+            .tag::before {
+                content: "# ";
+            }
+
             /* Header */
 
             hr {
@@ -355,8 +363,26 @@
 
                         <hr class="todo_header_separator">
                         <div class="todo_data">
-                            <p class="todo_info">Created on <span class="todo_creation_date"><c>TIME(e->creation_time)</c></span> on <span class="todo_hostname"><c>CSTR(e->hostname)</c></span></p>
+                            <!-- BASIC INFO -->
+                            <p>Created on <span class="todo_creation_date"><c>TIME(e->creation_time)</c></span> on <span class="todo_hostname"><c>CSTR(e->hostname)</c></span></p>
 
+                            <!-- TAGS -->
+                            <c>
+                                List tags = get_tags_from_todo(*e);
+                                if (!list_is_empty(tags)) {
+                                    </c> <h3>Tags:</h3> <c>
+                                    </c> <ul> <c>
+                                    List_iterator tag_iterator = list_iterator_create(tags);
+                                    while (list_iterator_next(&tag_iterator)) {
+                                        const char *tag = list_iterator_element(tag_iterator);
+                                        </c><li class="tag"><c>CSTR(tag)</c></li><c>
+                                    }
+                                    </c> </ul> <c>
+                                    list_destroy(&tags, free);
+                                }
+                            </c>
+
+                            <!-- NOTES -->
                             <c> if (e->notes) { </c>
                                 <h3>Notes:</h3>
                                 <table class="todo_notes">
@@ -474,7 +500,14 @@
 
                     case "host":
                         variable = getElementInsideContainer(todo, "todo_hostname").innerText
-                        break;
+                        break
+
+                    case "tag":
+                        let tags_arr = todo.getElementsByClassName("tag")
+                        for (let i=0; i < tags_arr.length; i++) {
+                            variable += tags_arr[i].innerText + ", "
+                        }
+                        break
                 }
 
                 let filterText = inputText
@@ -574,7 +607,7 @@
                 filter()
             }
 
-            const fields = ["Name", "Notes", "Host"]
+            const fields = ["Name", "Notes", "Host", "Tag"]
 
             const fieldSelect = document.createElement("select")
             fieldSelect.classList.add("filter_field", "clickable")
@@ -643,7 +676,6 @@
             const arrowHeader = getElementInsideContainer(header, "arrow_show")
             const separator   = getElementInsideContainer(todo, "todo_header_separator")
             const data        = getElementInsideContainer(todo, "todo_data")
-            const info        = getElementInsideContainer(todo, "todo_info")
             const arrowFooter = getElementInsideContainer(data, "arrow_show")
 
             // I put display: none in the JS and not in the CSS because if the
