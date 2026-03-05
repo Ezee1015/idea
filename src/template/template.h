@@ -30,6 +30,8 @@
     CSTR(b) \
   } while(0);
 
+#define TASKS_LEVEL_INDENTATION_PX 30
+
 bool generate_html(FILE *f, List todo_list);
 
 #endif // TEMPLATE_H

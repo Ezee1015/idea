@@ -20,8 +20,12 @@
 
                 --green: #73c936;
                 --green-light: #BFE6A2;
-                --blue-dark: #1e2030;
-                --blue-light: #222436;
+
+                --blue: #5FAFFF;
+                --blue-darker: #1e2030;
+                --blue-dark: #222436;
+
+                --yellow: #FFD75F;
             }
 
             body {
@@ -198,12 +202,12 @@
             }
 
             .todo_notes {
-                background: var(--blue-dark);
+                background: var(--blue-darker);
                 width: 100%;
                 border-spacing: 0px; /* Make the line-nr right border continuous vertically */
                 padding: 5px;
                 border-radius: 15px;
-                border: 3px solid var(--blue-light);
+                border: 3px solid var(--blue-dark);
             }
 
             .todo_notes_line {
@@ -233,6 +237,55 @@
 
             .tag::before {
                 content: "# ";
+            }
+
+            .task {
+                display: flex;
+                align-items: center;
+                margin-top: 8px;
+            }
+
+            .task_icon {
+                padding: 1px;
+                width: 16px;
+                height: 16px;
+                border-radius: 50%;
+                font-weight: bold;
+                font-family: monospace;
+                line-height: 16px;
+                font-size: 16px;
+
+                border: 1px solid var(--fg);
+                color: var(--fg);
+                background: var(--bg);
+
+                display: flex;
+                justify-content: center;
+                flex-shrink: 0;
+
+                margin-right: 8px;
+            }
+
+            .task_icon_complete {
+                background: var(--green);
+                color: var(--bg);
+                border-color: var(--bg);
+            }
+
+            .task_icon_on_progress {
+                background: var(--yellow);
+                color: var(--bg);
+                border-color: var(--bg);
+            }
+
+            .task_icon_quetion {
+                background: var(--blue);
+                color: var(--bg);
+                border-color: var(--bg);
+            }
+
+            .task p {
+                margin: 0px;
             }
 
             /* Header */
@@ -382,44 +435,84 @@
                                 }
                             </c>
 
-                            <!-- NOTES -->
-                            <c> if (e->notes) { </c>
-                                <h3>Notes:</h3>
-                                <table class="todo_notes">
-                                    <c>
-                                        char *notes = e->notes;
-                                        unsigned int line_nr = 0;
-                                        bool new_line = true;
+                            <!-- TASKS -->
+                            <c>
+                                List tasks = get_tasks_from_todo(*e);
+                                if (!list_is_empty(tasks)) {
+                                    </c> <h3>Tasks:</h3> <c>
+                                    </c> <div> <c>
 
-                                        while (*notes) {
-                                            if (new_line) {
-                                                line_nr++;
-                                                new_line = false;
-                                                </c>
-                                                    <tr>
-                                                        <td class="todo_notes_line_nr unselectable"><c>UINT(line_nr)</c></td>
-                                                        <td class="todo_notes_line">
-                                                <c>
-                                            }
+                                    List_iterator tasks_iterator = list_iterator_create(tasks);
+                                    while (list_iterator_next(&tasks_iterator)) {
+                                        const Task *task_icon = list_iterator_element(tasks_iterator);
 
-                                            switch (*notes) {
-                                                case '\n':
-                                                    new_line = true;
-                                                    </c>
-                                                            </td>
-                                                        </tr>
-                                                    <c>
-                                                    break;
+                                        </c> <div class="task" style="margin-left: <c>UINT(task_icon->level * TASKS_LEVEL_INDENTATION_PX + 40)</c>px;"> <c>
+                                        switch (task_icon->state) {
+                                            case 'x':
+                                                </c> <div class="task_icon task_icon_complete unselectable">X</div> <c>
+                                                break;
 
-                                                default:
-                                                    CHAR(*notes);
-                                                    break;
-                                            }
-                                            notes++;
+                                            case ' ':
+                                                </c> <div class="task_icon unselectable"></div> <c>
+                                                break;
+
+                                            case '?':
+                                                </c> <div class="task_icon task_icon_quetion unselectable">?</div> <c>
+                                                break;
+
+                                            case '-':
+                                                </c> <div class="task_icon task_icon_on_progress unselectable">-</div> <c>
+                                                break;
                                         }
-                                    </c>
-                                </table>
-                            <c> } </c>
+                                        </c> <p class="task_content"><c>CSTR(task_icon->msg)</c></p> <c>
+                                        </c> </div> <c>
+                                    }
+
+                                    </c> </div> <c>
+                                    list_destroy(&tasks, (void (*)(void *)) free_task);
+                                }
+                            </c>
+
+                            <!-- NOTES -->
+                            <c>
+                                if (e->notes) {
+                                    </c> <h3>Notes:</h3> <c>
+                                    </c> <table class="todo_notes"> <c>
+
+                                    char *notes = e->notes;
+                                    unsigned int line_nr = 0;
+                                    bool new_line = true;
+
+                                    while (*notes) {
+                                        if (new_line) {
+                                            line_nr++;
+                                            new_line = false;
+                                            </c>
+                                                <tr>
+                                                    <td class="todo_notes_line_nr unselectable"><c>UINT(line_nr)</c></td>
+                                                    <td class="todo_notes_line">
+                                            <c>
+                                        }
+
+                                        switch (*notes) {
+                                            case '\n':
+                                                new_line = true;
+                                                </c>
+                                                        </td>
+                                                    </tr>
+                                                <c>
+                                                break;
+
+                                            default:
+                                                CHAR(*notes);
+                                                break;
+                                        }
+                                        notes++;
+                                    }
+
+                                    </c> </table> <c>
+                                }
+                            </c>
 
                             <p role="button" tabindex="0" class="arrow_show unselectable keyboard_clickable">&#9650; Back to Top &#9650;</p>
                         </div>
@@ -469,6 +562,28 @@
             return list[0]
         }
 
+        function matchesSearch(variable, matchText, ignoreCase) {
+            if (ignoreCase) {
+                variable = variable.toLowerCase()
+                matchText = matchText.toLowerCase()
+            }
+
+            return variable.includes(matchText)
+        }
+
+        function htmlArrMatchesSearch(htmlArr, matchText, ignoreCase) {
+            if (htmlArr.length == 0) return false
+
+            for (let i=0; i < htmlArr.length; i++) {
+                const variable = htmlArr[i].innerText
+                if (matchesSearch(variable, matchText, ignoreCase)) {
+                    return true;
+                }
+            }
+
+            return false
+        }
+
         function applySearchFilter(filter_element) {
             // Filter options
             const ignoreCase = getElementInsideContainer(filter_element, "ignore_case").checked
@@ -485,39 +600,44 @@
                 if (title_list.length != 1) console.log("Error. There's more than one h2 in a `todo_header`")
                 const title = title_list[0]
 
-                let variable = ""
                 switch (fieldText) {
                     case "name":
-                        variable = title.innerText
+                        const name = title.innerText
+                        if (!matchesSearch(name, inputText, ignoreCase)) {
+                            todo.style.display = "none"
+                        }
                         break
 
                     case "notes":
-                        const notes_lines = todo.getElementsByClassName("todo_notes_line")
-                        for (let i=0; i < notes_lines.length; i++) {
-                            variable += notes_lines[i].innerText
+                        const notesLines = todo.getElementsByClassName("todo_notes_line")
+                        if (!htmlArrMatchesSearch(notesLines, inputText, ignoreCase)) {
+                            todo.style.display = "none"
+                            continue
                         }
                         break
 
                     case "host":
-                        variable = getElementInsideContainer(todo, "todo_hostname").innerText
+                        const host = getElementInsideContainer(todo, "todo_hostname").innerText
+                        if (!matchesSearch(host, inputText, ignoreCase)) {
+                            todo.style.display = "none"
+                        }
                         break
 
                     case "tag":
-                        let tags_arr = todo.getElementsByClassName("tag")
-                        for (let i=0; i < tags_arr.length; i++) {
-                            variable += tags_arr[i].innerText + ", "
+                        const tagsArr = todo.getElementsByClassName("tag")
+                        if (!htmlArrMatchesSearch(tagsArr, inputText, ignoreCase)) {
+                            todo.style.display = "none"
+                            continue
                         }
                         break
-                }
 
-                let filterText = inputText
-                if (ignoreCase) {
-                    variable = variable.toLowerCase()
-                    filterText = filterText.toLowerCase()
-                }
-
-                if (!variable.includes(filterText)) {
-                    todo.style.display = "none"
+                    case "task":
+                        const taskArr = todo.getElementsByClassName("task_content")
+                        if (!htmlArrMatchesSearch(taskArr, inputText, ignoreCase)) {
+                            todo.style.display = "none"
+                            continue
+                        }
+                        break
                 }
             }
         }
@@ -607,7 +727,7 @@
                 filter()
             }
 
-            const fields = ["Name", "Notes", "Host", "Tag"]
+            const fields = ["Name", "Notes", "Host", "Tag", "Task"]
 
             const fieldSelect = document.createElement("select")
             fieldSelect.classList.add("filter_field", "clickable")
