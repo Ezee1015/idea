@@ -86,7 +86,6 @@ bool print_html_to_c_file(const char *html_filepath, long line, char *html_start
       case '\n':
         if (fprintf(template_c, "\\n") < 0) return false;
         open_html_fprintf = true;
-        line++;
         break;
 
       case '"':
@@ -110,6 +109,7 @@ bool print_html_to_c_file(const char *html_filepath, long line, char *html_start
     // Close the fprintf
     if (open_html_fprintf || i == html_length-1) {
       HTML_CLOSE_FPRINTF();
+      line++;
     }
 
     *last_html_line_was_closed = open_html_fprintf;
@@ -118,7 +118,7 @@ bool print_html_to_c_file(const char *html_filepath, long line, char *html_start
   return true;
 }
 
-bool print_c_to_c_file(const char *html_filepath, long line_start, char *c_start, long c_length, FILE *template_c) {
+bool print_c_to_c_file(const char *html_filepath, long line, char *c_start, long c_length, FILE *template_c) {
   bool new_line = true;
   bool end_line = false;
 
@@ -127,7 +127,10 @@ bool print_c_to_c_file(const char *html_filepath, long line_start, char *c_start
 
     switch (c) {
       case '\n':
-        if (new_line) continue; // Skip empty lines
+        if (new_line) { // Skip empty lines
+          line++;
+          continue;
+        }
         end_line = true;
         new_line = true;
         break;
@@ -142,7 +145,7 @@ bool print_c_to_c_file(const char *html_filepath, long line_start, char *c_start
         if (isprint(c)) {
           if (fputc(c, template_c) == EOF) return false;
         } else {
-          printf("[ERROR] %s:%d: Invalid character '%c' (%d) in %s:%ld\n", __FILE__, __LINE__, c, c, html_filepath, line_start);
+          printf("[ERROR] %s:%d: Invalid character '%c' (%d) in %s:%ld\n", __FILE__, __LINE__, c, c, html_filepath, line);
           return false;
         }
         new_line = false;
@@ -151,8 +154,9 @@ bool print_c_to_c_file(const char *html_filepath, long line_start, char *c_start
     }
 
     if (end_line || i == c_length-1) {
-      if (fprintf(template_c, " // %s:%d from %s:%s()\n", html_filepath, (int)line_start, __FILE__, __func__) < 0) return false;
+      if (fprintf(template_c, " // %s:%ld from %s:%s()\n", html_filepath, line, __FILE__, __func__) < 0) return false;
       end_line = false;
+      line++;
     }
   }
 
