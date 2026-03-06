@@ -161,9 +161,9 @@
 
             .todo {
                 background: var(--bg-light);
-                width: 60%;
+                width: 80%;
                 margin-top: 25px;
-                margin-left: 20%;
+                margin-left: 10%;
 
                 border-radius: 15px;
                 border: 2px solid var(--fg-dark);
@@ -237,6 +237,15 @@
 
             .tag::before {
                 content: "# ";
+                color: var(--fg-dark);
+            }
+
+            .tags_container {
+                display: flex;
+                gap: 20px;
+                row-gap: 0px;
+                align-items: center;
+                flex-wrap: wrap;
             }
 
             .task {
@@ -423,15 +432,15 @@
                             <c>
                                 List tags = get_tags_from_todo(*e);
                                 if (!list_is_empty(tags)) {
-                                    </c> <h3>Tags:</h3> <c>
-                                    </c> <ul> <c>
-                                    List_iterator tag_iterator = list_iterator_create(tags);
-                                    while (list_iterator_next(&tag_iterator)) {
-                                        const char *tag = list_iterator_element(tag_iterator);
-                                        </c><li class="tag"><c>CSTR(tag)</c></li><c>
-                                    }
-                                    </c> </ul> <c>
-                                    list_destroy(&tags, free);
+                                    </c> <div class="tags_container"> <c>
+                                        </c> <h3>Tags:</h3> <c>
+                                        List_iterator tag_iterator = list_iterator_create(tags);
+                                        while (list_iterator_next(&tag_iterator)) {
+                                            const char *tag = list_iterator_element(tag_iterator);
+                                            </c> <p class="tag"><c>CSTR(tag)</c></p> <c>
+                                        }
+                                        list_destroy(&tags, free);
+                                    </c> </div> <c>
                                 }
                             </c>
 
