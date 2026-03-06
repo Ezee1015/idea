@@ -292,9 +292,10 @@ void nv_map_cursor_up() {
 void nv_map_move_to_top() {
   switch (tui_st.mode) {
     case MODE_NORMAL:
-      if (!list_is_empty(tui_st.selected)) {
-        while (move_selected(-1));
-      }
+      // if (!list_is_empty(tui_st.selected)) {
+      //   while (move_selected(-1));
+      //   todo_list_modified = true;
+      // }
       while (previous_position());
       break;
     case MODE_VISUAL: while (tui_st.current_pos) visual_move_cursor(-1); break;
@@ -306,9 +307,10 @@ void nv_map_move_to_bottom() {
 
   switch (tui_st.mode) {
     case MODE_NORMAL:
-      if (!list_is_empty(tui_st.selected)) {
-        while (move_selected(1));
-      }
+      // if (!list_is_empty(tui_st.selected)) {
+      //   while (move_selected(1));
+      //   todo_list_modified = true;
+      // }
       while (next_position());
       break;
     case MODE_VISUAL: while (tui_st.current_pos < list_size(todo_list)-1) visual_move_cursor(1); break;
