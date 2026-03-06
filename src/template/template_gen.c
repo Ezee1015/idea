@@ -38,19 +38,54 @@ bool load_template(FILE *html_file, char **html_arr, long *html_arr_size) {
   return true;
 }
 
-bool print_html_to_c_file(const char *html_filepath, long line, char *html_start, long html_length, FILE *template_c) {
-  bool new_line = true;
-  for (int i=0; i<html_length; i++) {
-    if (new_line) {
-      if (fprintf(template_c, "  if (fprintf(f, \"") < 0) return false;
-      new_line = false;
+#define HTML_OPEN_FPRINTF() if (fprintf(template_c, "  if (fprintf(f, \"") < 0) return false
+#define HTML_CLOSE_FPRINTF() if (fprintf(template_c, "\") < 0) FPRINTF_ERROR(); // %s:%d from %s:%s()\n", html_filepath, (int)line, __FILE__, __func__) < 0) return false
+
+bool print_html_to_c_file(const char *html_filepath, long line, char *html_start, long html_length, FILE *template_c, bool *last_html_line_was_closed) {
+  bool open_html_fprintf = true;
+
+  // This means that a C tag was closed at the end of the line, so we break the
+  // line if the line before the opening C tag (the last HTML line from the last
+  // chunk of HTML code) doesn't have a line break at the end
+  if (html_start[0] == '\n' && !(*last_html_line_was_closed)) {
+    bool is_there_content = false;
+    for (int x=1; x < html_length; x++) {
+      if (html_start[x] != ' ' && html_start[x] != '\n') {
+        is_there_content = true;
+        break;
+      }
     }
 
+    if (is_there_content) {
+      HTML_OPEN_FPRINTF();
+      if (fprintf(template_c, "\\n") < 0) return false;
+      HTML_CLOSE_FPRINTF();
+
+      *last_html_line_was_closed = true;
+    }
+  }
+
+  for (int i=0; i<html_length; i++) {
     const char c = html_start[i];
+
+    if (open_html_fprintf) {
+      if (c == ' ' && (*last_html_line_was_closed)) { // Skip leading spaces
+        continue;
+      }
+
+      if (c == '\n') {
+        line++;
+        continue;
+      }
+
+      HTML_OPEN_FPRINTF();
+      open_html_fprintf = false;
+    }
+
     switch (c) {
       case '\n':
         if (fprintf(template_c, "\\n") < 0) return false;
-        new_line = true;
+        open_html_fprintf = true;
         line++;
         break;
 
@@ -70,24 +105,37 @@ bool print_html_to_c_file(const char *html_filepath, long line, char *html_start
           return false;
         }
         break;
-
     }
 
-    if (new_line || i == html_length-1) {
-      if (fprintf(template_c, "\") < 0) FPRINTF_ERROR(); // %s:%d from %s:%s()\n", html_filepath, (int)line, __FILE__, __func__) < 0) return false;
+    // Close the fprintf
+    if (open_html_fprintf || i == html_length-1) {
+      HTML_CLOSE_FPRINTF();
     }
+
+    *last_html_line_was_closed = open_html_fprintf;
   }
 
   return true;
 }
 
 bool print_c_to_c_file(const char *html_filepath, long line_start, char *c_start, long c_length, FILE *template_c) {
-  bool new_line = false;
+  bool new_line = true;
+  bool end_line = false;
+
   for (int i=0; i<c_length; i++) {
     const char c = c_start[i];
+
     switch (c) {
       case '\n':
+        if (new_line) continue; // Skip empty lines
+        end_line = true;
         new_line = true;
+        break;
+
+      case ' ':
+        if (new_line) continue; // Skip leading spaces
+        if (fputc(c, template_c) == EOF) return false;
+        new_line = false;
         break;
 
       default:
@@ -97,13 +145,14 @@ bool print_c_to_c_file(const char *html_filepath, long line_start, char *c_start
           printf("[ERROR] %s:%d: Invalid character '%c' (%d) in %s:%ld\n", __FILE__, __LINE__, c, c, html_filepath, line_start);
           return false;
         }
+        new_line = false;
         break;
 
     }
 
-    if (new_line || i == c_length-1) {
+    if (end_line || i == c_length-1) {
       if (fprintf(template_c, " // %s:%d from %s:%s()\n", html_filepath, (int)line_start, __FILE__, __func__) < 0) return false;
-      new_line = false;
+      end_line = false;
     }
   }
 
@@ -121,12 +170,13 @@ bool print_html_template(const char *html_filepath, char *html, long html_size, 
     long line;
   } start   = { .pos = 0, .line = 1 }, // Start of the current block of html or c code (depending of the state)
     current = { .pos = 0, .line = 1 }; // Current position and line in the html
+  bool last_html_line_was_closed = true;
 
   while (current.pos < html_size) {
     if (cstr_starts_with(html + current.pos, C_KEY_OPEN)) {
       switch (state) {
         case STATE_HTML:
-          print_html_to_c_file(html_filepath, start.line, html + start.pos, current.pos - start.pos, template_c);
+          print_html_to_c_file(html_filepath, start.line, html + start.pos, current.pos - start.pos, template_c, &last_html_line_was_closed);
           state = STATE_C;
           break;
 
@@ -162,7 +212,7 @@ bool print_html_template(const char *html_filepath, char *html, long html_size, 
 
   switch (state) {
     case STATE_HTML:
-      print_html_to_c_file(html_filepath, start.line, html + start.pos, current.pos - start.pos, template_c);
+      print_html_to_c_file(html_filepath, start.line, html + start.pos, current.pos - start.pos, template_c, &last_html_line_was_closed);
       break;
 
     case STATE_C:

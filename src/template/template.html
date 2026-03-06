@@ -2,9 +2,11 @@
 <html>
     <head>
         <title>idea</title>
-        <c>#ifdef ICON</c>
-        <link rel="icon" type="image/png" href="data:image/png;base64,<c>CSTR(ICON)</c>">
-        <c>#endif // ICON</c>
+        <c>
+            #ifdef ICON
+                </c> <link rel="icon" type="image/png" href="data:image/png;base64,<c>CSTR(ICON)</c>"> <c>
+            #endif // ICON
+        </c>
 
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -496,20 +498,16 @@
                                         if (new_line) {
                                             line_nr++;
                                             new_line = false;
-                                            </c>
-                                                <tr>
-                                                    <td class="todo_notes_line_nr unselectable"><c>UINT(line_nr)</c></td>
-                                                    <td class="todo_notes_line">
-                                            <c>
+                                            </c><tr><c>
+                                            </c><td class="todo_notes_line_nr unselectable"><c>UINT(line_nr)</c></td><c>
+                                            </c><td class="todo_notes_line"><c>
                                         }
 
                                         switch (*notes) {
                                             case '\n':
                                                 new_line = true;
-                                                </c>
-                                                        </td>
-                                                    </tr>
-                                                <c>
+                                                </c></td><c>
+                                                </c></tr><c>
                                                 break;
 
                                             default:
@@ -541,7 +539,7 @@
                     TIME(now)
                 </c>
 
-                <span class="text_dark">from</span>
+                <span class="text_dark"> from </span>
 
                 <c>
                     char hostname[256];
