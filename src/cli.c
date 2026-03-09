@@ -11,7 +11,7 @@
 
 bool cli_disable_colors = false;
 
-void print_reminder(const Reminder rem) {
+void print_reminder(const Reminder rem, unsigned int indentation) {
   const Date now = date_now();
   const bool old = (is_reminder_old(rem));
   const bool upcoming = (is_reminder_upcoming(rem));
@@ -19,7 +19,8 @@ void print_reminder(const Reminder rem) {
 
   if (old || (!upcoming && !triggered)) printf("%s", ANSI_GRAY);
 
-  printf("  - %04d/%02d/%02d ", rem.start.year, rem.start.month, rem.start.day);
+  for (unsigned int x = 0; x < indentation; x++) putc(' ', stdout);
+  printf("- %04d/%02d/%02d ", rem.start.year, rem.start.month, rem.start.day);
   if (!is_date_equals(rem.start, rem.end)) {
     printf("~ %04d/%02d/%02d ", rem.end.year, rem.end.month, rem.end.day);
   }
@@ -41,22 +42,42 @@ void print_reminder(const Reminder rem) {
   printf("%s %s(from %s)%s\n", rem.name, ANSI_GRAY, rem.todo->name, ANSI_RESET);
 }
 
-void print_todo(unsigned int index, Todo todo, bool tasks) {
-  printf( "%s%d)%s%s%s %s\n", ANSI_RED, index + 1, ANSI_GREEN, (todo.notes) ? " " NOTES_ICON : "", ANSI_RESET, todo.name);
+bool print_todo(unsigned int index, Todo *todo, bool tasks, bool reminders) {
+  printf( "%s%d)%s%s%s %s\n", ANSI_RED, index + 1, ANSI_GREEN, (todo->notes) ? " " NOTES_ICON : "", ANSI_RESET, todo->name);
 
-  if (tasks && todo.notes) {
-    const unsigned int tasks_level_indentation = 6;
-    List tasks = get_tasks_from_todo(todo);
+  const unsigned int info_level_indentation = 6;
+
+  if (tasks && todo->notes) {
+    List tasks = get_tasks_from_todo(*todo);
 
     List_iterator iterator = list_iterator_create(tasks);
     while (list_iterator_next(&iterator)) {
       const Task *t = list_iterator_element(iterator);
-      for (unsigned int x = 0; x < t->level * tasks_level_indentation; x++) putc(' ', stdout);
+      for (unsigned int x = 0; x < t->level * info_level_indentation; x++) putc(' ', stdout);
       printf("    %s-%s [%c] %s\n", ANSI_RED, ANSI_RESET, t->state, t->msg);
     }
-
     list_destroy(&tasks, (void (*)(void *)) free_task);
   }
+
+  else if (reminders && todo->notes) {
+    List reminders = list_new();
+    if (!get_reminders_from_todo(todo, &reminders)) {
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to load the reminders");
+      list_destroy(&reminders, (void (*)(void *)) free_reminder);
+      return false;
+    }
+
+    List_iterator iterator = list_iterator_create(reminders);
+    while (list_iterator_next(&iterator)) {
+      const Reminder *rem = list_iterator_element(iterator);
+      print_reminder(*rem, info_level_indentation);
+    }
+    list_destroy(&reminders, (void (*)(void *)) free_reminder);
+  }
+
+  if (reminders || tasks) printf("\n");
+
+  return true;
 }
 
 bool clone_text_file(char *origin_path, char *clone_path) {
@@ -168,6 +189,7 @@ void cli_print_backtrace() {
 /// Functionality
 bool action_list_todos(Input *input) {
   bool tasks = false;
+  bool reminders = false;
   char *filter_tag = NULL;
 
   char *arg = NULL;
@@ -175,6 +197,10 @@ bool action_list_todos(Input *input) {
     if (!strcmp(arg, "tasks")) {
       free(arg);
       tasks = true;
+
+    } else if (!strcmp(arg, "reminders") || !strcmp(arg, "rem")) {
+      free(arg);
+      reminders = true;
 
     } else if (!strcmp(arg, "tag")) {
       free(arg);
@@ -197,7 +223,7 @@ bool action_list_todos(Input *input) {
 
   List_iterator iterator = list_iterator_create(todo_list);
   while (list_iterator_next(&iterator)) {
-    const Todo *todo = list_iterator_element(iterator);
+    Todo *todo = list_iterator_element(iterator);
 
     if (filter_tag) {
       List tags = get_attribute_from_todo(*todo, "tags: ", ' ');
@@ -215,7 +241,11 @@ bool action_list_todos(Input *input) {
       if (!tag_match) continue;
     }
 
-    print_todo(list_iterator_index(iterator), *todo, tasks);
+    if (!print_todo(list_iterator_index(iterator), todo, tasks, reminders)) {
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to print the ToDo '%s'", todo->name);
+      free(filter_tag);
+      return false;
+    }
   }
 
   free(filter_tag); filter_tag = NULL;
@@ -704,7 +734,7 @@ bool action_reminders(Input *input) {
   List_iterator rem_iterator = list_iterator_create(reminders);
   while (list_iterator_next(&rem_iterator)) {
     const Reminder *rem = list_iterator_element(rem_iterator);
-    print_reminder(*rem);
+    print_reminder(*rem, 4);
   }
   list_destroy(&reminders, (void (*)(void *)) free_reminder);
 
@@ -720,7 +750,7 @@ bool action_print_new_line(Input *input) {
 Functionality cli_functionality[] = {
   { "--", "", action_do_nothing, MAN("Comment. Mostly used in file exports/imports and executing files", "[text]") }, // Comment and empty lines
   { "print_new_line", "", action_print_new_line, MAN("Prints a new line. Just that...", "") },
-  { "list", "-l", action_list_todos, MAN("List all ToDos", "", "tasks", "tag [tag name]") },
+  { "list", "-l", action_list_todos, MAN("List all ToDos", "", "tasks", "tag [tag name]", "reminders / rem") },
   { "execute", NULL, action_execute_commands, MAN("Execute a list of idea commands from a text file", "[file]")},
   { "export", NULL, action_export_todos, MAN("Export the ToDos to a text file", "[file]") },
   { "sync", NULL, action_sync_todos, MAN("Check and import the ToDos from a text file generated by idea", "[file]") },
@@ -729,7 +759,7 @@ Functionality cli_functionality[] = {
   { "notes", NULL, action_notes_todo, MAN("Open the ToDo's notes", "[index]", "[name]") },
   { "notes_print", NULL, action_print_notes, MAN("Print the ToDo's notes", "[index]", "[name]", "[index] number", "[name] number") },
   { "loop", NULL, action_loop, MAN("Go into the CLI loop. You can execute `rlwrap idea loop` for a better experience", NULL) },
-  { "reminders", "rem", action_reminders, MAN("See the reminders", "", "triggered", "today", "near") },
+  { "reminders", "rem", action_reminders, MAN("See the reminders", "", "triggered / today", "near") },
 #ifdef COMMIT
   { "version", "-v", action_version, MAN("Print the commit hash and version", NULL) },
 #endif // COMMIT

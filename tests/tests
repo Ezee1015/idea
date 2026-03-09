@@ -312,6 +312,11 @@ initial_state: 5_basic_todos
 command: list tag example
 state_unchanged
 
+name: list_reminders_basic_state
+initial_state: 5_basic_todos
+command: list reminders
+state_unchanged
+
 -- ----------
 -- REMINDERS
 -- ----------
