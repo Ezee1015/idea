@@ -29,6 +29,8 @@ void list_insert_at(List *list, void *element, unsigned int pos);
 
 void list_insert_sorted(List *list, void *element, void *(*comparator)(void *, void *));
 
+void list_filter(List *list, bool (*condition)(void *),  void (*free_element)(void *));
+
 void list_move_chunk(List *list, unsigned int start_pos, unsigned int chunk_size, int positions_to_move);
 
 void *list_remove(List *list, unsigned int pos);

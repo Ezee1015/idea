@@ -16,6 +16,8 @@
 #define SAVE_FILENAME "todos.txt"
 #define NOTES_TEMP_FILENAME "notes.md"
 
+#define UPCOMING_REMINDER_DAYS 10
+
 typedef struct {
   char *name; // Primary key
 
@@ -29,6 +31,13 @@ typedef struct {
   char state;
   unsigned int level;
 } Task;
+
+typedef struct {
+  Todo *todo;
+
+  char *name;
+  Date date;
+} Reminder;
 
 Todo *create_todo(char *name);
 bool todo_exists(const char *name);
@@ -66,7 +75,19 @@ extern unsigned int todo_list_functionality_count;
 void free_task(Task *task);
 List get_tasks_from_todo(Todo todo);
 
-// Tags (taken from the ToDo's notes)
-List get_tags_from_todo(Todo todo);
+// Get attribute from ToDo (taken from the ToDo's notes)
+// The attributes are special keywords at the start of the line.
+// Example: tags, reminder
+List get_attribute_from_todo(Todo todo, const char *attribute, char argument_separator);
+
+// Reminder (attribute)
+bool parse_reminder(Todo *todo, char *rem_str, Reminder *rem);
+bool is_reminder_old(Reminder rem);
+bool is_reminder_triggered(Reminder rem);
+bool is_reminder_upcoming(Reminder rem);
+Reminder *newer_reminder(Reminder *rem1, Reminder *rem2);
+void free_reminder(Reminder *rem);
+bool get_reminders_from_todo(Todo *todo, List *reminders);
+bool get_all_reminders(List *reminders);
 
 #endif

@@ -14,24 +14,14 @@ char *next_token(Input *input, char divider) {
     const char c = input->input[i];
 
     if (escaped) {
-      switch (c) {
-        case '\\':
-          if (c == divider) break;
-          sb_append_char(&sb, c);
-          escaped = false;
-          break;
-
-        case ' ':
-          sb_append_char(&sb, ' ');
-          escaped = false;
-          break;
-
-        default:
-          if (c == divider) break;
-          sb_append(&sb, (char[]){ '\\', c, '\0'});
-          escaped = false;
-          break;
+      if (c == '\\') {
+        sb_append_char(&sb, c);
+      } else if (c == divider) {
+        sb_append_char(&sb, divider);
+      } else {
+        sb_append(&sb, (char[]){ '\\', c, '\0'});
       }
+      escaped = false;
     } else {
       if (c == '\\') {
         escaped = true;

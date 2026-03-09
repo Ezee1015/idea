@@ -299,6 +299,22 @@
                 margin: 0px;
             }
 
+            .reminders_container {
+                margin-left: 40px;
+            }
+
+            .reminders_container td {
+                padding-bottom: 15px;
+            }
+
+            .reminder {
+                list-style: none;
+            }
+
+            .reminder::before {
+                content: "\1F4C5";
+            }
+
             /* Header */
 
             hr {
@@ -394,6 +410,9 @@
                         <li class="filter">
                             <label>Creation date from </label><input id="creation_start_filter" class="date_input clickable" type="date"><label> to </label><input id="creation_end_filter" class="date_input clickable" type="date">
                         </li>
+                        <li class="filter">
+                            <label>Has reminders from </label><input id="reminder_start_filter" class="date_input clickable" type="date"><label> to </label><input id="reminder_end_filter" class="date_input clickable" type="date">
+                        </li>
                     </ul>
 
                     <hr>
@@ -432,7 +451,7 @@
 
                             <!-- TAGS -->
                             <c>
-                                List tags = get_tags_from_todo(*e);
+                                List tags = get_attribute_from_todo(*e, "tags: ", ' ');
                                 if (!list_is_empty(tags)) {
                                     </c> <div class="tags_container"> <c>
                                         </c> <h3>Tags:</h3> <c>
@@ -481,6 +500,33 @@
 
                                     </c> </div> <c>
                                     list_destroy(&tasks, (void (*)(void *)) free_task);
+                                }
+                            </c>
+
+                            <!-- REMINDERS -->
+                            <c>
+                                List reminders = list_new();
+                                if (!get_reminders_from_todo(e, &reminders)) {
+                                    ERROR_FMT("Unable to load the reminders from the ToDo '%s'", e->name)
+                                }
+
+                                if (!list_is_empty(reminders)) {
+                                        </c> <h3>Reminders:</h3> <c>
+                                        </c> <table class="reminders_container"> <c>
+                                        List_iterator rem_iterator = list_iterator_create(reminders);
+                                        while (list_iterator_next(&rem_iterator)) {
+                                            Reminder *rem = list_iterator_element(rem_iterator);
+
+                                            </c>
+                                                <tr class="reminder">
+                                                   <td class="reminder_date"><c>PRINT("%04d-%02d-%02d", rem->date.year, rem->date.month, rem->date.day)</c></td>
+                                                   <td class="reminder_date_diff"></td>
+                                                   <td class="reminder_name"><c>CSTR(rem->name)</c></td>
+                                                </tr>
+                                            <c>
+                                        }
+                                        list_destroy(&reminders, (void (*)(void *)) free_reminder);
+                                    </c> </table> <c>
                                 }
                             </c>
 
@@ -569,6 +615,28 @@
             return list[0]
         }
 
+        // In JS, if I do `new Date(dateStr)` and dateStr has date AND TIME, it's
+        // treated as a local date. But if I don't specify the time, it's treated
+        // as a UTC time, then it is converted to the local time zone, which makes
+        // it add or subtract some hours from that date. I created this function to
+        // fix that.
+        //
+        // I hate JavaScript...
+        function getDateFromString(dateString) {
+            const [y, m, d] = dateString.split("-");
+            return new Date(y, m - 1, d);
+        }
+
+        // Source: <https://stackoverflow.com/a/2627493>
+        function getDifferenceInDaysFromDates(dateFrom, dateTo) {
+            const oneDayMsec = 24 * 60 * 60 * 1000
+            return Math.round((dateTo - dateFrom) / oneDayMsec)
+        }
+
+        function removeTimeFromDatetime(datetime) {
+            return new Date(datetime.toDateString());
+        }
+
         function matchesSearch(variable, matchText, ignoreCase) {
             if (ignoreCase) {
                 variable = variable.toLowerCase()
@@ -645,6 +713,14 @@
                             continue
                         }
                         break
+
+                    case "reminder":
+                        const reminderNameArr = todo.getElementsByClassName("reminder_name")
+                        if (!htmlArrMatchesSearch(reminderNameArr, inputText, ignoreCase)) {
+                            todo.style.display = "none"
+                            continue
+                        }
+                        break
                 }
             }
         }
@@ -652,12 +728,15 @@
         function applyStaticFilters() {
             const filterCreationStart = creation_start_filter.value
             const filterCreationEnd   = creation_end_filter.value
+            const filterReminderStart = reminder_start_filter.value
+            const filterReminderEnd   = reminder_end_filter.value
 
             for (const todo of todos) {
                 if (todo.style.display == "none") continue;
 
                 const hasNotes = todo.getElementsByClassName("todo_notes").length == 1;
                 const creationDate = getElementInsideContainer(todo, "todo_creation_date").innerText;
+                const remindersDates = todo.getElementsByClassName("reminder_date")
 
                 // Notes filter
                 switch (notes_filter.value) {
@@ -679,9 +758,27 @@
                 }
 
                 // Creation date range
-                const creationOutOfRange = (filterCreationStart != "" && new Date(creationDate) < new Date(filterCreationStart))
-                                           || (filterCreationEnd != "" && new Date(creationDate) > new Date(filterCreationEnd))
+                const creationOutOfRange = (filterCreationStart != "" && new Date(creationDate) < getDateFromString(filterCreationStart))
+                                           || (filterCreationEnd != "" && new Date(creationDate) > getDateFromString(filterCreationEnd))
+
                 if (creationOutOfRange) {
+                    todo.style.display = "none"
+                    continue;
+                }
+
+                // Reminder date range
+                let allRemindersOutOfRange = true
+                for (let i=0; i < remindersDates.length; i++) {
+                    const reminder_date = remindersDates[i].innerHTML
+                    const reminderInsideRange = (filterReminderStart == "" || (getDateFromString(reminder_date) >= getDateFromString(filterReminderStart)))
+                                                && (filterReminderEnd == "" || (getDateFromString(reminder_date) <= getDateFromString(filterReminderEnd)))
+
+                    if (reminderInsideRange) {
+                        allRemindersOutOfRange = false;
+                        break;
+                    }
+                }
+                if (allRemindersOutOfRange) {
                     todo.style.display = "none"
                     continue;
                 }
@@ -706,6 +803,8 @@
             notes_filter.onclick           = (autoApply) ? filter : undefined
             creation_start_filter.onchange = (autoApply) ? filter : undefined
             creation_end_filter.onchange   = (autoApply) ? filter : undefined
+            reminder_start_filter.onchange = (autoApply) ? filter : undefined
+            reminder_end_filter.onchange   = (autoApply) ? filter : undefined
 
             // Search filters
             const filters = search_filter_container.children
@@ -734,7 +833,7 @@
                 filter()
             }
 
-            const fields = ["Name", "Notes", "Host", "Tag", "Task"]
+            const fields = ["Name", "Notes", "Host", "Tag", "Task", "Reminder"]
 
             const fieldSelect = document.createElement("select")
             fieldSelect.classList.add("filter_field", "clickable")
@@ -769,6 +868,8 @@
             notes_filter.value = "all"
             creation_start_filter.value = ""
             creation_end_filter.value = ""
+            reminder_start_filter.value = ""
+            reminder_end_filter.value = ""
 
             // Search filters
             search_filter_container.innerHTML = ""
@@ -804,6 +905,7 @@
             const separator   = getElementInsideContainer(todo, "todo_header_separator")
             const data        = getElementInsideContainer(todo, "todo_data")
             const arrowFooter = getElementInsideContainer(data, "arrow_show")
+            const reminders   = data.getElementsByClassName("reminder");
 
             // I put display: none in the JS and not in the CSS because if the
             // browser doesn't execute the JS, the data can still be displayed
@@ -852,7 +954,41 @@
                 // Source: https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView
                 header.scrollIntoView({behavior: "smooth", block: 'center'})
             }
+
+            // Remaining time for reminders
+            const now = removeTimeFromDatetime(new Date(Date.now()))
+            const UPCOMING_REMINDER_DAYS = <c>INT(UPCOMING_REMINDER_DAYS)</c>
+
+            for (reminder of reminders) {
+                const reminderNameElement = getElementInsideContainer(reminder, "reminder_name")
+                const reminderDateDiffElement = getElementInsideContainer(reminder, "reminder_date_diff")
+
+                const reminderDateElement = getElementInsideContainer(reminder, "reminder_date")
+                const reminderDate = getDateFromString(reminderDateElement.innerText)
+                const reminderDateDiff = getDifferenceInDaysFromDates(now, reminderDate)
+
+
+                if (reminderDateDiff == 0) {
+                    reminderDateDiffElement.innerHTML += " (TODAY)"
+                } else if (reminderDateDiff == 1) {
+                    reminderDateDiffElement.innerHTML += " (tomorrow)"
+                } else {
+                    reminderDateDiffElement.innerHTML += " (" + ((reminderDateDiff < 0) ? -reminderDateDiff : reminderDateDiff) + " days " + ((reminderDateDiff < 0) ? "ago" : "left") +")"
+                }
+
+                // Source: <https://coreui.io/answers/how-to-check-if-date-is-today-in-javascript/>
+                if (now.toDateString() == reminderDate.toDateString()) { // TRIGGERED
+                    reminderDateDiffElement.style.color = "red"
+                } else if (reminderDate < now) { // OLD
+                    reminderNameElement.style.color = "gray"
+                    reminderDateDiffElement.style.color = "gray"
+                } else if (reminderDateDiff <= UPCOMING_REMINDER_DAYS) { // UPCOMING
+                    reminderDateDiffElement.style.color = "yellow"
+                }
+            }
         }
+
+        /////
 
         autoApplyFilter()
 

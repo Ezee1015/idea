@@ -313,6 +313,40 @@ command: list tag example
 state_unchanged
 
 -- ----------
+-- REMINDERS
+-- ----------
+
+name: reminders
+initial_state: 5_basic_todos
+command: reminders
+state_unchanged
+
+name: reminders_no_todo
+initial_state: empty_state
+command: reminders
+state_unchanged
+
+name: reminders_triggered
+initial_state: 5_basic_todos
+command: reminders triggered
+state_unchanged
+
+name: reminders_triggered_no_todo
+initial_state: empty_state
+command: reminders triggered
+state_unchanged
+
+name: reminders_near
+initial_state: 5_basic_todos
+command: reminders near
+state_unchanged
+
+name: reminders_near_no_todo
+initial_state: empty_state
+command: reminders near
+state_unchanged
+
+-- ----------
 -- REMOVE
 -- ----------
 

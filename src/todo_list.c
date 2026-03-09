@@ -845,7 +845,7 @@ List get_tasks_from_todo(Todo todo) {
   return tasks;
 }
 
-List get_tags_from_todo(Todo todo) {
+List get_attribute_from_todo(Todo todo, const char *attribute, char argument_separator) {
   if (!todo.notes) return list_new();
 
   List tags = list_new();
@@ -862,8 +862,8 @@ List get_tags_from_todo(Todo todo) {
 
     if (!new_line || c == ' ') continue;
 
-    if (cstr_starts_with(todo.notes+i, "tags: ")) {
-      i += 6;
+    if (cstr_starts_with(todo.notes+i, attribute)) {
+      i += strlen(attribute);
       unsigned int end_tags = i;
       while (end_tags < notes_length && todo.notes[end_tags] != '\n') end_tags++;
 
@@ -873,17 +873,191 @@ List get_tags_from_todo(Todo todo) {
         .length = end_tags - i,
       };
       char *tag = NULL;
-      while ( (tag = next_token(&tags_input, ' ')) ) {
+      while ( (tag = next_token(&tags_input, argument_separator)) ) {
         const unsigned int tag_length = strlen(tag);
         if (tag[tag_length-1] == '\n') tag[tag_length-1] = '\0';
         list_append(&tags, tag);
       }
-
-      break;
     }
 
     new_line = false;
   }
 
   return tags;
+}
+
+bool parse_reminder(Todo *todo, char *rem_str, Reminder *rem) {
+  if (!rem_str || !rem) return false;
+
+  rem->todo = todo;
+
+  bool ret = true;
+  char *rem_date      = NULL;
+  char *rem_year_str  = NULL;
+  char *rem_month_str = NULL;
+  char *rem_day_str   = NULL;
+
+  Input rem_input = {
+    .input = rem_str,
+    .length = strlen(rem_str),
+    .cursor = 0,
+  };
+
+  rem_date = next_token(&rem_input, ' ');
+  if (!rem_date || rem_date[0] == '\0') {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to get the date of the reminder");
+    ret = false;
+    goto exit;
+  }
+
+  rem->name = next_token(&rem_input, '\0');
+  if (!rem->name || rem->name[0] == '\0') {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to get the name of the reminder (with date: %s) of the ToDo", rem_date);
+    ret = false;
+    goto exit;
+  }
+
+  Input date_input = {
+    .input = rem_date,
+    .length = strlen(rem_date),
+    .cursor = 0,
+  };
+
+  rem_year_str = next_token(&date_input, '-');
+  if (!rem_year_str) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to get the year of the reminder (with date: '%s' and title: '%s') of the ToDo", rem_date, rem->name);
+    ret = false;
+    goto exit;
+  }
+
+  rem->date.year = atoi(rem_year_str);
+  if (rem->date.year == 0) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to parse the year '%s' of the reminder (with date: '%s' and title: '%s') ", rem_year_str, rem_date, rem->name);
+    ret = false;
+    goto exit;
+  }
+
+  rem_month_str = next_token(&date_input, '-');
+  if (!rem_month_str) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to get the month of the reminder (with date: '%s' and title: '%s') of the ToDo", rem_date, rem->name);
+    ret = false;
+    goto exit;
+  }
+
+  rem->date.month = atoi(rem_month_str);
+  if (rem->date.month == 0) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to parse the month '%s' of the reminder (with date: '%s' and title: '%s') ", rem_month_str, rem_date, rem->name);
+    ret = false;
+    goto exit;
+  }
+
+  rem_day_str = next_token(&date_input, '\0');
+  if (!rem_day_str) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to get the month of the reminder (with date: '%s' and title: '%s') of the ToDo", rem_date, rem->name);
+    ret = false;
+    goto exit;
+  }
+
+  rem->date.day = atoi(rem_day_str);
+  if (rem->date.day == 0) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to parse the day '%s' of the reminder (with date: '%s' and title: '%s') ", rem_day_str, rem_date, rem->name);
+    ret = false;
+    goto exit;
+  }
+
+exit:
+  if (rem_date) free(rem_date);
+  if (rem_year_str) free(rem_year_str);
+  if (rem_month_str) free(rem_month_str);
+  if (rem_day_str) free(rem_day_str);
+  if (!ret && rem->name) free(rem->name);
+  return ret;
+}
+
+bool is_reminder_old(Reminder rem) {
+  const Date now = date_now();
+
+  if (now.year < rem.date.year) return false;
+  if (now.year > rem.date.year) return true;
+
+  if (now.month < rem.date.month) return false;
+  if (now.month > rem.date.month) return true;
+
+  if (now.day < rem.date.day) return false;
+  if (now.day > rem.date.day) return true;
+
+  return false;
+}
+
+bool is_reminder_triggered(Reminder rem) {
+  const Date now = date_now();
+
+  return (now.year == rem.date.year && now.month == rem.date.month && now.day == rem.date.day);
+}
+
+bool is_reminder_upcoming(Reminder rem) {
+  const Date now = date_now();
+  const int days_left = get_delta_time_days(now, rem.date);
+
+  return 0 < days_left && days_left <= UPCOMING_REMINDER_DAYS;
+}
+
+void free_reminder(Reminder *rem) {
+  free(rem->name);
+  free(rem);
+}
+
+Reminder *newer_reminder(Reminder *rem1, Reminder *rem2) {
+  if (rem1->date.year < rem2->date.year) return rem1;
+  if (rem2->date.year < rem1->date.year) return rem2;
+
+  if (rem1->date.month < rem2->date.month) return rem1;
+  if (rem2->date.month < rem1->date.month) return rem2;
+
+  if (rem1->date.day < rem2->date.day) return rem1;
+  if (rem2->date.day < rem1->date.day) return rem2;
+
+  return rem1;
+}
+
+bool get_reminders_from_todo(Todo *todo, List *reminders) {
+  List reminders_todo = get_attribute_from_todo(*todo, "reminder: ", '\0');
+
+  unsigned int i = 0;
+  while (!list_is_empty(reminders_todo)) {
+    char *rem_str = list_remove(&reminders_todo, 0);
+
+    Reminder *rem = malloc(sizeof(Reminder));
+    memset(rem, 0, sizeof(Reminder));
+
+    bool ok = parse_reminder(todo, rem_str, rem);
+    free(rem_str); rem_str = NULL;
+    if (!ok) {
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to parse the %dº reminder from the ToDo '%s'", i+1, todo->name);
+      free(rem);
+      list_destroy(&reminders_todo, free);
+      return false;
+    }
+
+    list_insert_sorted(reminders, rem, (void *(*)(void *, void *)) newer_reminder);
+    i++;
+  }
+
+  list_destroy(&reminders_todo, free);
+  return true;
+}
+
+bool get_all_reminders(List *reminders) {
+  if (!reminders || !list_is_empty(*reminders)) return false;
+
+  List_iterator todo_list_iterator = list_iterator_create(todo_list);
+  while (list_iterator_next(&todo_list_iterator)) {
+    Todo *todo = list_iterator_element(todo_list_iterator);
+
+    if (!get_reminders_from_todo(todo, reminders)) {
+      list_destroy(reminders, (void (*)(void *)) free_reminder);
+    }
+  }
+
+  return true;
 }

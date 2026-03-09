@@ -35,6 +35,16 @@ extern List backtrace;
   list_append(&backtrace, b);                          \
 } while (0)
 
+typedef struct {
+  int year;
+  int month;
+  int day;
+} Date;
+
+Date date_now();
+int get_delta_time_days(Date date_from, Date date_to);
+char *get_delta_time_string(Date date_from, Date date_to);
+
 void free_backtrace_item(Backtrace_item *b);
 // print_backtrace is implemented in each interface
 

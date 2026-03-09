@@ -435,11 +435,11 @@ void nv_map_reload() {
 
 void nv_map_todo_information() {
   Todo *todo = list_get(todo_list, tui_st.current_pos);
+  String_builder sb = sb_new();
 
   // Tasks
   const unsigned int tasks_level_indentation = 4;
   List tasks = get_tasks_from_todo(*todo);
-  String_builder sb = sb_new();
   sb_append(&sb, "Tasks:\n");
   List_iterator iterator = list_iterator_create(tasks);
   while (list_iterator_next(&iterator)) {
@@ -447,8 +447,39 @@ void nv_map_todo_information() {
     for (unsigned int x = 0; x < t->level * tasks_level_indentation; x++) sb_append_char(&sb, ' ');
     sb_append_with_format(&sb, "  - [%c] %s\n", t->state, t->msg);
   }
-  message("Information about the ToDo", sb.str);
-  list_destroy(&tasks, (void (*)(void *)) free_task);
+  if (!list_is_empty(tasks)) {
+    list_destroy(&tasks, (void (*)(void *)) free_task);
+    sb_append(&sb, "\nPress a key to continue...");
+    if (message("ToDo Tasks", sb.str) == 'q') {
+      sb_free(&sb);
+      return;
+    }
+    sb_clean(&sb);
+  }
+
+  // Reminders
+  List reminders = list_new();
+  if (!get_all_reminders(&reminders)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to load the reminders");
+    return;
+  }
+  if (!list_is_empty(reminders)) sb_append(&sb, "Reminders:\n");
+  List_iterator rem_iterator = list_iterator_create(reminders);
+  while (list_iterator_next(&rem_iterator)) {
+    const Reminder *rem = list_iterator_element(rem_iterator);
+
+    sb_append_with_format(&sb, "  - %04d/%02d/%02d: %s (from %s)\n", rem->date.year, rem->date.month, rem->date.day, rem->name, rem->todo->name);
+  }
+  if (!list_is_empty(reminders)) {
+    list_destroy(&reminders, (void (*)(void *)) free_reminder);
+    sb_append(&sb, "\nPress a key to continue...");
+    if (message("ToDo Reminders", sb.str) == 'q') {
+      sb_free(&sb);
+      return;
+    }
+    sb_clean(&sb);
+  }
+
   sb_free(&sb);
 }
 

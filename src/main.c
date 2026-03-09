@@ -37,6 +37,49 @@ bool unlock_file() {
   return removed;
 }
 
+Date date_now() {
+  time_t now       = time(NULL);
+  struct tm *now_t = localtime(&now);
+
+  return (Date) {
+    .year  = now_t->tm_year + 1900,
+    .month = now_t->tm_mon + 1,
+    .day   = now_t->tm_mday,
+  };
+}
+
+int get_delta_time_days(Date date_from, Date date_to) {
+  return (date_to.year - date_from.year) * 12 * 30
+         + (date_to.month - date_from.month) * 30
+         + (date_to.day - date_from.day);
+}
+
+char *get_delta_time_string(Date date_from, Date date_to) {
+  int days = abs(get_delta_time_days(date_from, date_to));
+  if (days == 0) return sb_create("0 days left").str;
+
+  int y = days/365; // It floors it automatically
+  int d_of_y = y * 365; // Days from the amount of years
+
+  int m = (days - d_of_y)/30;
+  int d_of_m = m * 30;
+
+  int w = (days - d_of_y - d_of_m)/7;
+  int d_of_w = w*7;
+
+  int d = days - d_of_y - d_of_m - d_of_w;
+
+  String_builder sb = sb_new();
+
+  if (y) sb_append_with_format(&sb, "%d year%s ", y, (y != 1) ? "s" : "");
+  if (m) sb_append_with_format(&sb, "%d month%s ", m, (m != 1) ? "s" : "");
+  if (w) sb_append_with_format(&sb, "%d week%s ", w, (w != 1) ? "s" : "");
+  if (d) sb_append_with_format(&sb, "%d day%s ", d, (d != 1) ? "s" : "");
+  sb_append(&sb, (days < 0) ? "ago" : "left");
+
+  return sb.str;
+}
+
 bool parse_commands_cli(char *commands[], int count) {
   int i=0;
   bool something_went_wrong = false;
@@ -61,7 +104,7 @@ bool parse_commands_cli(char *commands[], int count) {
     i++;
   }
 
-  if (todo_list_modified) action_print_todo(NULL);
+  if (todo_list_modified) action_list_todos(NULL);
   return !something_went_wrong;
 }
 

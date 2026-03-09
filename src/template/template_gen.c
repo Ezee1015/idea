@@ -96,6 +96,10 @@ bool print_html_to_c_file(const char *html_filepath, long line, char *html_start
         if (fprintf(template_c, "%%%%") < 0) return false;
         break;
 
+      case '\\':
+        if (fprintf(template_c, "\\\\") < 0) return false;
+        break;
+
       default:
         if (isprint(c)) {
           if (fputc(c, template_c) == EOF) return false;

@@ -64,6 +64,18 @@ void list_insert_sorted(List *list, void *element, void *(*comparator)(void *, v
   list_insert_at(list, element, list_iterator_index(iterator));
 }
 
+void list_filter(List *list, bool (*condition)(void *),  void (*free_element)(void *)) {
+  List_iterator iterator = list_iterator_create(*list);
+  while (list_iterator_next(&iterator)) {
+    void *list_e = list_iterator_element(iterator);
+
+    if (!condition(list_e)) {
+      list_remove_element(list, list_e);
+      free_element(list_e);
+    }
+  }
+}
+
 void list_move_chunk(List *list, unsigned int start_pos, unsigned int chunk_size, int positions_to_move) {
   if (!positions_to_move) return;
 

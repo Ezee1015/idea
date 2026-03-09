@@ -37,7 +37,9 @@ extern bool cli_disable_colors;
 
 void cli_print_backtrace();
 
-bool action_print_todo(Input *input);
+bool action_print_new_line(Input *input);
+bool action_list_todos(Input *input);
+bool action_reminders(Input *input);
 bool action_sync_todos(Input *input);
 bool action_import_todos(Input *input);
 bool action_export_todos(Input *input);
