@@ -311,7 +311,7 @@
             }
 
             .reminders_container {
-                margin-left: 40px;
+                margin-left: 38px;
             }
 
             .reminders_container td {
@@ -324,6 +324,25 @@
 
             .reminder::before {
                 content: "\1F4C5";
+            }
+
+            .reminder_date_end:before {
+                color: var(--fg-dark);
+
+                content: "~";
+                padding-left: 8px;
+                padding-right: 8px;
+            }
+
+            .reminder_date, .reminder_date_diff {
+                margin: 0px;
+                display: flex;
+                justify-content: center;
+                padding-right: 20px;
+            }
+
+            .reminder_date {
+                padding-left: 8px;
             }
 
             /* Header */
@@ -539,13 +558,13 @@
 
                                             </c>
                                                 <tr class="reminder">
-                                                   <td class="reminder_date_start"><c>PRINT("%04d-%02d-%02d", rem->start.year, rem->start.month, rem->start.day)</c></td>
-                                                   <td class="reminder_date_end"><c>
-                                                       if (!is_date_equals(rem->start, rem->end)) {
-                                                           PRINT("%04d-%02d-%02d", rem->end.year, rem->end.month, rem->end.day)
-                                                       }
-                                                    </c></td>
-                                                   <td class="reminder_date_diff"></td>
+                                                    <td><p class="reminder_date">
+                                                        <span class="reminder_date_start"><c>PRINT("%04d-%02d-%02d", rem->start.year, rem->start.month, rem->start.day) </c></span>
+                                                        <c> if (!is_date_equals(rem->start, rem->end)) { </c>
+                                                            <span class="reminder_date_end"><c>PRINT("%04d-%02d-%02d", rem->end.year, rem->end.month, rem->end.day)</c></td>
+                                                        <c> } </c>
+                                                        </p></td>
+                                                    <td><p class="reminder_date_diff"></p></td>
                                                    <td class="reminder_name"><c>CSTR(rem->name)</c></td>
                                                 </tr>
                                             <c>
@@ -636,7 +655,10 @@
 
         function getElementInsideContainer(container, className) {
             const list = container.getElementsByClassName(className)
-            if (list.length != 1) console.log("Error. There's more than one `" + className + "` in a `todo_container`")
+            if (list.length != 1) {
+                console.log("Error: There's more than one or none `" + className + "` in this container:")
+                console.log(container)
+            }
             return list[0]
         }
 
@@ -803,10 +825,10 @@
 
                     for (let i=0; i < remindersDateStart.length; i++) {
                         const reminderDateStart = remindersDateStart[i].innerHTML
-                        const reminderDateEnd = remindersDateEnd[i].innerHTML
+                        const reminderDateEnd = (remindersDateEnd.length != 0) ? remindersDateEnd[i].innerHTML : undefined
 
                         const reminderInsideRange = (filterReminderStart == "" || (getDateFromString(reminderDateStart) >= getDateFromString(filterReminderStart)))
-                                                    && (filterReminderEnd == "" || (reminderDateEnd != "" && getDateFromString(reminderDateEnd) <= getDateFromString(filterReminderEnd)))
+                                                    && (filterReminderEnd == "" || (reminderDateEnd != undefined && getDateFromString(reminderDateEnd) <= getDateFromString(filterReminderEnd)))
 
                         if (reminderInsideRange) {
                             allRemindersOutOfRange = false;
@@ -1003,12 +1025,13 @@
                 const reminderDateStart = getDateFromString(reminderDateStartElement.innerText)
                 const reminderDateDiffStart = getDifferenceInDaysFromDates(now, reminderDateStart)
 
-                const reminderDateEndElement = getElementInsideContainer(reminder, "reminder_date_end")
-                const reminderDateEnd = (reminderDateEndElement.innerText != "") ? getDateFromString(reminderDateEndElement.innerText) : undefined
-                const reminderDateDiffEnd = (reminderDateEnd != undefined) ? getDifferenceInDaysFromDates(reminderDateEnd, now) : undefined
+                const reminderHasEndDate = reminder.getElementsByClassName("reminder_date_end").length != 0
+                const reminderDateEndElement = (reminderHasEndDate) ? getElementInsideContainer(reminder, "reminder_date_end") : undefined
+                const reminderDateEnd = (reminderHasEndDate) ? getDateFromString(reminderDateEndElement.innerText) : undefined
+                const reminderDateDiffEnd = (reminderHasEndDate) ? getDifferenceInDaysFromDates(reminderDateEnd, now) : undefined
 
-                const triggered = (reminderDateEnd != undefined) ? (reminderDateStart <= now && now <= reminderDateEnd) : (reminderDateStart.toDateString() == now.toDateString())
-                const old = ((reminderDateEnd != undefined && reminderDateEnd < now) || (reminderDateStart < now))
+                const triggered = (reminderHasEndDate) ? (reminderDateStart <= now && now <= reminderDateEnd) : (reminderDateStart.toDateString() == now.toDateString())
+                const old = ((reminderHasEndDate && reminderDateEnd < now) || (reminderDateStart < now))
 
                 if (triggered) {
                     reminderDateDiffElement.innerHTML += " (TODAY)"
@@ -1017,7 +1040,7 @@
                 } else {
                     let delta
                     if (old) {
-                        delta = (reminderDateDiffEnd != undefined) ? reminderDateDiffEnd : -reminderDateDiffStart
+                        delta = (reminderHasEndDate) ? reminderDateDiffEnd : -reminderDateDiffStart
                     } else {
                         delta = reminderDateDiffStart
                     }
