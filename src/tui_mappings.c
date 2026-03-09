@@ -479,7 +479,7 @@ void nv_map_todo_information() {
 
   // Reminders
   List reminders = list_new();
-  if (!get_all_reminders(&reminders)) {
+  if (!get_reminders_from_todo(todo, &reminders)) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to load the reminders");
     return;
   }
@@ -488,7 +488,12 @@ void nv_map_todo_information() {
   while (list_iterator_next(&rem_iterator)) {
     const Reminder *rem = list_iterator_element(rem_iterator);
 
-    sb_append_with_format(&sb, "  - %04d/%02d/%02d: %s (from %s)\n", rem->date.year, rem->date.month, rem->date.day, rem->name, rem->todo->name);
+    sb_append_with_format(&sb, "  - %04d/%02d/%02d", rem->start.year, rem->start.month, rem->start.day);
+    if (!is_date_equals(rem->start, rem->end)) {
+      sb_append_with_format(&sb, " ~ %04d/%02d/%02d", rem->end.year, rem->end.month, rem->end.day);
+    }
+    sb_append_with_format(&sb, ": %s (from %s)\n", rem->name, rem->todo->name);
+
   }
   if (!list_is_empty(reminders)) {
     list_destroy(&reminders, (void (*)(void *)) free_reminder);

@@ -36,7 +36,8 @@ typedef struct {
   Todo *todo;
 
   char *name;
-  Date date;
+  Date start;
+  Date end;
 } Reminder;
 
 Todo *create_todo(char *name);
@@ -85,7 +86,7 @@ bool parse_reminder(Todo *todo, char *rem_str, Reminder *rem);
 bool is_reminder_old(Reminder rem);
 bool is_reminder_triggered(Reminder rem);
 bool is_reminder_upcoming(Reminder rem);
-Reminder *newer_reminder(Reminder *rem1, Reminder *rem2);
+Reminder *reminder_insertion_comparator(Reminder *rem1, Reminder *rem2);
 void free_reminder(Reminder *rem);
 bool get_reminders_from_todo(Todo *todo, List *reminders);
 bool get_all_reminders(List *reminders);

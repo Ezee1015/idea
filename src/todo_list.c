@@ -897,113 +897,85 @@ bool parse_reminder(Todo *todo, char *rem_str, Reminder *rem) {
 
   rem->todo = todo;
 
-  bool ret = true;
-  char *rem_date      = NULL;
-  char *rem_year_str  = NULL;
-  char *rem_month_str = NULL;
-  char *rem_day_str   = NULL;
-
   Input rem_input = {
     .input = rem_str,
     .length = strlen(rem_str),
     .cursor = 0,
   };
 
-  rem_date = next_token(&rem_input, ' ');
+  char *rem_date = next_token(&rem_input, ' ');
   if (!rem_date || rem_date[0] == '\0') {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to get the date of the reminder");
-    ret = false;
-    goto exit;
+    if (rem_date) free(rem_date);
+    return false;
+  }
+
+  if (!load_date_from_string(rem_date, &rem->start)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to parse the start date of the reminder");
+    if (rem_date) free(rem_date);
+    return false;
+  }
+  free(rem_date); rem_date = NULL;
+
+  unsigned int marker = rem_input.cursor;
+  char *divider = next_token(&rem_input, ' ');
+  // Try to see if there is an end date
+  if (divider && !strcmp(divider, "~")) {
+    free(divider);
+
+    rem_date = next_token(&rem_input, ' ');
+    if (!rem_date || rem_date[0] == '\0') {
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to get the end date of the reminder");
+      if (rem_date) free(rem_date);
+      return false;
+    }
+
+    if (!load_date_from_string(rem_date, &rem->end)) {
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to parse the end date of the reminder");
+      free(rem_date);
+      return false;
+    }
+    free(rem_date);
+
+  } else {
+    if (divider) free(divider);
+    rem_input.cursor = marker;
+    rem->end = rem->start;
   }
 
   rem->name = next_token(&rem_input, '\0');
   if (!rem->name || rem->name[0] == '\0') {
-    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to get the name of the reminder (with date: %s) of the ToDo", rem_date);
-    ret = false;
-    goto exit;
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to get the name of the reminder");
+    if (rem->name) free(rem->name);
+    return false;
   }
 
-  Input date_input = {
-    .input = rem_date,
-    .length = strlen(rem_date),
-    .cursor = 0,
-  };
-
-  rem_year_str = next_token(&date_input, '-');
-  if (!rem_year_str) {
-    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to get the year of the reminder (with date: '%s' and title: '%s') of the ToDo", rem_date, rem->name);
-    ret = false;
-    goto exit;
-  }
-
-  rem->date.year = atoi(rem_year_str);
-  if (rem->date.year == 0) {
-    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to parse the year '%s' of the reminder (with date: '%s' and title: '%s') ", rem_year_str, rem_date, rem->name);
-    ret = false;
-    goto exit;
-  }
-
-  rem_month_str = next_token(&date_input, '-');
-  if (!rem_month_str) {
-    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to get the month of the reminder (with date: '%s' and title: '%s') of the ToDo", rem_date, rem->name);
-    ret = false;
-    goto exit;
-  }
-
-  rem->date.month = atoi(rem_month_str);
-  if (rem->date.month == 0) {
-    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to parse the month '%s' of the reminder (with date: '%s' and title: '%s') ", rem_month_str, rem_date, rem->name);
-    ret = false;
-    goto exit;
-  }
-
-  rem_day_str = next_token(&date_input, '\0');
-  if (!rem_day_str) {
-    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to get the month of the reminder (with date: '%s' and title: '%s') of the ToDo", rem_date, rem->name);
-    ret = false;
-    goto exit;
-  }
-
-  rem->date.day = atoi(rem_day_str);
-  if (rem->date.day == 0) {
-    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to parse the day '%s' of the reminder (with date: '%s' and title: '%s') ", rem_day_str, rem_date, rem->name);
-    ret = false;
-    goto exit;
-  }
-
-exit:
-  if (rem_date) free(rem_date);
-  if (rem_year_str) free(rem_year_str);
-  if (rem_month_str) free(rem_month_str);
-  if (rem_day_str) free(rem_day_str);
-  if (!ret && rem->name) free(rem->name);
-  return ret;
+  return true;
 }
 
 bool is_reminder_old(Reminder rem) {
   const Date now = date_now();
 
-  if (now.year < rem.date.year) return false;
-  if (now.year > rem.date.year) return true;
+  if (now.year < rem.end.year) return false;
+  if (now.year > rem.end.year) return true;
 
-  if (now.month < rem.date.month) return false;
-  if (now.month > rem.date.month) return true;
+  if (now.month < rem.end.month) return false;
+  if (now.month > rem.end.month) return true;
 
-  if (now.day < rem.date.day) return false;
-  if (now.day > rem.date.day) return true;
+  if (now.day < rem.end.day) return false;
+  if (now.day > rem.end.day) return true;
 
   return false;
 }
 
 bool is_reminder_triggered(Reminder rem) {
   const Date now = date_now();
-
-  return (now.year == rem.date.year && now.month == rem.date.month && now.day == rem.date.day);
+  return is_date_less_or_equals(rem.start, now) && is_date_less_or_equals(now, rem.end);
 }
 
 bool is_reminder_upcoming(Reminder rem) {
   const Date now = date_now();
-  const int days_left = get_delta_time_days(now, rem.date);
+  const int days_left = get_delta_time_days(now, rem.start);
 
   return 0 < days_left && days_left <= UPCOMING_REMINDER_DAYS;
 }
@@ -1013,17 +985,37 @@ void free_reminder(Reminder *rem) {
   free(rem);
 }
 
-Reminder *newer_reminder(Reminder *rem1, Reminder *rem2) {
-  if (rem1->date.year < rem2->date.year) return rem1;
-  if (rem2->date.year < rem1->date.year) return rem2;
+Reminder *reminder_insertion_comparator(Reminder *rem1, Reminder *rem2) {
+  /// 1. Old reminder first
+  if (is_reminder_old(*rem1) && !is_reminder_old(*rem2)) return rem1;
+  if (is_reminder_old(*rem2) && !is_reminder_old(*rem1)) return rem2;
 
-  if (rem1->date.month < rem2->date.month) return rem1;
-  if (rem2->date.month < rem1->date.month) return rem2;
+  /// 2. Triggered reminder first
+  if (is_reminder_triggered(*rem1) && !is_reminder_triggered(*rem2)) return rem1;
+  if (is_reminder_triggered(*rem2) && !is_reminder_triggered(*rem1)) return rem2;
 
-  if (rem1->date.day < rem2->date.day) return rem1;
-  if (rem2->date.day < rem1->date.day) return rem2;
+  /// 3. If they are triggered, then the shorter reminder first
+  if (is_reminder_triggered(*rem1)) {
+    return (get_delta_time_days(rem1->start, rem1->end) >= get_delta_time_days(rem2->start, rem2->end))
+           ? rem2 : rem1;
+  }
 
-  return rem1;
+  /// 4. Sort by start date (if it is in the future) or end date (if it is old)
+  Date rem1_date = (is_reminder_old(*rem1)) ? rem1->end : rem1->start;
+  Date rem2_date = (is_reminder_old(*rem2)) ? rem2->end : rem2->start;
+
+  if (rem1_date.year < rem2_date.year) return rem1;
+  if (rem2_date.year < rem1_date.year) return rem2;
+
+  if (rem1_date.month < rem2_date.month) return rem1;
+  if (rem2_date.month < rem1_date.month) return rem2;
+
+  if (rem1_date.day < rem2_date.day) return rem1;
+  if (rem2_date.day < rem1_date.day) return rem2;
+
+  // It has more priority the ToDo that has less duration
+  return (get_delta_time_days(rem1->start, rem1->end) >= get_delta_time_days(rem2->start, rem2->end))
+         ? rem2 : rem1;
 }
 
 bool get_reminders_from_todo(Todo *todo, List *reminders) {
@@ -1045,7 +1037,7 @@ bool get_reminders_from_todo(Todo *todo, List *reminders) {
       return false;
     }
 
-    list_insert_sorted(reminders, rem, (void *(*)(void *, void *)) newer_reminder);
+    list_insert_sorted(reminders, rem, (void *(*)(void *, void *)) reminder_insertion_comparator);
     i++;
   }
 

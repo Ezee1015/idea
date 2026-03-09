@@ -539,7 +539,12 @@
 
                                             </c>
                                                 <tr class="reminder">
-                                                   <td class="reminder_date"><c>PRINT("%04d-%02d-%02d", rem->date.year, rem->date.month, rem->date.day)</c></td>
+                                                   <td class="reminder_date_start"><c>PRINT("%04d-%02d-%02d", rem->start.year, rem->start.month, rem->start.day)</c></td>
+                                                   <td class="reminder_date_end"><c>
+                                                       if (!is_date_equals(rem->start, rem->end)) {
+                                                           PRINT("%04d-%02d-%02d", rem->end.year, rem->end.month, rem->end.day)
+                                                       }
+                                                    </c></td>
                                                    <td class="reminder_date_diff"></td>
                                                    <td class="reminder_name"><c>CSTR(rem->name)</c></td>
                                                 </tr>
@@ -756,7 +761,8 @@
 
                 const hasNotes = todo.getElementsByClassName("todo_notes").length == 1;
                 const creationDate = getElementInsideContainer(todo, "todo_creation_date").innerText;
-                const remindersDates = todo.getElementsByClassName("reminder_date")
+                const remindersDateStart = todo.getElementsByClassName("reminder_date_start")
+                const remindersDateEnd = todo.getElementsByClassName("reminder_date_end")
 
                 // Notes filter
                 switch (notes_filter.value) {
@@ -787,7 +793,7 @@
                 }
 
                 // Reminder date range
-                if (remindersDates.length == 0) {
+                if (remindersDateStart.length == 0) {
                     if (filterReminderStart != "" || filterReminderEnd != "") {
                         todo.style.display = "none"
                         continue;
@@ -795,10 +801,12 @@
                 } else {
                     let allRemindersOutOfRange = true
 
-                    for (let i=0; i < remindersDates.length; i++) {
-                        const reminder_date = remindersDates[i].innerHTML
-                        const reminderInsideRange = (filterReminderStart == "" || (getDateFromString(reminder_date) >= getDateFromString(filterReminderStart)))
-                                                    && (filterReminderEnd == "" || (getDateFromString(reminder_date) <= getDateFromString(filterReminderEnd)))
+                    for (let i=0; i < remindersDateStart.length; i++) {
+                        const reminderDateStart = remindersDateStart[i].innerHTML
+                        const reminderDateEnd = remindersDateEnd[i].innerHTML
+
+                        const reminderInsideRange = (filterReminderStart == "" || (getDateFromString(reminderDateStart) >= getDateFromString(filterReminderStart)))
+                                                    && (filterReminderEnd == "" || (reminderDateEnd != "" && getDateFromString(reminderDateEnd) <= getDateFromString(filterReminderEnd)))
 
                         if (reminderInsideRange) {
                             allRemindersOutOfRange = false;
@@ -991,26 +999,38 @@
                 const reminderNameElement = getElementInsideContainer(reminder, "reminder_name")
                 const reminderDateDiffElement = getElementInsideContainer(reminder, "reminder_date_diff")
 
-                const reminderDateElement = getElementInsideContainer(reminder, "reminder_date")
-                const reminderDate = getDateFromString(reminderDateElement.innerText)
-                const reminderDateDiff = getDifferenceInDaysFromDates(now, reminderDate)
+                const reminderDateStartElement = getElementInsideContainer(reminder, "reminder_date_start")
+                const reminderDateStart = getDateFromString(reminderDateStartElement.innerText)
+                const reminderDateDiffStart = getDifferenceInDaysFromDates(now, reminderDateStart)
 
+                const reminderDateEndElement = getElementInsideContainer(reminder, "reminder_date_end")
+                const reminderDateEnd = (reminderDateEndElement.innerText != "") ? getDateFromString(reminderDateEndElement.innerText) : undefined
+                const reminderDateDiffEnd = (reminderDateEnd != undefined) ? getDifferenceInDaysFromDates(reminderDateEnd, now) : undefined
 
-                if (reminderDateDiff == 0) {
+                const triggered = (reminderDateEnd != undefined) ? (reminderDateStart <= now && now <= reminderDateEnd) : (reminderDateStart.toDateString() == now.toDateString())
+                const old = ((reminderDateEnd != undefined && reminderDateEnd < now) || (reminderDateStart < now))
+
+                if (triggered) {
                     reminderDateDiffElement.innerHTML += " (TODAY)"
-                } else if (reminderDateDiff == 1) {
+                } else if (reminderDateDiffStart == 1) {
                     reminderDateDiffElement.innerHTML += " (tomorrow)"
                 } else {
-                    reminderDateDiffElement.innerHTML += " (" + ((reminderDateDiff < 0) ? -reminderDateDiff : reminderDateDiff) + " days " + ((reminderDateDiff < 0) ? "ago" : "left") +")"
+                    let delta
+                    if (old) {
+                        delta = (reminderDateDiffEnd != undefined) ? reminderDateDiffEnd : -reminderDateDiffStart
+                    } else {
+                        delta = reminderDateDiffStart
+                    }
+                    reminderDateDiffElement.innerHTML += " (" + delta + " days " + ((old) ? "ago" : "left") +")"
                 }
 
                 // Source: <https://coreui.io/answers/how-to-check-if-date-is-today-in-javascript/>
-                if (now.toDateString() == reminderDate.toDateString()) { // TRIGGERED
+                if (triggered) {
                     reminderDateDiffElement.style.color = "red"
-                } else if (reminderDate < now) { // OLD
+                } else if (old) {
                     reminderNameElement.style.color = "gray"
                     reminderDateDiffElement.style.color = "gray"
-                } else if (reminderDateDiff <= UPCOMING_REMINDER_DAYS) { // UPCOMING
+                } else if (reminderDateDiffStart <= UPCOMING_REMINDER_DAYS) { // Upcoming
                     reminderDateDiffElement.style.color = "yellow"
                 }
             }

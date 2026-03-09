@@ -19,15 +19,20 @@ void print_reminder(const Reminder rem) {
 
   if (old || (!upcoming && !triggered)) printf("%s", ANSI_GRAY);
 
-  printf("  - %04d/%02d/%02d ", rem.date.year, rem.date.month, rem.date.day);
+  printf("  - %04d/%02d/%02d ", rem.start.year, rem.start.month, rem.start.day);
+  if (!is_date_equals(rem.start, rem.end)) {
+    printf("~ %04d/%02d/%02d ", rem.end.year, rem.end.month, rem.end.day);
+  }
 
-  int days = get_delta_time_days(now, rem.date);
-  if (days == 0) {
+  int days = get_delta_time_days(now, (old) ? rem.end : rem.start);
+  if (triggered) {
     printf("(%sTODAY%s): %s", ANSI_RED, ANSI_RESET, ANSI_RED);
   } else if (days == 1) {
     printf("(%sTOMORROW%s): %s", ANSI_YELLOW, ANSI_RESET, ANSI_YELLOW);
+  } else if (days == -1) {
+    printf("(Yesterday): ");
   } else {
-    char *delta_str = get_delta_time_string(now, rem.date);
+    char *delta_str = get_delta_time_string(now, (old) ? rem.end : rem.start);
 
     printf("(%s): ", delta_str);
     free(delta_str);
