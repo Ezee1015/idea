@@ -437,6 +437,26 @@ void nv_map_todo_information() {
   Todo *todo = list_get(todo_list, tui_st.current_pos);
   String_builder sb = sb_new();
 
+  // Tags
+  List tags = get_attribute_from_todo(*todo, "tags: ", ' ');
+  if (!list_is_empty(tags)) sb_append(&sb, "Tags:\n");
+  List_iterator tag_iterator = list_iterator_create(tags);
+  while (list_iterator_next(&tag_iterator)) {
+    const char *tag = list_iterator_element(tag_iterator);
+
+    sb_append_with_format(&sb, "  - %s\n", tag);
+  }
+  if (!list_is_empty(tags)) {
+    sb_append(&sb, "\n");
+    list_destroy(&tags, free);
+    sb_append(&sb, "\nPress a key to continue...");
+    if (message("ToDo Tags", sb.str) == 'q') {
+      sb_free(&sb);
+      return;
+    }
+    sb_clean(&sb);
+  }
+
   // Tasks
   const unsigned int tasks_level_indentation = 4;
   List tasks = get_tasks_from_todo(*todo);
