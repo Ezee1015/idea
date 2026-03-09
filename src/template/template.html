@@ -771,20 +771,28 @@
                 }
 
                 // Reminder date range
-                let allRemindersOutOfRange = true
-                for (let i=0; i < remindersDates.length; i++) {
-                    const reminder_date = remindersDates[i].innerHTML
-                    const reminderInsideRange = (filterReminderStart == "" || (getDateFromString(reminder_date) >= getDateFromString(filterReminderStart)))
-                                                && (filterReminderEnd == "" || (getDateFromString(reminder_date) <= getDateFromString(filterReminderEnd)))
-
-                    if (reminderInsideRange) {
-                        allRemindersOutOfRange = false;
-                        break;
+                if (remindersDates.length == 0) {
+                    if (filterReminderStart != "" || filterReminderEnd != "") {
+                        todo.style.display = "none"
+                        continue;
                     }
-                }
-                if (allRemindersOutOfRange) {
-                    todo.style.display = "none"
-                    continue;
+                } else {
+                    let allRemindersOutOfRange = true
+
+                    for (let i=0; i < remindersDates.length; i++) {
+                        const reminder_date = remindersDates[i].innerHTML
+                        const reminderInsideRange = (filterReminderStart == "" || (getDateFromString(reminder_date) >= getDateFromString(filterReminderStart)))
+                                                    && (filterReminderEnd == "" || (getDateFromString(reminder_date) <= getDateFromString(filterReminderEnd)))
+
+                        if (reminderInsideRange) {
+                            allRemindersOutOfRange = false;
+                            break;
+                        }
+                    }
+                    if (allRemindersOutOfRange) {
+                        todo.style.display = "none"
+                        continue;
+                    }
                 }
             }
         }
