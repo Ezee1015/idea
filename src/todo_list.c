@@ -770,7 +770,13 @@ bool is_a_task(char *cstr, unsigned int length) {
   if (!open_bracket) return false;
 
   i++;
-  bool status = (i < length && (cstr[i] == ' ' || cstr[i] == 'x' || cstr[i] == '?' || cstr[i] == '-'));
+  bool status = (i < length &&
+                    (cstr[i] == ' '     // Incomplete
+                    || cstr[i] == 'x'   // Finished
+                    || cstr[i] == '?'   // Question
+                    || cstr[i] == '-'   // Working on it
+                    || cstr[i] == '~')  // Removed / won't do
+                );
   if (!status) return false;
 
   i++;

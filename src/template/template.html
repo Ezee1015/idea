@@ -28,6 +28,8 @@
                 --blue-dark: #222436;
 
                 --yellow: #FFD75F;
+
+                --red: #FF5F5F;
             }
 
             body {
@@ -292,6 +294,12 @@
                 border-color: var(--bg);
             }
 
+            .task_icon_wont_do {
+                background: var(--red);
+                color: var(--bg);
+                border-color: var(--bg);
+            }
+
             .task_icon_quetion {
                 background: var(--blue);
                 color: var(--bg);
@@ -484,21 +492,29 @@
                                         switch (task_icon->state) {
                                             case 'x':
                                                 </c> <div class="task_icon task_icon_complete unselectable">X</div> <c>
+                                                </c> <p class="task_content"><c>CSTR(task_icon->msg)</c></p> <c>
                                                 break;
 
                                             case ' ':
                                                 </c> <div class="task_icon unselectable"></div> <c>
+                                                </c> <p class="task_content"><c>CSTR(task_icon->msg)</c></p> <c>
                                                 break;
 
                                             case '?':
                                                 </c> <div class="task_icon task_icon_quetion unselectable">?</div> <c>
+                                                </c> <p class="task_content"><c>CSTR(task_icon->msg)</c></p> <c>
                                                 break;
 
                                             case '-':
                                                 </c> <div class="task_icon task_icon_on_progress unselectable">-</div> <c>
+                                                </c> <p class="task_content"><c>CSTR(task_icon->msg)</c></p> <c>
+                                                break;
+
+                                            case '~':
+                                                </c> <div class="task_icon task_icon_wont_do unselectable">~</div> <c>
+                                                </c> <p class="task_content"><strike><c>CSTR(task_icon->msg)</c></strike></p> <c>
                                                 break;
                                         }
-                                        </c> <p class="task_content"><c>CSTR(task_icon->msg)</c></p> <c>
                                         </c> </div> <c>
                                     }
 
