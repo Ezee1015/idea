@@ -424,7 +424,7 @@
 
         <main>
             <div class="menu">
-                <p role="button" tabindex="0" class="menu_title unselectable keyboard_clickable"><span class="menu_arrow">&#9654</span> <b>Filters</b></p>
+                <p id="menu_filter_title" role="button" tabindex="0" class="menu_title unselectable keyboard_clickable"><span class="menu_arrow">&#9654</span> <b>Filters</b></p>
 
                 <hr class="menu_separator">
 
@@ -707,6 +707,16 @@
             return false
         }
 
+        function hideTodo(todo) {
+            todo.style.display = "none"
+            menu_filter_title.style.color = "var(--yellow)"
+        }
+
+        function showAllTodos() {
+            for (const todo of todos) todo.style.display = ""
+            menu_filter_title.style.color = "var(--fg)"
+        }
+
         function applySearchFilter(filter_element) {
             // Filter options
             const ignoreCase = getElementInsideContainer(filter_element, "ignore_case").checked
@@ -727,14 +737,14 @@
                     case "name":
                         const name = title.innerText
                         if (!matchesSearch(name, inputText, ignoreCase)) {
-                            todo.style.display = "none"
+                            hideTodo(todo)
                         }
                         break
 
                     case "notes":
                         const notesLines = todo.getElementsByClassName("todo_notes_line")
                         if (!htmlArrMatchesSearch(notesLines, inputText, ignoreCase)) {
-                            todo.style.display = "none"
+                            hideTodo(todo)
                             continue
                         }
                         break
@@ -742,14 +752,14 @@
                     case "host":
                         const host = getElementInsideContainer(todo, "todo_hostname").innerText
                         if (!matchesSearch(host, inputText, ignoreCase)) {
-                            todo.style.display = "none"
+                            hideTodo(todo)
                         }
                         break
 
                     case "tag":
                         const tagsArr = todo.getElementsByClassName("tag")
                         if (!htmlArrMatchesSearch(tagsArr, inputText, ignoreCase)) {
-                            todo.style.display = "none"
+                            hideTodo(todo)
                             continue
                         }
                         break
@@ -757,7 +767,7 @@
                     case "task":
                         const taskArr = todo.getElementsByClassName("task_content")
                         if (!htmlArrMatchesSearch(taskArr, inputText, ignoreCase)) {
-                            todo.style.display = "none"
+                            hideTodo(todo)
                             continue
                         }
                         break
@@ -765,7 +775,7 @@
                     case "reminder":
                         const reminderNameArr = todo.getElementsByClassName("reminder_name")
                         if (!htmlArrMatchesSearch(reminderNameArr, inputText, ignoreCase)) {
-                            todo.style.display = "none"
+                            hideTodo(todo)
                             continue
                         }
                         break
@@ -792,14 +802,14 @@
 
                     case "with":
                         if (!hasNotes) {
-                            todo.style.display = "none"
+                            hideTodo(todo)
                             continue;
                         }
                         break;
 
                     case "without":
                         if (hasNotes) {
-                            todo.style.display = "none"
+                            hideTodo(todo)
                             continue;
                         }
                         break;
@@ -810,14 +820,14 @@
                                            || (filterCreationEnd != "" && new Date(creationDate) > getDateFromString(filterCreationEnd))
 
                 if (creationOutOfRange) {
-                    todo.style.display = "none"
+                    hideTodo(todo)
                     continue;
                 }
 
                 // Reminder date range
                 if (reminders.length == 0) {
                     if (filterReminderStart != "" || filterReminderEnd != "") {
-                        todo.style.display = "none"
+                        hideTodo(todo)
                         continue;
                     }
                 } else {
@@ -851,7 +861,7 @@
                         }
                     }
                     if (allRemindersOutOfRange) {
-                        todo.style.display = "none"
+                        hideTodo(todo)
                         continue;
                     }
                 }
@@ -859,7 +869,7 @@
         }
 
         function filter() {
-            for (const todo of todos) todo.style.display = ""
+            showAllTodos()
 
             applyStaticFilters()
 
@@ -896,7 +906,7 @@
                 // Useful when first load of the webpage, because
                 //   it may load some input filter (and filter())
                 //   before executing this function
-                for (const todo of todos) todo.style.display = ""
+                showAllTodos()
             }
         }
 
@@ -955,7 +965,7 @@
             // Search filters
             search_filter_container.innerHTML = ""
 
-            for (const todo of todos) todo.style.display = ""
+            showAllTodos()
         }
 
         // Configure Menus
