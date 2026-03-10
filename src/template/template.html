@@ -458,7 +458,7 @@
                     <div id="filter_options">
                         <div>
                             <button id="filter_button" class="clickable" onclick="filter()">Filter</button>
-                            <input id="auto_apply_filters" class="checkbox clickable" type="checkbox" checked onchange="autoApplyFilter()"> <label for="auto_apply_filters"> Auto-apply filters</label>
+                            <input id="auto_apply_filters" class="checkbox clickable" type="checkbox" checked oninput="autoApplyFilter()"> <label for="auto_apply_filters"> Auto-apply filters on input</label>
                         </div>
                         <button id="reset_filters_button" class="clickable" onclick="resetFilters()">Reset filters</button>
                     </div>
@@ -649,6 +649,7 @@
     </body>
 
     <script>
+        const isChromium = !!window.chrome;
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) // Source: https://stackoverflow.com/a/29509267
         const todos = document.getElementsByClassName("todo")
         const menus = document.getElementsByClassName("menu")
@@ -872,11 +873,11 @@
             filter_button.style.display = (autoApply) ? "none" : ""
 
             // Static filters
-            notes_filter.onclick           = (autoApply) ? filter : undefined
-            creation_start_filter.onchange = (autoApply) ? filter : undefined
-            creation_end_filter.onchange   = (autoApply) ? filter : undefined
-            reminder_start_filter.onchange = (autoApply) ? filter : undefined
-            reminder_end_filter.onchange   = (autoApply) ? filter : undefined
+            notes_filter.oninput          = (autoApply) ? filter : undefined
+            creation_start_filter.oninput = (autoApply) ? filter : undefined
+            creation_end_filter.oninput   = (autoApply) ? filter : undefined
+            reminder_start_filter.oninput = (autoApply) ? filter : undefined
+            reminder_end_filter.oninput   = (autoApply) ? filter : undefined
 
             // Search filters
             const filters = search_filter_container.children
@@ -884,11 +885,19 @@
                 const input = getElementInsideContainer(f, "filter_input")
                 const field = getElementInsideContainer(f, "filter_field")
 
+                field.oninput  = (autoApply) ? filter : undefined
                 input.onkeyup  = (autoApply) ? filter : undefined
-                field.onchange = (autoApply) ? filter : undefined
             }
 
-            filter()
+            if (autoApply) {
+                filter()
+            } else {
+                // If any filter was applied before, revert it.
+                // Useful when first load of the webpage, because
+                //   it may load some input filter (and filter())
+                //   before executing this function
+                for (const todo of todos) todo.style.display = ""
+            }
         }
 
         function addSearchFilter() {
@@ -909,7 +918,7 @@
 
             const fieldSelect = document.createElement("select")
             fieldSelect.classList.add("filter_field", "clickable")
-            if (auto_apply_filters.checked) fieldSelect.onchange = filter
+            if (auto_apply_filters.checked) fieldSelect.oninput = filter
             container.appendChild(fieldSelect)
             fields.forEach(value => {
                 const field = document.createElement("option")
@@ -925,7 +934,7 @@
 
             const ignoreCase = document.createElement("input")
             ignoreCase.classList.add("ignore_case", "checkbox")
-            ignoreCase.onclick = filter;
+            ignoreCase.oninput = filter;
             ignoreCase.type = "checkbox"
             ignoreCase.value = "on"
             container.appendChild(ignoreCase)
@@ -1073,8 +1082,23 @@
             }
         }
 
-        /////
+        // There's a timing problem with the browser cache values autofill feature and the JavaScript execution.
+        // The browser restores the input values *after* the JavaScript is executed.
+        // Apparently onchange is not triggered by the autofill.
+        // Solution:
+        //   - For Firefox: Replace every onchange with oninput (that reacts after the autofill).
+        //                  Source: <https://www.codestudy.net/blog/autofill-does-not-trigger-onchange/#1-use-oninput-instead-of-or-alongside-onchange>
+        //   - For Chromium: Add the following window event listener
+        //                  Source: <https://web.dev/articles/bfcache?hl=es-419#observe-page-restored>
+        //                          <https://stackoverflow.com/questions/57660234/how-can-i-check-if-a-browser-is-chromium-based>
+        //   - Last resort: (not done) disable cached autocomplete feature: <https://stackoverflow.com/a/2531>
+        if (isChromium) {
+            window.addEventListener("pageshow", function() {
+                autoApplyFilter()
+            }, false);
+        }
 
+        // on page reload
         autoApplyFilter()
 
         // Add keyboard compatibility
