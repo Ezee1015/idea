@@ -41,6 +41,7 @@
             .menu {
                 width: 50%;
                 margin-left: 25%;
+                margin-bottom: 10px;
                 border-radius: 10px;
                 border: 1px solid var(--fg);
             }
@@ -158,6 +159,7 @@
             #filter_options {
                 display: flex;
                 justify-content: space-between;
+                margin-top: 20px;
             }
 
             /* ToDos */
@@ -311,38 +313,48 @@
             }
 
             .reminders_container {
-                margin-left: 38px;
+                padding-left: 38px;
+                width: 100%;
+            }
+
+            .menu .reminders_container {
+                padding-left: 0px;
             }
 
             .reminders_container td {
-                padding-bottom: 15px;
-            }
-
-            .reminder {
-                list-style: none;
+                border-bottom: 2px solid var(--bg-lighter);
             }
 
             .reminder::before {
                 content: "\1F4C5";
-            }
-
-            .reminder_date_end:before {
-                color: var(--fg-dark);
-
-                content: "~";
-                padding-left: 8px;
+                display: table-cell;
+                vertical-align: middle;
+                border-bottom: 2px solid var(--bg-lighter);
                 padding-right: 8px;
             }
 
-            .reminder_date, .reminder_date_diff {
-                margin: 0px;
-                display: flex;
-                justify-content: center;
-                padding-right: 20px;
+            .reminder_date_diff,
+            .reminder_todo_name {
+                min-width: max-content;
             }
 
             .reminder_date {
-                padding-left: 8px;
+                max-width: min-content;
+            }
+
+            .reminder_name {
+                width: 100%;
+            }
+
+            .reminder_date,
+            .reminder_todo_name,
+            .reminder_date_diff {
+                padding-right: 20px;
+                text-align: center;
+            }
+
+            .reminder_todo_name {
+                color: var(--fg-dark);
             }
 
             /* Header */
@@ -455,6 +467,7 @@
 
                     <hr>
 
+                    <input id="apply_filters_to_dashboard" class="checkbox clickable" type="checkbox" checked> <label for="apply_filters_to_dashboard"> Filter ToDos in the dashboard</label>
                     <div id="filter_options">
                         <div>
                             <button id="filter_button" class="clickable" onclick="filter()">Filter</button>
@@ -465,13 +478,54 @@
                 </div>
             </div>
 
+            <div id="dashboard" class="menu" style="display: none;">
+                <p role="button" tabindex="0" class="menu_title unselectable keyboard_clickable"><span class="menu_arrow">&#9654</span> <b>Dashboard</b></p>
+
+                <hr class="menu_separator">
+
+                <div class="menu_content">
+                    <p class="menu_subtitle"><u>Reminders</u></p>
+                    <c>
+                        List all_reminders = list_new();
+                        if (!get_all_reminders(&all_reminders)) {
+                            ERROR("Unable to load all the reminders")
+                        }
+
+                        if (!list_is_empty(all_reminders)) {
+                            </c> <table class="reminders_container"> <c>
+                            List_iterator rem_iterator = list_iterator_create(all_reminders);
+                            while (list_iterator_next(&rem_iterator)) {
+                                Reminder *rem = list_iterator_element(rem_iterator);
+
+                                </c>
+                                    <tr class="reminder">
+                                        <td class="reminder_date">
+                                            <span class="reminder_date_start"><c>PRINT("%04d-%02d-%02d", rem->start.year, rem->start.month, rem->start.day) </c></span>
+                                            <c> if (!is_date_equals(rem->start, rem->end)) { </c>
+                                                <span style="color: var(--yellow); font-weight: bold;">~</span>
+                                                <span class="reminder_date_end"><c>PRINT("%04d-%02d-%02d", rem->end.year, rem->end.month, rem->end.day)</c></span>
+                                            <c> } </c>
+                                        </td>
+                                        <td class="reminder_todo_name"><c>CSTR(rem->todo->name)</c></td>
+                                        <td class="reminder_date_diff"></td>
+                                        <td class="reminder_name"><c>CSTR(rem->name)</c></td>
+                                    </tr>
+                                <c>
+                            }
+                            list_destroy(&all_reminders, (void (*)(void *)) free_reminder);
+                            </c> </table> <c>
+                        }
+                    </c>
+                </div>
+            </div>
+
             <div id="todos_container">
                 <c> List_iterator iterator = list_iterator_create(todo_list); </c>
                 <c> while (list_iterator_next(&iterator)) { </c>
                     <c> Todo *e = list_iterator_element(iterator); </c>
                     <div class="todo">
                         <div role="button" tabindex="0" class="todo_header unselectable keyboard_clickable">
-                            <h2><c>CSTR(e->name)</c></h2>
+                            <h2 class="todo_name"><c>CSTR(e->name)</c></h2>
                             <p class="arrow_show">&#9660;</p>
                         </div>
 
@@ -558,14 +612,15 @@
 
                                             </c>
                                                 <tr class="reminder">
-                                                    <td><p class="reminder_date">
+                                                    <td class="reminder_date">
                                                         <span class="reminder_date_start"><c>PRINT("%04d-%02d-%02d", rem->start.year, rem->start.month, rem->start.day) </c></span>
                                                         <c> if (!is_date_equals(rem->start, rem->end)) { </c>
+                                                            <span style="color: var(--yellow); font-weight: bold;">~</span>
                                                             <span class="reminder_date_end"><c>PRINT("%04d-%02d-%02d", rem->end.year, rem->end.month, rem->end.day)</c></span>
                                                         <c> } </c>
-                                                        </p></td>
-                                                    <td><p class="reminder_date_diff"></p></td>
-                                                   <td class="reminder_name"><c>CSTR(rem->name)</c></td>
+                                                    </td>
+                                                    <td class="reminder_date_diff"></td>
+                                                    <td class="reminder_name"><c>CSTR(rem->name)</c></td>
                                                 </tr>
                                             <c>
                                         }
@@ -649,6 +704,7 @@
     </body>
 
     <script>
+        const UPCOMING_REMINDER_DAYS = <c>INT(UPCOMING_REMINDER_DAYS)</c>
         const isChromium = !!window.chrome;
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) // Source: https://stackoverflow.com/a/29509267
         const todos = document.getElementsByClassName("todo")
@@ -710,11 +766,29 @@
         function hideTodo(todo) {
             todo.style.display = "none"
             menu_filter_title.style.color = "var(--yellow)"
+
+            if (apply_filters_to_dashboard.checked) {
+                const todo_name = getElementInsideContainer(todo, "todo_name").innerText
+
+                const dashboard_reminders = dashboard.getElementsByClassName("reminder")
+                for (rem of dashboard_reminders) {
+                    const rem_todo_name = getElementInsideContainer(rem, "reminder_todo_name").innerText
+
+                    if (todo_name == rem_todo_name) {
+                        rem.style.display = "none"
+                    }
+                }
+            }
         }
 
         function showAllTodos() {
             for (const todo of todos) todo.style.display = ""
             menu_filter_title.style.color = "var(--fg)"
+
+            const dashboard_reminders = dashboard.getElementsByClassName("reminder")
+            for (rem of reminders) {
+                rem.style.display = ""
+            }
         }
 
         function applySearchFilter(filter_element) {
@@ -727,11 +801,7 @@
                 if (todo.style.display == "none") continue
 
                 const header = getElementInsideContainer(todo, "todo_header")
-
-                // Get the title
-                const title_list = header.getElementsByTagName("h2")
-                if (title_list.length != 1) console.log("Error. There's more than one h2 in a `todo_header`")
-                const title = title_list[0]
+                const title = getElementInsideContainer(todo, "todo_name")
 
                 switch (fieldText) {
                     case "name":
@@ -879,6 +949,7 @@
 
         function autoApplyFilter() {
             const autoApply = (auto_apply_filters.checked)
+
             // Filter button
             filter_button.style.display = (autoApply) ? "none" : ""
 
@@ -888,6 +959,9 @@
             creation_end_filter.oninput   = (autoApply) ? filter : undefined
             reminder_start_filter.oninput = (autoApply) ? filter : undefined
             reminder_end_filter.oninput   = (autoApply) ? filter : undefined
+
+            // Filter options
+            apply_filters_to_dashboard.oninput = (autoApply) ? filter : undefined
 
             // Search filters
             const filters = search_filter_container.children
@@ -990,18 +1064,62 @@
 
         // Configure ToDos
 
+        function addDiffDateToReminder(reminder) {
+            const now = removeTimeFromDatetime(new Date(Date.now()))
+
+            const reminderNameElement = getElementInsideContainer(reminder, "reminder_name")
+            const reminderDateDiffElement = getElementInsideContainer(reminder, "reminder_date_diff")
+
+            const reminderDateStartElement = getElementInsideContainer(reminder, "reminder_date_start")
+            const reminderDateStart = getDateFromString(reminderDateStartElement.innerText)
+
+            const reminderHasEndDate = reminder.getElementsByClassName("reminder_date_end").length != 0
+            const reminderDateEndElement = (reminderHasEndDate) ? getElementInsideContainer(reminder, "reminder_date_end") : undefined
+            const reminderDateEnd = (reminderHasEndDate) ? getDateFromString(reminderDateEndElement.innerText) : undefined
+
+            const reminderDateDiffStart = getDifferenceInDaysFromDates(now, reminderDateStart)
+            const reminderDateDiffEnd = (reminderHasEndDate) ? getDifferenceInDaysFromDates(reminderDateEnd, now) : undefined
+
+            // Source: <https://coreui.io/answers/how-to-check-if-date-is-today-in-javascript/>
+            const triggered = (reminderHasEndDate) ? (reminderDateStart <= now && now <= reminderDateEnd) : (reminderDateStart.toDateString() == now.toDateString())
+            const old = ((reminderHasEndDate && reminderDateEnd < now) || (reminderDateStart < now))
+
+            if (triggered) {
+                reminderDateDiffElement.innerHTML += " (TODAY)"
+            } else if (reminderDateDiffStart == 1) {
+                reminderDateDiffElement.innerHTML += " (tomorrow)"
+            } else {
+                let delta
+                if (old) {
+                    delta = (reminderHasEndDate) ? reminderDateDiffEnd : -reminderDateDiffStart
+                } else {
+                    delta = reminderDateDiffStart
+                }
+                reminderDateDiffElement.innerHTML += " (" + delta + " days " + ((old) ? "ago" : "left") +")"
+            }
+
+            if (triggered) {
+                reminderDateDiffElement.style.color = "red"
+            } else if (old) {
+                reminderNameElement.style.color = "gray"
+                reminderDateDiffElement.style.color = "gray"
+            } else if (reminderDateDiffStart <= UPCOMING_REMINDER_DAYS) { // Upcoming
+                reminderDateDiffElement.style.color = "yellow"
+            }
+        }
+
         for (const todo of todos) {
             const header      = getElementInsideContainer(todo, "todo_header")
             const arrowHeader = getElementInsideContainer(header, "arrow_show")
             const separator   = getElementInsideContainer(todo, "todo_header_separator")
             const data        = getElementInsideContainer(todo, "todo_data")
             const arrowFooter = getElementInsideContainer(data, "arrow_show")
-            const reminders   = data.getElementsByClassName("reminder");
 
             // I put display: none in the JS and not in the CSS because if the
             // browser doesn't execute the JS, the data can still be displayed
             separator.style.display = "none"
             data.style.display = "none"
+            dashboard.style.display = ""
             arrowFooter.style.opacity = "1"
 
             if (!isMobile) {
@@ -1045,51 +1163,12 @@
                 // Source: https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView
                 header.scrollIntoView({behavior: "smooth", block: 'center'})
             }
+        }
 
-            // Remaining time for reminders
-            const now = removeTimeFromDatetime(new Date(Date.now()))
-            const UPCOMING_REMINDER_DAYS = <c>INT(UPCOMING_REMINDER_DAYS)</c>
-
-            for (reminder of reminders) {
-                const reminderNameElement = getElementInsideContainer(reminder, "reminder_name")
-                const reminderDateDiffElement = getElementInsideContainer(reminder, "reminder_date_diff")
-
-                const reminderDateStartElement = getElementInsideContainer(reminder, "reminder_date_start")
-                const reminderDateStart = getDateFromString(reminderDateStartElement.innerText)
-                const reminderDateDiffStart = getDifferenceInDaysFromDates(now, reminderDateStart)
-
-                const reminderHasEndDate = reminder.getElementsByClassName("reminder_date_end").length != 0
-                const reminderDateEndElement = (reminderHasEndDate) ? getElementInsideContainer(reminder, "reminder_date_end") : undefined
-                const reminderDateEnd = (reminderHasEndDate) ? getDateFromString(reminderDateEndElement.innerText) : undefined
-                const reminderDateDiffEnd = (reminderHasEndDate) ? getDifferenceInDaysFromDates(reminderDateEnd, now) : undefined
-
-                const triggered = (reminderHasEndDate) ? (reminderDateStart <= now && now <= reminderDateEnd) : (reminderDateStart.toDateString() == now.toDateString())
-                const old = ((reminderHasEndDate && reminderDateEnd < now) || (reminderDateStart < now))
-
-                if (triggered) {
-                    reminderDateDiffElement.innerHTML += " (TODAY)"
-                } else if (reminderDateDiffStart == 1) {
-                    reminderDateDiffElement.innerHTML += " (tomorrow)"
-                } else {
-                    let delta
-                    if (old) {
-                        delta = (reminderHasEndDate) ? reminderDateDiffEnd : -reminderDateDiffStart
-                    } else {
-                        delta = reminderDateDiffStart
-                    }
-                    reminderDateDiffElement.innerHTML += " (" + delta + " days " + ((old) ? "ago" : "left") +")"
-                }
-
-                // Source: <https://coreui.io/answers/how-to-check-if-date-is-today-in-javascript/>
-                if (triggered) {
-                    reminderDateDiffElement.style.color = "red"
-                } else if (old) {
-                    reminderNameElement.style.color = "gray"
-                    reminderDateDiffElement.style.color = "gray"
-                } else if (reminderDateDiffStart <= UPCOMING_REMINDER_DAYS) { // Upcoming
-                    reminderDateDiffElement.style.color = "yellow"
-                }
-            }
+        // Remaining time for reminders
+        const reminders = document.getElementsByClassName("reminder");
+        for (reminder of reminders) {
+            addDiffDateToReminder(reminder)
         }
 
         // There's a timing problem with the browser cache values autofill feature and the JavaScript execution.
