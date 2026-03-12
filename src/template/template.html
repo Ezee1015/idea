@@ -335,11 +335,18 @@
 
             .reminder_date_diff,
             .reminder_todo_name {
-                min-width: max-content;
+                text-wrap: nowrap;
             }
 
-            .reminder_date {
-                max-width: min-content;
+            .reminder_date_start,
+            .reminder_date_div,
+            .reminder_date_end {
+                white-space: pre;
+            }
+
+            .reminder_date_div {
+                color: var(--yellow);
+                font-weight: bold;
             }
 
             .reminder_name {
@@ -451,10 +458,10 @@
                             </select>
                         </li>
                         <li class="filter">
-                            <label>Creation date from </label><input id="creation_start_filter" class="date_input clickable" type="date"><label> to </label><input id="creation_end_filter" class="date_input clickable" type="date">
+                            <label for="creation_start_filter">Creation date from </label><input id="creation_start_filter" class="date_input clickable" type="date"><label for="creation_end_filter"> to </label><input id="creation_end_filter" class="date_input clickable" type="date">
                         </li>
                         <li class="filter">
-                            <label>Has reminders from </label><input id="reminder_start_filter" class="date_input clickable" type="date"><label> to </label><input id="reminder_end_filter" class="date_input clickable" type="date">
+                            <label for="reminder_start_filter">Has reminders from </label><input id="reminder_start_filter" class="date_input clickable" type="date"><label for="reminder_end_filter"> to </label><input id="reminder_end_filter" class="date_input clickable" type="date">
                         </li>
                     </ul>
 
@@ -502,7 +509,7 @@
                                         <td class="reminder_date">
                                             <span class="reminder_date_start"><c>PRINT("%04d-%02d-%02d", rem->start.year, rem->start.month, rem->start.day) </c></span>
                                             <c> if (!is_date_equals(rem->start, rem->end)) { </c>
-                                                <span style="color: var(--yellow); font-weight: bold;">~</span>
+                                                <span class="reminder_date_div">~</span>
                                                 <span class="reminder_date_end"><c>PRINT("%04d-%02d-%02d", rem->end.year, rem->end.month, rem->end.day)</c></span>
                                             <c> } </c>
                                         </td>
@@ -615,7 +622,7 @@
                                                     <td class="reminder_date">
                                                         <span class="reminder_date_start"><c>PRINT("%04d-%02d-%02d", rem->start.year, rem->start.month, rem->start.day) </c></span>
                                                         <c> if (!is_date_equals(rem->start, rem->end)) { </c>
-                                                            <span style="color: var(--yellow); font-weight: bold;">~</span>
+                                                            <span class="reminder_date_div">~</span>
                                                             <span class="reminder_date_end"><c>PRINT("%04d-%02d-%02d", rem->end.year, rem->end.month, rem->end.day)</c></span>
                                                         <c> } </c>
                                                     </td>
