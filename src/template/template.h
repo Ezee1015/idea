@@ -8,7 +8,6 @@
 
 // includes for the template.html
 #include <time.h>
-#include <unistd.h>
 
 #define FPRINTF_ERROR() do {                                \
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "fprintf failed"); \

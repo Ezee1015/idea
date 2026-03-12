@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/stat.h>
 #include <time.h>
 
@@ -76,14 +75,8 @@ Todo *create_todo(char *name) {
   todo->name = name;
   todo->creation_time = time(NULL);
   todo->notes = NULL;
-
-  const unsigned int hostname_size = 128;
-  todo->hostname = malloc(hostname_size);
-  if (gethostname(todo->hostname, hostname_size) == -1) {
-    free(todo);
-    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to get the host name");
-    return NULL;
-  }
+  todo->hostname = strdup(idea_state.config.hostname);
+  if (!todo->hostname) return NULL;
 
   return todo;
 }

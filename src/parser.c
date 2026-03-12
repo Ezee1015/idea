@@ -46,3 +46,8 @@ bool (*search_functionality_function(char *instruction, Functionality functional
   }
   return (i == functionality_count) ? NULL : functionality[i].function_cmd;
 }
+
+bool action_do_nothing(Input *input) {
+  input->cursor = input->length+1;
+  return true;
+}

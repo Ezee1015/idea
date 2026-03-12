@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "main.h"
+#include "parser.h"
 #include "todo_list.h"
 #include "tui.h"
 #include "cli.h"
@@ -201,6 +202,22 @@ bool load_paths() {
   idea_state.todos_filepath = sb_create("%s/" SAVE_FILENAME, idea_state.local_path).str;
   idea_state.lock_filepath = sb_create("%s/" LOCK_FILENAME, idea_state.local_path).str;
 
+  sb = sb_new();
+  if (sb_append_from_shell_variable(&sb, "IDEA_CONFIG_PATH")) {
+    if (sb.str[sb.length-1] == '/') {
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "IDEA_CONFIG_PATH can't end with '/'");
+      return false;
+    }
+  } else {
+    if (!sb_append_from_shell_variable(&sb, "HOME")) {
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Set the HOME environment variable...");
+      return false;
+    }
+    sb_append(&sb, "/" CONFIG_PATH);
+  }
+  sb_append(&sb, "/" CONFIG_FILENAME);
+  idea_state.config_filepath = sb.str;
+
   return true;
 }
 
@@ -208,7 +225,10 @@ void free_paths() {
   if (idea_state.tmp_path) free(idea_state.tmp_path);
   if (idea_state.lock_filepath) free(idea_state.lock_filepath);
   if (idea_state.todos_filepath) free(idea_state.todos_filepath);
+  if (idea_state.config_filepath) free(idea_state.config_filepath);
   if (idea_state.local_path) free(idea_state.local_path);
+
+  free_config(idea_state.config);
 }
 
 void free_backtrace_item(Backtrace_item *b) {
@@ -220,6 +240,7 @@ int main(int argc, char *argv[]) {
   enum {
     RET_CODE_SUCCESS,
     RET_CODE_PATH_ERROR,
+    RET_CODE_CONFIG_ERROR,
     RET_CODE_CREATE_STRUCTURE_FAILED,
     RET_CODE_LOCK_ERROR,
     RET_CODE_LOAD_FILE_ERROR,
@@ -235,6 +256,13 @@ int main(int argc, char *argv[]) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to load the paths");
     cli_print_backtrace();
     return RET_CODE_PATH_ERROR;
+  }
+
+  if (!load_config()) {
+    free_paths();
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to load the config");
+    cli_print_backtrace();
+    return RET_CODE_CONFIG_ERROR;
   }
 
   if (!create_dir_structure()) {

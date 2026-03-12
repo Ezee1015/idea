@@ -589,11 +589,6 @@ bool action_version(Input *input) {
 }
 #endif // COMMIT
 
-bool action_do_nothing(Input *input) {
-  input->cursor = input->length+1;
-  return true;
-}
-
 bool action_loop(Input *input) {
   ACTION_NO_ARGS("loop", input);
 

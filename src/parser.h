@@ -36,5 +36,6 @@ typedef struct {
 char *next_token(Input *input, char divider);
 
 bool (*search_functionality_function(char *instruction, Functionality functionality[], unsigned int functionality_count))(Input *);
+bool action_do_nothing(Input *input);
 
 #endif

@@ -6,6 +6,7 @@
 
 #include "utils/list.h"
 #include "utils/string.h"
+#include "config.h"
 
 extern List todo_list;
 extern bool todo_list_modified;
@@ -66,6 +67,9 @@ typedef struct {
   char *tmp_path;
   char *lock_filepath;
   char *todos_filepath;
+  char *config_filepath;
+
+  Config config;
 
   char *program_path;
 } State;

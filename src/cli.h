@@ -46,7 +46,6 @@ bool action_export_todos(Input *input);
 bool action_notes_todo(Input *input);
 bool action_print_notes(Input *input);
 bool action_execute_commands(Input *input);
-bool action_do_nothing(Input *input);
 bool action_print_help(Input *input);
 bool action_loop(Input *input);
 extern Functionality cli_functionality[];
