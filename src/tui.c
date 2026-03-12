@@ -852,7 +852,7 @@ bool action_add_at_todo_tui(Input *input) {
 }
 
 Functionality tui_functionality[] = {
-  { "add_at", "ap", action_add_at_todo_tui, MAN("Add a ToDo in the specified position", "[index] [name]") },
+  { "add_at", "ap", action_add_at_todo_tui, MAN("Add a ToDo in the specified position. It overwrites the add_at Generic Command.", "[index] [name]") },
   { "write", "w", action_save, MAN("Write the changes to disk", NULL) },
   { "quit", "q", action_quit, MAN("Exit the application", NULL) },
   { "quit!", "q!", action_force_quit, MAN("Exit the application without saving the changes", NULL) },
