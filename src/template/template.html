@@ -152,8 +152,9 @@
                 min-width: 0;
             }
 
-            .ignore_case_label {
+            .search_filter label {
                 line-height: 25px;
+                margin-right: 8px;
             }
 
             #filter_options {
@@ -799,8 +800,9 @@
         function applySearchFilter(filter_element) {
             // Filter options
             const ignoreCase = getElementInsideContainer(filter_element, "ignore_case").checked
-            const inputText = getElementInsideContainer(filter_element, "filter_input").value
-            const fieldText = getElementInsideContainer(filter_element, "filter_field").value
+            const invert     = getElementInsideContainer(filter_element, "invert").checked
+            const inputText  = getElementInsideContainer(filter_element, "filter_input").value
+            const fieldText  = getElementInsideContainer(filter_element, "filter_field").value
 
             for (const todo of todos) {
                 if (todo.style.display == "none") continue
@@ -808,52 +810,45 @@
                 const header = getElementInsideContainer(todo, "todo_header")
                 const title = getElementInsideContainer(todo, "todo_name")
 
+                let ok = true
                 switch (fieldText) {
                     case "name":
                         const name = title.innerText
-                        if (!matchesSearch(name, inputText, ignoreCase)) {
-                            hideTodo(todo)
-                        }
+                        ok = matchesSearch(name, inputText, ignoreCase)
                         break
 
                     case "notes":
                         const notesLines = todo.getElementsByClassName("todo_notes_line")
-                        if (!htmlArrMatchesSearch(notesLines, inputText, ignoreCase)) {
-                            hideTodo(todo)
-                            continue
-                        }
+                        ok = htmlArrMatchesSearch(notesLines, inputText, ignoreCase)
                         break
 
                     case "host":
                         const host = getElementInsideContainer(todo, "todo_hostname").innerText
-                        if (!matchesSearch(host, inputText, ignoreCase)) {
-                            hideTodo(todo)
-                        }
+                        ok = matchesSearch(host, inputText, ignoreCase)
                         break
 
                     case "tag":
                         const tagsArr = todo.getElementsByClassName("tag")
-                        if (!htmlArrMatchesSearch(tagsArr, inputText, ignoreCase)) {
-                            hideTodo(todo)
-                            continue
-                        }
+                        ok = htmlArrMatchesSearch(tagsArr, inputText, ignoreCase)
                         break
 
                     case "task":
                         const taskArr = todo.getElementsByClassName("task_content")
-                        if (!htmlArrMatchesSearch(taskArr, inputText, ignoreCase)) {
-                            hideTodo(todo)
-                            continue
-                        }
+                        ok = htmlArrMatchesSearch(taskArr, inputText, ignoreCase)
                         break
 
                     case "reminder":
                         const reminderNameArr = todo.getElementsByClassName("reminder_name")
-                        if (!htmlArrMatchesSearch(reminderNameArr, inputText, ignoreCase)) {
-                            hideTodo(todo)
-                            continue
-                        }
+                        ok = htmlArrMatchesSearch(reminderNameArr, inputText, ignoreCase)
                         break
+                }
+
+                if (invert) {
+                    ok = !ok;
+                }
+
+                if (!ok) {
+                    hideTodo(todo)
                 }
             }
         }
@@ -1028,9 +1023,18 @@
             ignoreCase.value = "on"
             container.appendChild(ignoreCase)
             const ignoreCaseLabel = document.createElement("label")
-            ignoreCaseLabel.classList.add("ignore_case_label")
             ignoreCaseLabel.innerText = "Ignore case"
             container.appendChild(ignoreCaseLabel)
+
+            const invert = document.createElement("input")
+            invert.classList.add("invert", "checkbox")
+            invert.oninput = filter;
+            invert.type = "checkbox"
+            invert.value = "on"
+            container.appendChild(invert)
+            const invertLabel = document.createElement("label")
+            invertLabel.innerText = "Invert"
+            container.appendChild(invertLabel)
         }
 
         function resetFilters() {
