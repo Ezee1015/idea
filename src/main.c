@@ -152,27 +152,56 @@ bool load_date_from_string(char *date_str, Date *date) {
 }
 
 bool parse_commands_cli(char *commands[], int count) {
+  if (count == 0) return false;
+
   int i=0;
   bool something_went_wrong = false;
 
   cli_disable_colors = getenv("IDEA_CLI_DISABLE_COLORS");
 
-  while (!something_went_wrong && i<count) {
-    bool result;
-    result = cli_parse_input(commands[i]);
+  if (!strcmp(commands[0], "-m")) {
+    count--;
+    commands++;
+
+    while (!something_went_wrong && i<count) {
+      bool result = cli_parse_input(commands[i]);
+
+      if (result) {
+        if (!list_is_empty(backtrace)) {
+            APPEND_TO_BACKTRACE(BACKTRACE_INFO, "Message from the %dº command (%s)", i+1, commands[i]);
+        }
+      } else {
+        APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "An ERROR occurred in the %dº command (%s). Idea is not saving the changes made in this instance", i+1, commands[i]);
+        todo_list_modified = false; // Try to not save it because it may be corrupted
+        something_went_wrong = true;
+      }
+      cli_print_backtrace();
+
+      i++;
+    }
+  } else {
+    String_builder sb = sb_new();
+
+    while (i<count) {
+      sb_append(&sb, commands[i]);
+      if (i < count-1) sb_append_char(&sb, ' ');
+      i++;
+    }
+
+    bool result = cli_parse_input(sb.str);
 
     if (result) {
       if (!list_is_empty(backtrace)) {
-          APPEND_TO_BACKTRACE(BACKTRACE_INFO, "Message from the %dº command (%s)", i+1, commands[i]);
+          APPEND_TO_BACKTRACE(BACKTRACE_INFO, "Message from the command '%s'", sb.str);
       }
     } else {
-      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "An ERROR occurred in the %dº command (%s). Idea is not saving the changes made in this instance", i+1, commands[i]);
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "An ERROR occurred in the command '%s'. Idea is not saving the changes made in this instance", sb.str);
       todo_list_modified = false; // Try to not save it because it may be corrupted
       something_went_wrong = true;
     }
-    cli_print_backtrace();
 
-    i++;
+    sb_free(&sb);
+    cli_print_backtrace();
   }
 
   if (todo_list_modified) action_list_todos(NULL);

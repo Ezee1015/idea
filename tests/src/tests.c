@@ -398,6 +398,7 @@ bool run_test_case_execution(Runner_data *runner_data, Test *t, char *base_cmd, 
 
   String_builder cmd = sb_create("%s", base_cmd);
   List_iterator iterator = list_iterator_create(t->instructions);
+  if (list_size(t->instructions) > 1) sb_append(&cmd, " -m");
   while (list_iterator_next(&iterator)) {
     char *instruction = list_iterator_element(iterator);
     sb_append_with_format(&cmd, " \"%s\"", instruction);
