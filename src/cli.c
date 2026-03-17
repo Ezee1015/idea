@@ -694,6 +694,7 @@ bool is_reminder_near_list_handler(void *rem_p) {
 bool action_reminders(Input *input) {
   bool only_triggered = false;
   bool only_near = false;
+  char *filter_tag = NULL;
 
   char *arg = NULL;
   while ( input && (arg = next_token(input, ' ')) ) {
@@ -705,9 +706,19 @@ bool action_reminders(Input *input) {
       free(arg);
       only_near = true;
 
+    } else if (!strcmp(arg, "tag")) {
+      free(arg);
+      filter_tag = next_token(input, ' ');
+      if (!filter_tag || !strcmp(filter_tag, "")) {
+        if (filter_tag) free(filter_tag);
+        APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You must specify the tag to filter!");
+        return false;
+      }
+
     } else {
       APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unknown argument '%s'", arg);
       free(arg);
+      if (filter_tag) free(filter_tag);
       return false;
     }
   }
@@ -715,6 +726,7 @@ bool action_reminders(Input *input) {
   List reminders = list_new();
   if (!get_all_reminders(&reminders)) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to load the reminders");
+    if (filter_tag) free(filter_tag);
     return false;
   }
 
@@ -722,6 +734,31 @@ bool action_reminders(Input *input) {
     list_filter(&reminders, is_reminder_triggered_list_handler, (void (*)(void *)) free_reminder);
   } else if (only_near) {
     list_filter(&reminders, is_reminder_near_list_handler, (void (*)(void *)) free_reminder);
+  }
+
+  if (filter_tag) {
+    printf("%sTAG: %s%s\n", ANSI_GRAY, filter_tag, ANSI_RESET);
+
+    List_iterator rem_iterator = list_iterator_create(reminders);
+    while (list_iterator_next(&rem_iterator)) {
+      const Reminder *rem = list_iterator_element(rem_iterator);
+
+      List tags = get_attribute_from_todo(*rem->todo, "tags: ", ' ');
+      List_iterator tag_iterator = list_iterator_create(tags);
+      bool tag_match = false;
+      while (list_iterator_next(&tag_iterator)) {
+        const char *tag = list_iterator_element(tag_iterator);
+        if (!strcmp(tag, filter_tag)) {
+          tag_match = true;
+          break;
+        }
+      }
+      list_destroy(&tags, free);
+
+      if (!tag_match) free_reminder(list_remove_element(&reminders, rem));
+    }
+
+    free(filter_tag);
   }
 
   if (!list_is_empty(reminders)) printf("Reminders:\n");
@@ -754,7 +791,7 @@ Functionality cli_functionality[] = {
   { "notes", NULL, action_notes_todo, MAN("Open the ToDo's notes", "[index]", "[name]") },
   { "notes_print", NULL, action_print_notes, MAN("Print the ToDo's notes", "[index]", "[name]", "[index] number", "[name] number") },
   { "loop", NULL, action_loop, MAN("Go into the CLI loop. You can execute `rlwrap idea loop` for a better experience", NULL) },
-  { "reminders", "rem", action_reminders, MAN("See the reminders", "", "triggered / today", "near") },
+  { "reminders", "rem", action_reminders, MAN("See the reminders", "", "triggered / today", "near", "tag [tag name]", "near tag [tag name]") },
 #ifdef COMMIT
   { "version", "-v", action_version, MAN("Print the commit hash and version", NULL) },
 #endif // COMMIT
