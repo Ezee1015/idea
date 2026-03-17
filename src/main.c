@@ -180,27 +180,30 @@ bool parse_commands_cli(char *commands[], int count) {
       i++;
     }
   } else {
-    String_builder sb = sb_new();
+    String_builder input = sb_new();
 
     while (i<count) {
-      sb_append(&sb, commands[i]);
-      if (i < count-1) sb_append_char(&sb, ' ');
+      String_builder arg = sb_create("%s", commands[i]);
+      sb_search_and_replace(&arg, " ", "\\ ");
+      sb_append(&input, arg.str);
+      sb_free(&arg);
+      if (i < count-1) sb_append_char(&input, ' ');
       i++;
     }
 
-    bool result = cli_parse_input(sb.str);
+    bool result = cli_parse_input(input.str);
 
     if (result) {
       if (!list_is_empty(backtrace)) {
-          APPEND_TO_BACKTRACE(BACKTRACE_INFO, "Message from the command '%s'", sb.str);
+          APPEND_TO_BACKTRACE(BACKTRACE_INFO, "Message from the command '%s'", input.str);
       }
     } else {
-      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "An ERROR occurred in the command '%s'. Idea is not saving the changes made in this instance", sb.str);
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "An ERROR occurred in the command '%s'. Idea is not saving the changes made in this instance", input.str);
       todo_list_modified = false; // Try to not save it because it may be corrupted
       something_went_wrong = true;
     }
 
-    sb_free(&sb);
+    sb_free(&input);
     cli_print_backtrace();
   }
 
