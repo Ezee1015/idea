@@ -23,6 +23,7 @@
 #define ANSI_GRAY         (cli_disable_colors) ? "" : "\033[0;90m"
 #define ANSI_RESET        (cli_disable_colors) ? "" : "\033[0m"
 #define ANSI_UNDERLINE    (cli_disable_colors) ? "" : "\033[4m"
+#define ANSI_ITALIC       (cli_disable_colors) ? "" : "\033[3m"
 #define ANSI_CLEAR_SCREEN (cli_disable_colors) ? "" : "\033[2J"
 
 #define DIFF_FORMAT_FMT  "'%s<<< changes\n%s%%>%s===\n%s%%<%s>>> local%s\n'"

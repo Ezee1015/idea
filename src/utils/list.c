@@ -64,6 +64,16 @@ void list_insert_sorted(List *list, void *element, void *(*comparator)(void *, v
   list_insert_at(list, element, list_iterator_index(iterator));
 }
 
+bool list_insert_if_unique(List *list, void *element, bool (*comparator_equals)(void *, void *)) {
+  List_iterator iterator = list_iterator_create(*list);
+  while (list_iterator_next(&iterator)) {
+    void *e = list_iterator_element(iterator);
+    if (comparator_equals(e, element)) return false;
+  }
+  list_append(list, element);
+  return true;
+}
+
 void list_filter(List *list, bool (*condition)(void *),  void (*free_element)(void *)) {
   List_iterator iterator = list_iterator_create(*list);
   while (list_iterator_next(&iterator)) {

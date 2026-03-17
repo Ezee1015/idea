@@ -819,6 +819,72 @@ bool action_reminders(Input *input) {
   return true;
 }
 
+bool action_tags(Input *input) {
+  char *filter_tag = NULL;
+
+  char *arg = NULL;
+  while ( input && (arg = next_token(input, ' ')) ) {
+    if (!strcmp(arg, "tag")) {
+      free(arg);
+      filter_tag = next_token(input, ' ');
+      if (!filter_tag || !strcmp(filter_tag, "")) {
+        if (filter_tag) free(filter_tag);
+        APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You must specify the tag to filter!");
+        return false;
+      }
+
+    } else {
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unknown argument '%s'", arg);
+      free(arg);
+      if (filter_tag) free(filter_tag);
+      return false;
+    }
+  }
+
+  List tags;
+  if (filter_tag) {
+    printf("%sTAG: %s%s\n", ANSI_GRAY, filter_tag, ANSI_RESET);
+
+    List todo_list_filtered = list_new();
+
+    // Filter ToDos that have the filter_tag
+    List_iterator todo_list_iterator = list_iterator_create(todo_list);
+    while (list_iterator_next(&todo_list_iterator)) {
+      Todo *todo = list_iterator_element(todo_list_iterator);
+
+      List todo_tags = get_attribute_from_todo(*todo, "tags: ", ' ');
+      List_iterator tag_iterator = list_iterator_create(todo_tags);
+      while (list_iterator_next(&tag_iterator)) {
+        const char *tag = list_iterator_element(tag_iterator);
+        if (!strcmp(tag, filter_tag)) {
+          list_append(&todo_list_filtered, todo);
+          break;
+        }
+      }
+      list_destroy(&todo_tags, free);
+    }
+    free(filter_tag);
+
+    tags = get_all_tags(todo_list_filtered);
+    list_destroy(&todo_list_filtered, NULL);
+  } else {
+    tags = get_all_tags(todo_list);
+  }
+
+  if (!list_is_empty(tags)) printf("Tags:\n");
+
+  const unsigned int indentation = 4;
+  List_iterator tag_iterator = list_iterator_create(tags);
+  while (list_iterator_next(&tag_iterator)) {
+    const char *tag = list_iterator_element(tag_iterator);
+    for (unsigned int i = 0; i < indentation; i++) putc(' ', stdout);
+    printf("%s%s#%s %s\n", ANSI_GRAY, ANSI_ITALIC, ANSI_RESET, tag);
+  }
+  list_destroy(&tags, free);
+
+  return true;
+}
+
 bool action_print_new_line(Input *input) {
   ACTION_NO_ARGS("print_new_line", input);
   printf("\n");
@@ -838,6 +904,7 @@ Functionality cli_functionality[] = {
   { "notes_print", NULL, action_print_notes, MAN("Print the ToDo's notes", "[index]", "[name]", "[index] number", "[name] number") },
   { "loop", NULL, action_loop, MAN("Go into the CLI loop. You can execute `rlwrap idea loop` for a better experience", NULL) },
   { "reminders", "rem", action_reminders, MAN("See the reminders", "", "triggered / today", "near", "tag [tag name]", "near tag [tag name]") },
+  { "tags", NULL, action_tags, MAN("See the tags being used", "", "tag [tag name]") },
 #ifdef COMMIT
   { "version", "-v", action_version, MAN("Print the commit hash and version", NULL) },
 #endif // COMMIT

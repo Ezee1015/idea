@@ -1052,3 +1052,24 @@ bool get_all_reminders(List *reminders) {
 
   return true;
 }
+
+bool comparator_equals_tag(void *t1, void *t2) {
+  return !strcmp(t1, t2);
+}
+
+List get_all_tags(List todos) {
+  List tags = list_new();
+  List_iterator todo_list_iterator = list_iterator_create(todos);
+  while (list_iterator_next(&todo_list_iterator)) {
+    Todo *todo = list_iterator_element(todo_list_iterator);
+
+    List todo_tags = get_attribute_from_todo(*todo, "tags: ", ' ');
+    while (!list_is_empty(todo_tags)) {
+      char *tag = list_remove(&todo_tags, 0);
+
+      if(!list_insert_if_unique(&tags, tag, comparator_equals_tag)) free(tag);
+    }
+  }
+
+  return tags;
+}

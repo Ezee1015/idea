@@ -82,6 +82,9 @@ List get_tasks_from_todo(Todo todo);
 // Example: tags, reminder
 List get_attribute_from_todo(Todo todo, const char *attribute, char argument_separator);
 
+// Tags
+List get_all_tags(List todos);
+
 // Reminder (attribute)
 bool parse_reminder(Todo *todo, char *rem_str, Reminder *rem);
 bool is_reminder_old(Reminder rem);
