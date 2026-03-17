@@ -419,7 +419,8 @@ bool parse_command() {
       .length = strlen(tui_st.input),
       .cursor = 0,
     };
-    char *instruction = next_token(&cmd, ' ');
+    char *instruction = NULL;
+    while ( !(instruction = next_token(&cmd, ' ')) );
 
     bool (*function)(Input *input) = search_functionality_function(instruction, tui_functionality, tui_functionality_count);
     if (!function) {

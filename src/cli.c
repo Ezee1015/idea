@@ -706,7 +706,8 @@ bool action_loop(Input *input) {
           .length = strlen(command),
           .cursor = 0,
         };
-        char *command = next_token(&cmd, ' ');
+        char *command = NULL;
+        while ( !(command = next_token(&cmd, ' ')) );
 
         for (size_t i=0; i < sizeof(information_commands) / sizeof(char*); i++) {
           if (!strcmp(command, information_commands[i])) {
@@ -919,7 +920,8 @@ bool cli_parse_input(char *input) {
     .length = strlen(input),
     .cursor = 0,
   };
-  char *instruction = next_token(&cmd, ' ');
+  char *instruction = NULL;
+  while ( !(instruction = next_token(&cmd, ' ')) );
 
   bool (*function)(Input *input) = search_functionality_function(instruction, cli_functionality, cli_functionality_count);
   if (!function) {
