@@ -42,40 +42,71 @@ void print_reminder(const Reminder rem, unsigned int indentation) {
   printf("%s %s(from %s)%s\n", rem.name, ANSI_GRAY, rem.todo->name, ANSI_RESET);
 }
 
-bool print_todo(unsigned int index, Todo *todo, bool tasks, bool reminders) {
+typedef enum {
+  TODO_ATTRIBUTE_NONE,
+  TODO_ATTRIBUTE_TASKS,
+  TODO_ATTRIBUTE_REMINDERS,
+  TODO_ATTRIBUTE_TAGS,
+} Todo_print_attributes;
+
+bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute) {
   printf( "%s%d)%s%s%s %s\n", ANSI_RED, index + 1, ANSI_GREEN, (todo->notes) ? " " NOTES_ICON : "", ANSI_RESET, todo->name);
 
   const unsigned int info_level_indentation = 6;
 
-  if (tasks && todo->notes) {
-    List tasks = get_tasks_from_todo(*todo);
+  switch (attribute) {
+    case TODO_ATTRIBUTE_NONE: break;
 
-    List_iterator iterator = list_iterator_create(tasks);
-    while (list_iterator_next(&iterator)) {
-      const Task *t = list_iterator_element(iterator);
-      for (unsigned int x = 0; x < t->level * info_level_indentation; x++) putc(' ', stdout);
-      printf("    %s-%s [%c] %s\n", ANSI_RED, ANSI_RESET, t->state, t->msg);
-    }
-    list_destroy(&tasks, (void (*)(void *)) free_task);
-  }
+    case TODO_ATTRIBUTE_TASKS: {
+        if (!todo->notes) break;
 
-  else if (reminders && todo->notes) {
-    List reminders = list_new();
-    if (!get_reminders_from_todo(todo, &reminders)) {
-      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to load the reminders");
+        List tasks = get_tasks_from_todo(*todo);
+        List_iterator iterator = list_iterator_create(tasks);
+        while (list_iterator_next(&iterator)) {
+          const Task *t = list_iterator_element(iterator);
+          for (unsigned int x = 0; x < t->level * info_level_indentation; x++) putc(' ', stdout);
+          printf("    %s-%s [%c] %s\n", ANSI_RED, ANSI_RESET, t->state, t->msg);
+        }
+        list_destroy(&tasks, (void (*)(void *)) free_task);
+        break;
+      }
+
+    case TODO_ATTRIBUTE_REMINDERS: {
+      if (!todo->notes) break;
+
+      List reminders = list_new();
+      if (!get_reminders_from_todo(todo, &reminders)) {
+        APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to load the reminders");
+        list_destroy(&reminders, (void (*)(void *)) free_reminder);
+        return false;
+      }
+
+      List_iterator iterator = list_iterator_create(reminders);
+      while (list_iterator_next(&iterator)) {
+        const Reminder *rem = list_iterator_element(iterator);
+        print_reminder(*rem, info_level_indentation);
+      }
       list_destroy(&reminders, (void (*)(void *)) free_reminder);
-      return false;
+      break;
     }
 
-    List_iterator iterator = list_iterator_create(reminders);
-    while (list_iterator_next(&iterator)) {
-      const Reminder *rem = list_iterator_element(iterator);
-      print_reminder(*rem, info_level_indentation);
+    case TODO_ATTRIBUTE_TAGS: {
+      if (!todo->notes) break;
+
+      List tags = get_attribute_from_todo(*todo, "tags: ", ' ');
+
+      List_iterator iterator = list_iterator_create(tags);
+      while (list_iterator_next(&iterator)) {
+        const char *tag = list_iterator_element(iterator);
+        for (unsigned int i=0; i < info_level_indentation; i++) putc(' ', stdout);
+        printf("- %s\n", tag);
+      }
+      list_destroy(&tags, free);
+      break;
     }
-    list_destroy(&reminders, (void (*)(void *)) free_reminder);
   }
 
-  if (reminders || tasks) printf("\n");
+  if (attribute != TODO_ATTRIBUTE_NONE) printf("\n");
 
   return true;
 }
@@ -188,19 +219,34 @@ void cli_print_backtrace() {
 
 /// Functionality
 bool action_list_todos(Input *input) {
-  bool tasks = false;
-  bool reminders = false;
+  Todo_print_attributes attribute = TODO_ATTRIBUTE_NONE;
   char *filter_tag = NULL;
 
   char *arg = NULL;
   while ( input && (arg = next_token(input, ' ')) ) {
     if (!strcmp(arg, "tasks")) {
       free(arg);
-      tasks = true;
+      if (attribute != TODO_ATTRIBUTE_NONE) {
+        APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Attribute to print already specified");
+        return false;
+      }
+      attribute = TODO_ATTRIBUTE_TASKS;
 
     } else if (!strcmp(arg, "reminders") || !strcmp(arg, "rem")) {
       free(arg);
-      reminders = true;
+      if (attribute != TODO_ATTRIBUTE_NONE) {
+        APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Attribute to print already specified");
+        return false;
+      }
+      attribute = TODO_ATTRIBUTE_REMINDERS;
+
+    } else if (!strcmp(arg, "tags")) {
+      free(arg);
+      if (attribute != TODO_ATTRIBUTE_NONE) {
+        APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Attribute to print already specified");
+        return false;
+      }
+      attribute = TODO_ATTRIBUTE_TAGS;
 
     } else if (!strcmp(arg, "tag")) {
       free(arg);
@@ -241,7 +287,7 @@ bool action_list_todos(Input *input) {
       if (!tag_match) continue;
     }
 
-    if (!print_todo(list_iterator_index(iterator), todo, tasks, reminders)) {
+    if (!print_todo(list_iterator_index(iterator), todo, attribute)) {
       APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to print the ToDo '%s'", todo->name);
       free(filter_tag);
       return false;
@@ -782,7 +828,7 @@ bool action_print_new_line(Input *input) {
 Functionality cli_functionality[] = {
   { "--", "", action_do_nothing, MAN("Comment. Mostly used in file exports/imports and executing files", "[text]") }, // Comment and empty lines
   { "print_new_line", "", action_print_new_line, MAN("Prints a new line. Just that...", "") },
-  { "list", "-l", action_list_todos, MAN("List all ToDos", "", "tasks", "tag [tag name]", "reminders / rem") },
+  { "list", "-l", action_list_todos, MAN("List all ToDos", "", "tasks", "tag [tag name]", "reminders / rem", "tags", "tasks tag [tag name]", "reminders tag [tag name]", "tags tag [tag name]") },
   { "execute", NULL, action_execute_commands, MAN("Execute a list of idea commands from a text file", "[file]")},
   { "export", NULL, action_export_todos, MAN("Export the ToDos to a text file", "[file]") },
   { "sync", NULL, action_sync_todos, MAN("Check and import the ToDos from a text file generated by idea", "[file]") },
