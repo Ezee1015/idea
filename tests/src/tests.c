@@ -373,7 +373,7 @@ bool run_test_execute(Runner_data *runner_data, Test *test, String_builder *cmd,
 }
 
 bool run_test_case_import_initial_state(Runner_data *runner_data, Test *t, char *base_cmd, bool valgrind) {
-  String_builder cmd = sb_create("%s \"import %s/%s.idea\"", base_cmd, state.initial_states_path, t->state);
+  String_builder cmd = sb_create("%s import %s/%s.idea", base_cmd, state.initial_states_path, t->state);
   int cmd_ret;
   bool ok = run_test_execute(runner_data, t, &cmd, &cmd_ret);
   sb_free(&cmd);
@@ -398,10 +398,24 @@ bool run_test_case_execution(Runner_data *runner_data, Test *t, char *base_cmd, 
 
   String_builder cmd = sb_create("%s", base_cmd);
   List_iterator iterator = list_iterator_create(t->instructions);
-  if (list_size(t->instructions) > 1) sb_append(&cmd, " -m");
+  bool multiple_commands = (list_size(t->instructions) > 1);
+  if (multiple_commands) sb_append(&cmd, " -m");
   while (list_iterator_next(&iterator)) {
     char *instruction = list_iterator_element(iterator);
-    sb_append_with_format(&cmd, " \"%s\"", instruction);
+    sb_append_char(&cmd, ' ');
+    if (multiple_commands) {
+      sb_append_with_format(&cmd, " \"%s\"", instruction);
+    } else {
+      String_builder sb = sb_create("%s", instruction);
+
+      // Escape character that can break the command when execute (because of the shell)
+      sb_search_and_replace(&sb, "'", "\\'");
+      sb_search_and_replace(&sb, "\"", "\\\"");
+      sb_search_and_replace(&sb, ";", "\\;");
+
+      sb_append_with_format(&cmd, "%s", sb.str);
+      sb_free(&sb);
+    }
   }
 
   int cmd_ret;
@@ -425,7 +439,7 @@ bool run_test_case_execution(Runner_data *runner_data, Test *t, char *base_cmd, 
 }
 
 bool run_test_case_export_final_state(Runner_data *runner_data, Test *t, char *base_cmd, bool valgrind) {
-  String_builder cmd = sb_create("%s \"export %s\"", base_cmd, runner_data->export_filepath);
+  String_builder cmd = sb_create("%s export %s", base_cmd, runner_data->export_filepath);
 
   int cmd_ret;
   bool ok = run_test_execute(runner_data, t, &cmd, &cmd_ret);
@@ -577,12 +591,13 @@ bool is_config_clean(Runner_data *runner_data, Test* t) {
     }
     if (c == '\n') expected_lines--;
   }
+  fclose(todos);
 
   return true;
 }
 
 bool run_test_case_clear_after_test(Runner_data *runner_data, Test *t, char *base_cmd, bool valgrind) {
-  String_builder cmd = sb_create("%s \"clear all\"", base_cmd);
+  String_builder cmd = sb_create("%s clear all", base_cmd);
 
   int cmd_ret;
   bool ok = run_test_execute(runner_data, t, &cmd, &cmd_ret);

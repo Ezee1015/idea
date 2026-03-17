@@ -245,7 +245,10 @@ void sb_remove(String_builder *sb, unsigned int index, unsigned int length) {
   unsigned int new_length = sb->length - length;
   _sb_resize_if_necessary(sb, new_length);
 
-  strcpy(sb->str+index, sb->str+index+length);
+  // I can't use strcpy because it overlaps the src and dst (caveat from strcpy)
+  for (unsigned int i=index; i <= new_length; i++) {
+    sb->str[i] = sb->str[i + length];
+  }
   sb->length = new_length;
 }
 
