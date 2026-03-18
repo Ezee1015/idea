@@ -1129,7 +1129,8 @@
             const reminderDateEnd = (reminderHasEndDate) ? getDateFromString(reminderDateEndElement.innerText) : undefined
 
             const reminderDateDiffStart = getDifferenceInDaysFromDates(now, reminderDateStart)
-            const reminderDateDiffEnd = (reminderHasEndDate) ? getDifferenceInDaysFromDates(reminderDateEnd, now) : undefined
+            const reminderDateDiffStartString = getDifferenceStringFromDates(now, reminderDateStart)
+            const reminderDateDiffEndString = (reminderHasEndDate) ? getDifferenceStringFromDates(now, reminderDateEnd) : undefined
 
             // Source: <https://coreui.io/answers/how-to-check-if-date-is-today-in-javascript/>
             const triggered = (reminderHasEndDate) ? (reminderDateStart <= now && now <= reminderDateEnd) : (reminderDateStart.toDateString() == now.toDateString())
@@ -1138,15 +1139,10 @@
             if (triggered) {
                 reminderDateDiffElement.innerHTML += " (TODAY)"
             } else if (reminderDateDiffStart == 1) {
-                reminderDateDiffElement.innerHTML += " (tomorrow)"
+                reminderDateDiffElement.innerHTML += " (Tomorrow)"
             } else {
-                let delta
-                if (old) {
-                    delta = (reminderHasEndDate) ? reminderDateDiffEnd : -reminderDateDiffStart
-                } else {
-                    delta = reminderDateDiffStart
-                }
-                reminderDateDiffElement.innerHTML += " (" + delta + " days " + ((old) ? "ago" : "left") +")"
+                let deltaString = (old && reminderHasEndDate) ? reminderDateDiffEndString : reminderDateDiffStartString
+                reminderDateDiffElement.innerHTML += " (" + deltaString + ")"
             }
 
             if (triggered) {
