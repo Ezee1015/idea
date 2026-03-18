@@ -760,9 +760,10 @@
 
             const constants = {}
             constants.second = { name: "second", seconds: 1 }
-            constants.minute = { name: "minute"  , seconds: constants.second.seconds * 60 }
+            constants.minute = { name: "minute", seconds: constants.second.seconds * 60 }
             constants.hour   = { name: "hour"  , seconds: constants.minute.seconds * 60 }
             constants.day    = { name: "day"   , seconds: constants.hour.seconds * 24 }
+            constants.week   = { name: "week"  , seconds: constants.day.seconds * 7 }
             constants.month  = { name: "month" , seconds: constants.day.seconds * 30 }
             constants.year   = { name: "year"  , seconds: constants.month.seconds * 12 }
 
