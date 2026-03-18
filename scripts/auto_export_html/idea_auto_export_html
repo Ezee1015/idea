@@ -106,7 +106,7 @@ help() {
 }
 
 export_html() {
-    IDEA_OUTPUT=$(IDEA_LOCAL_PATH="$IDEA_LOCAL_PATH" $IDEA_EXE_PATH "html $GENERATED_HTML_PATH")
+    IDEA_OUTPUT=$(IDEA_LOCAL_PATH="$IDEA_LOCAL_PATH" $IDEA_EXE_PATH html "$GENERATED_HTML_PATH")
     if [[ $? -ne 0 ]]; then
         rm "$GENERATED_HTML_PATH"
         echo "[ERROR] Error while exporting to HTML: $IDEA_OUTPUT"
