@@ -51,9 +51,28 @@ Date date_now() {
 }
 
 int get_delta_time_days(Date date_from, Date date_to) {
-  return (date_to.year - date_from.year) * 12 * 30
-         + (date_to.month - date_from.month) * 30
-         + (date_to.day - date_from.day);
+  // Source: <https://stackoverflow.com/a/73846054>
+  struct tm date_from_tm = {
+    .tm_year = date_from.year - 1900,
+    .tm_mon = date_from.month - 1,
+    .tm_mday = date_from.day,
+    .tm_isdst = -1,
+  };
+
+  struct tm date_to_tm = {
+    .tm_year = date_to.year - 1900,
+    .tm_mon = date_to.month - 1,
+    .tm_mday = date_to.day,
+    .tm_isdst = -1,
+  };
+
+  time_t date_from_t = mktime(&date_from_tm);
+  time_t date_to_t = mktime(&date_to_tm);
+
+  double dt = difftime(date_to_t, date_from_t);
+  int days = dt / 86400;
+
+  return days;
 }
 
 char *get_delta_time_string(Date date_from, Date date_to) {
