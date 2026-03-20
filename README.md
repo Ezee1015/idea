@@ -19,6 +19,7 @@ For the scripts:
 - `inotify-tools`
 - `base64`
 - `imagemagick` (`convert`)
+- `gettext` or `gettext-base` (for `envsubst`)
 
 ### Available `make` commands
 - `make`: Compile

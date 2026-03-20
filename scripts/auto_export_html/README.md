@@ -7,6 +7,7 @@ This script will detect when you try to open the `index.html` and regenerate the
 - `inotify-tools`
 - `base64`
 - `imagemagick convert`
+- `gettext` or `gettext-base` (for `envsubst`)
 
 ## How it works?
 
