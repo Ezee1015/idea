@@ -187,6 +187,10 @@
                 margin-bottom: 0px;
             }
 
+            .todo h3 {
+                border-bottom: 2px solid var(--fg-dark);
+            }
+
             .todo_header {
                 cursor: pointer;
             }
@@ -323,6 +327,13 @@
             .reminders_container {
                 padding-left: 38px;
                 width: 100%;
+
+                /* Source: <https://stackoverflow.com/a/443720> */
+                max-width: 100%;
+                overflow-x: auto;
+
+                /* Source: <https://stackoverflow.com/a/77205361> */
+                box-sizing: border-box;
             }
 
             .menu .reminders_container {
@@ -341,8 +352,8 @@
                 padding-right: 8px;
             }
 
-            .reminder_date_diff,
-            .reminder_todo_name {
+            /* .reminder_todo_name, */
+            .reminder_date_diff {
                 text-wrap: nowrap;
             }
 
@@ -359,6 +370,7 @@
 
             .reminder_name {
                 width: 100%;
+                min-width: 250px;
             }
 
             .reminder_date,
@@ -507,28 +519,30 @@
                         }
 
                         if (!list_is_empty(all_reminders)) {
-                            </c> <table class="reminders_container"> <c>
-                            List_iterator rem_iterator = list_iterator_create(all_reminders);
-                            while (list_iterator_next(&rem_iterator)) {
-                                Reminder *rem = list_iterator_element(rem_iterator);
+                            </c> <div class="reminders_container"> <c>
+                                </c> <table> <c>
+                                List_iterator rem_iterator = list_iterator_create(all_reminders);
+                                while (list_iterator_next(&rem_iterator)) {
+                                    Reminder *rem = list_iterator_element(rem_iterator);
 
-                                </c>
-                                    <tr class="reminder">
-                                        <td class="reminder_date">
-                                            <span class="reminder_date_start"><c>PRINT("%04d-%02d-%02d", rem->start.year, rem->start.month, rem->start.day) </c></span>
-                                            <c> if (!is_date_equals(rem->start, rem->end)) { </c>
-                                                <span class="reminder_date_div">~</span>
-                                                <span class="reminder_date_end"><c>PRINT("%04d-%02d-%02d", rem->end.year, rem->end.month, rem->end.day)</c></span>
-                                            <c> } </c>
-                                        </td>
-                                        <td class="reminder_todo_name"><c>CSTR(rem->todo->name)</c></td>
-                                        <td class="reminder_date_diff"></td>
-                                        <td class="reminder_name"><c>CSTR(rem->name)</c></td>
-                                    </tr>
-                                <c>
-                            }
-                            list_destroy(&all_reminders, (void (*)(void *)) free_reminder);
-                            </c> </table> <c>
+                                    </c>
+                                        <tr class="reminder">
+                                            <td class="reminder_date">
+                                                <span class="reminder_date_start"><c>PRINT("%04d-%02d-%02d", rem->start.year, rem->start.month, rem->start.day) </c></span>
+                                                <c> if (!is_date_equals(rem->start, rem->end)) { </c>
+                                                    <span class="reminder_date_div">~</span>
+                                                    <span class="reminder_date_end"><c>PRINT("%04d-%02d-%02d", rem->end.year, rem->end.month, rem->end.day)</c></span>
+                                                <c> } </c>
+                                            </td>
+                                            <td class="reminder_date_diff"></td>
+                                            <td class="reminder_name"><c>CSTR(rem->name)</c></td>
+                                            <td class="reminder_todo_name"><c>CSTR(rem->todo->name)</c></td>
+                                        </tr>
+                                    <c>
+                                }
+                                list_destroy(&all_reminders, (void (*)(void *)) free_reminder);
+                                </c> </table> <c>
+                            </c> </div> <c>
                         }
                     </c>
                 </div>
@@ -569,7 +583,7 @@
                             <c>
                                 List tasks = get_tasks_from_todo(*e);
                                 if (!list_is_empty(tasks)) {
-                                    </c> <h3>Tasks:</h3> <c>
+                                    </c> <h3>Tasks</h3> <c>
                                     </c> <div> <c>
 
                                     List_iterator tasks_iterator = list_iterator_create(tasks);
@@ -619,35 +633,37 @@
                                 }
 
                                 if (!list_is_empty(reminders)) {
-                                        </c> <h3>Reminders:</h3> <c>
-                                        </c> <table class="reminders_container"> <c>
-                                        List_iterator rem_iterator = list_iterator_create(reminders);
-                                        while (list_iterator_next(&rem_iterator)) {
-                                            Reminder *rem = list_iterator_element(rem_iterator);
+                                    </c> <h3>Reminders</h3> <c>
+                                    </c> <div class="reminders_container"> <c>
+                                        </c> <table> <c>
+                                            List_iterator rem_iterator = list_iterator_create(reminders);
+                                            while (list_iterator_next(&rem_iterator)) {
+                                                Reminder *rem = list_iterator_element(rem_iterator);
 
-                                            </c>
-                                                <tr class="reminder">
-                                                    <td class="reminder_date">
-                                                        <span class="reminder_date_start"><c>PRINT("%04d-%02d-%02d", rem->start.year, rem->start.month, rem->start.day) </c></span>
-                                                        <c> if (!is_date_equals(rem->start, rem->end)) { </c>
-                                                            <span class="reminder_date_div">~</span>
-                                                            <span class="reminder_date_end"><c>PRINT("%04d-%02d-%02d", rem->end.year, rem->end.month, rem->end.day)</c></span>
-                                                        <c> } </c>
-                                                    </td>
-                                                    <td class="reminder_date_diff"></td>
-                                                    <td class="reminder_name"><c>CSTR(rem->name)</c></td>
-                                                </tr>
-                                            <c>
-                                        }
-                                        list_destroy(&reminders, (void (*)(void *)) free_reminder);
-                                    </c> </table> <c>
+                                                </c>
+                                                    <tr class="reminder">
+                                                        <td class="reminder_date">
+                                                            <span class="reminder_date_start"><c>PRINT("%04d-%02d-%02d", rem->start.year, rem->start.month, rem->start.day) </c></span>
+                                                            <c> if (!is_date_equals(rem->start, rem->end)) { </c>
+                                                                <span class="reminder_date_div">~</span>
+                                                                <span class="reminder_date_end"><c>PRINT("%04d-%02d-%02d", rem->end.year, rem->end.month, rem->end.day)</c></span>
+                                                            <c> } </c>
+                                                        </td>
+                                                        <td class="reminder_date_diff"></td>
+                                                        <td class="reminder_name"><c>CSTR(rem->name)</c></td>
+                                                    </tr>
+                                                <c>
+                                            }
+                                            list_destroy(&reminders, (void (*)(void *)) free_reminder);
+                                        </c> </table> <c>
+                                    </c> </div> <c>
                                 }
                             </c>
 
                             <!-- NOTES -->
                             <c>
                                 if (e->notes) {
-                                    </c> <h3>Notes:</h3> <c>
+                                    </c> <h3>Notes</h3> <c>
                                     </c> <table class="todo_notes"> <c>
 
                                     char *notes = e->notes;
