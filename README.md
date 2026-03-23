@@ -74,8 +74,6 @@ reminder: 2025-07-12 Live test of the project at university and oral defense
 
 ---
 
-<img src="https://docs.utnso.com.ar/img/logo.gif" alt="Tux">
-
 ## Work
 
 - [x] 1: Organize work in the group
@@ -103,4 +101,12 @@ For the checkpoint, remember to execute this commands:
 
 - The live test is done by the group with the scripts given by the professors.
 - The oral defense is individual
+
+# HTML Tip
+
+<style> marquee { color: var(--green); } </style>
+<marquee behavior="alternate">You can even embed HTML (only inline) for the output HTML file!</marquee>
+<script>console.log("Hello from JS!")</script>
+
+<img src="https://docs.utnso.com.ar/img/logo.gif" alt="Tux">
 ```
