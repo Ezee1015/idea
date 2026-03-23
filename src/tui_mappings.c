@@ -459,7 +459,7 @@ void nv_map_todo_information() {
 
   // Tasks
   const unsigned int tasks_level_indentation = 4;
-  List tasks = get_tasks_from_todo(*todo);
+  List tasks = get_tasks_from_todo(todo);
   sb_append(&sb, "Tasks:\n");
   List_iterator iterator = list_iterator_create(tasks);
   while (list_iterator_next(&iterator)) {

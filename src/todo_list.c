@@ -783,17 +783,17 @@ bool is_a_task(char *cstr, unsigned int length) {
   return true;
 }
 
-List get_tasks_from_todo(Todo todo) {
-  if (!todo.notes) return list_new();
+List get_tasks_from_todo(Todo *todo) {
+  if (!todo || !todo->notes) return list_new();
 
   List tasks = list_new();
-  unsigned int notes_length = strlen(todo.notes);
+  unsigned int notes_length = strlen(todo->notes);
   unsigned int indentation = 0;
 
   bool new_line = true;
   unsigned int spaces = 0;
   for (unsigned int i=0; i < notes_length; i++) {
-    const char c = todo.notes[i];
+    const char c = todo->notes[i];
 
     if (c == '\n') {
       new_line = true;
@@ -806,7 +806,7 @@ List get_tasks_from_todo(Todo todo) {
     if (c == ' ') {
       spaces++;
 
-    } else if (is_a_task(todo.notes+i, notes_length - i)){
+    } else if (is_a_task(todo->notes+i, notes_length - i)){
       // Auto-detect indentation with the indentation of the first checkbox
       // that has some indentation
       if (indentation == 0 && spaces != 0) {
@@ -815,12 +815,13 @@ List get_tasks_from_todo(Todo todo) {
 
       Task *t = malloc(sizeof(Task));
       t->level = (indentation) ? spaces / indentation : 0;
-      t->state = *(todo.notes + i + 3);
+      t->state = *(todo->notes + i + 3);
+      t->todo = todo;
 
       // Read the message from the checkbox
       i += 6;
       unsigned int x = i;
-      while (x < notes_length && todo.notes[x] != '\n') x++;
+      while (x < notes_length && todo->notes[x] != '\n') x++;
       unsigned int msg_length = x - i;
       if (msg_length == 0) {
         free(t);
@@ -829,7 +830,7 @@ List get_tasks_from_todo(Todo todo) {
       }
 
       t->msg = malloc(msg_length + 1);
-      strncpy(t->msg, todo.notes + i, msg_length);
+      strncpy(t->msg, todo->notes + i, msg_length);
       t->msg[msg_length] = '\0';
       list_append(&tasks, t);
 
@@ -1047,6 +1048,27 @@ bool get_all_reminders(List *reminders) {
 
     if (!get_reminders_from_todo(todo, reminders)) {
       list_destroy(reminders, (void (*)(void *)) free_reminder);
+    }
+  }
+
+  return true;
+}
+
+bool is_task_incomplete(Task task) {
+  return task.state != 'x' && task.state != '~';
+}
+
+bool get_all_tasks(List *tasks) {
+  if (!tasks || !list_is_empty(*tasks)) return false;
+
+  List_iterator todo_list_iterator = list_iterator_create(todo_list);
+  while (list_iterator_next(&todo_list_iterator)) {
+    Todo *todo = list_iterator_element(todo_list_iterator);
+
+    List todo_tasks = get_tasks_from_todo(todo);
+    while (!list_is_empty(todo_tasks)) {
+      Task *task = list_remove(&todo_tasks, 0);
+      list_append(tasks, task);
     }
   }
 

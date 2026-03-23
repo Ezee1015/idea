@@ -28,6 +28,8 @@ typedef struct {
 } Todo;
 
 typedef struct {
+  Todo *todo;
+
   char *msg;
   char state;
   unsigned int level;
@@ -75,7 +77,9 @@ extern unsigned int todo_list_functionality_count;
 
 // Tasks (taken from the ToDo's notes)
 void free_task(Task *task);
-List get_tasks_from_todo(Todo todo);
+List get_tasks_from_todo(Todo *todo);
+bool get_all_tasks(List *tasks);
+bool is_task_incomplete(Task task);
 
 // Get attribute from ToDo (taken from the ToDo's notes)
 // The attributes are special keywords at the start of the line.

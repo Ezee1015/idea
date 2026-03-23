@@ -511,6 +511,7 @@
                 <hr class="menu_separator">
 
                 <div class="menu_content">
+                    <!-- REMINDERS -->
                     <p class="menu_subtitle"><u>Reminders</u></p>
                     <c>
                         List all_reminders = list_new();
@@ -542,6 +543,83 @@
                                 }
                                 list_destroy(&all_reminders, (void (*)(void *)) free_reminder);
                                 </c> </table> <c>
+                            </c> </div> <c>
+                        }
+                    </c>
+
+                    <!-- TASKS -->
+                    <p class="menu_subtitle"><u>Tasks</u></p>
+                    <c>
+                        List all_tasks = list_new();
+                        if (!get_all_tasks(&all_tasks)) {
+                            ERROR("Unable to load all the tasks")
+                        }
+
+                        if (!list_is_empty(all_tasks)) {
+                            </c> <div> <c>
+                                char *last_todo_name = NULL;
+                                List_iterator tasks_iterator = list_iterator_create(all_tasks);
+                                while (list_iterator_next(&tasks_iterator)) {
+                                    Task *task = list_iterator_element(tasks_iterator);
+
+                                    // To ensure that the parent Task is shown if at least one of the children are incomplete
+                                    if (!is_task_incomplete(*task)) {
+                                        bool incomplete_subtasks = false;
+                                        List_iterator subtasks_iterator = tasks_iterator;
+                                        while (list_iterator_next(&subtasks_iterator)) {
+                                            Task *sub_task = list_iterator_element(subtasks_iterator);
+                                            if (sub_task->level <= task->level) break;
+                                            if (is_task_incomplete(*sub_task)) {
+                                                incomplete_subtasks = true;
+                                                break;
+                                            }
+                                        }
+
+                                        if (!incomplete_subtasks) continue;
+                                    }
+
+                                    if (last_todo_name != task->todo->name) {
+                                        last_todo_name = task->todo->name;
+                                        if (last_todo_name) {
+                                            </c></div><c>
+                                        }
+                                        </c><div class="dashboard_todo_tasks_container"><c>
+                                            </c><p style="color: var(--fg-dark);"><span class="dashboard_tasks_todo_name"><c>CSTR(task->todo->name)</c></span>:<p><c>
+                                    }
+
+                                    </c><div class="task" style="margin-left: <c>UINT(task->level * TASKS_LEVEL_INDENTATION_PX + 40)</c>px;"> <c>
+                                        switch (task->state) {
+                                            case 'x':
+                                                </c> <div class="task_icon task_icon_complete unselectable">X</div> <c>
+                                                </c> <p class="task_content"><c>CSTR(task->msg)</c></p> <c>
+                                                break;
+
+                                            case ' ':
+                                                </c> <div class="task_icon unselectable"></div> <c>
+                                                </c> <p class="task_content"><c>CSTR(task->msg)</c></p> <c>
+                                                break;
+
+                                            case '?':
+                                                </c> <div class="task_icon task_icon_quetion unselectable">?</div> <c>
+                                                </c> <p class="task_content"><c>CSTR(task->msg)</c></p> <c>
+                                                break;
+
+                                            case '-':
+                                                </c> <div class="task_icon task_icon_on_progress unselectable">-</div> <c>
+                                                </c> <p class="task_content"><c>CSTR(task->msg)</c></p> <c>
+                                                break;
+
+                                            case '~':
+                                                </c> <div class="task_icon task_icon_wont_do unselectable">~</div> <c>
+                                                </c> <p class="task_content"><strike><c>CSTR(task->msg)</c></strike></p> <c>
+                                                break;
+                                        }
+                                    </c> </div> <c>
+                                }
+                                list_destroy(&all_tasks, (void (*)(void *)) free_task);
+                                if (last_todo_name) {
+                                    </c></div><c> // Close the dashboard_todo_tasks_container div
+                                }
                             </c> </div> <c>
                         }
                     </c>
@@ -581,40 +659,40 @@
 
                             <!-- TASKS -->
                             <c>
-                                List tasks = get_tasks_from_todo(*e);
+                                List tasks = get_tasks_from_todo(e);
                                 if (!list_is_empty(tasks)) {
                                     </c> <h3>Tasks</h3> <c>
                                     </c> <div> <c>
 
                                     List_iterator tasks_iterator = list_iterator_create(tasks);
                                     while (list_iterator_next(&tasks_iterator)) {
-                                        const Task *task_icon = list_iterator_element(tasks_iterator);
+                                        const Task *task = list_iterator_element(tasks_iterator);
 
-                                        </c> <div class="task" style="margin-left: <c>UINT(task_icon->level * TASKS_LEVEL_INDENTATION_PX + 40)</c>px;"> <c>
-                                        switch (task_icon->state) {
+                                        </c> <div class="task" style="margin-left: <c>UINT(task->level * TASKS_LEVEL_INDENTATION_PX + 40)</c>px;"> <c>
+                                        switch (task->state) {
                                             case 'x':
                                                 </c> <div class="task_icon task_icon_complete unselectable">X</div> <c>
-                                                </c> <p class="task_content"><c>CSTR(task_icon->msg)</c></p> <c>
+                                                </c> <p class="task_content"><c>CSTR(task->msg)</c></p> <c>
                                                 break;
 
                                             case ' ':
                                                 </c> <div class="task_icon unselectable"></div> <c>
-                                                </c> <p class="task_content"><c>CSTR(task_icon->msg)</c></p> <c>
+                                                </c> <p class="task_content"><c>CSTR(task->msg)</c></p> <c>
                                                 break;
 
                                             case '?':
                                                 </c> <div class="task_icon task_icon_quetion unselectable">?</div> <c>
-                                                </c> <p class="task_content"><c>CSTR(task_icon->msg)</c></p> <c>
+                                                </c> <p class="task_content"><c>CSTR(task->msg)</c></p> <c>
                                                 break;
 
                                             case '-':
                                                 </c> <div class="task_icon task_icon_on_progress unselectable">-</div> <c>
-                                                </c> <p class="task_content"><c>CSTR(task_icon->msg)</c></p> <c>
+                                                </c> <p class="task_content"><c>CSTR(task->msg)</c></p> <c>
                                                 break;
 
                                             case '~':
                                                 </c> <div class="task_icon task_icon_wont_do unselectable">~</div> <c>
-                                                </c> <p class="task_content"><strike><c>CSTR(task_icon->msg)</c></strike></p> <c>
+                                                </c> <p class="task_content"><strike><c>CSTR(task->msg)</c></strike></p> <c>
                                                 break;
                                         }
                                         </c> </div> <c>
@@ -837,12 +915,23 @@
             if (apply_filters_to_dashboard.checked) {
                 const todo_name = getElementInsideContainer(todo, "todo_name").innerText
 
+                // Reminders
                 const dashboard_reminders = dashboard.getElementsByClassName("reminder")
                 for (rem of dashboard_reminders) {
                     const rem_todo_name = getElementInsideContainer(rem, "reminder_todo_name").innerText
 
                     if (todo_name == rem_todo_name) {
                         rem.style.display = "none"
+                    }
+                }
+
+                // Tasks
+                const dashboard_todos_tasks = dashboard.getElementsByClassName("dashboard_todo_tasks_container")
+                for (todo_tasks_container of dashboard_todos_tasks) {
+                    const tasks_todo_name = getElementInsideContainer(todo_tasks_container, "dashboard_tasks_todo_name").innerText
+
+                    if (todo_name == tasks_todo_name) {
+                        todo_tasks_container.style.display = "none"
                     }
                 }
             }
@@ -852,9 +941,16 @@
             for (const todo of todos) todo.style.display = ""
             menu_filter_title.style.color = "var(--fg)"
 
+            // Dashboard reminders
             const dashboard_reminders = dashboard.getElementsByClassName("reminder")
             for (rem of reminders) {
                 rem.style.display = ""
+            }
+
+            // Dashboard tasks
+            const dashboard_todos_tasks = dashboard.getElementsByClassName("dashboard_todo_tasks_container")
+            for (todo_tasks_container of dashboard_todos_tasks) {
+                todo_tasks_container.style.display = ""
             }
         }
 

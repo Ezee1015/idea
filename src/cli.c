@@ -60,7 +60,7 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
     case TODO_ATTRIBUTE_TASKS: {
         if (!todo->notes) break;
 
-        List tasks = get_tasks_from_todo(*todo);
+        List tasks = get_tasks_from_todo(todo);
         List_iterator iterator = list_iterator_create(tasks);
         while (list_iterator_next(&iterator)) {
           const Task *t = list_iterator_element(iterator);
