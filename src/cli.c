@@ -50,17 +50,22 @@ typedef enum {
 } Todo_print_attributes;
 
 bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute) {
-  printf( "%s%d)%s%s%s %s\n", ANSI_RED, index + 1, ANSI_GREEN, (todo->notes) ? " " NOTES_ICON : "", ANSI_RESET, todo->name);
 
   const unsigned int info_level_indentation = 6;
 
   switch (attribute) {
-    case TODO_ATTRIBUTE_NONE: break;
+    case TODO_ATTRIBUTE_NONE:
+      printf( "%s%d)%s%s%s %s\n", ANSI_RED, index + 1, ANSI_GREEN, (todo->notes) ? " " NOTES_ICON : "", ANSI_RESET, todo->name);
+      break;
 
     case TODO_ATTRIBUTE_TASKS: {
         if (!todo->notes) break;
 
         List tasks = get_tasks_from_todo(todo);
+
+        if (list_is_empty(tasks)) break;
+        printf( "%s%d)%s %s\n", ANSI_RED, index + 1, ANSI_RESET, todo->name);
+
         List_iterator iterator = list_iterator_create(tasks);
         while (list_iterator_next(&iterator)) {
           const Task *t = list_iterator_element(iterator);
@@ -68,6 +73,7 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
           printf("    %s-%s [%c] %s\n", ANSI_RED, ANSI_RESET, t->state, t->msg);
         }
         list_destroy(&tasks, (void (*)(void *)) free_task);
+        printf("\n");
         break;
       }
 
@@ -81,12 +87,16 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
         return false;
       }
 
+      if (list_is_empty(reminders)) break;
+      printf( "%s%d)%s %s\n", ANSI_RED, index + 1, ANSI_RESET, todo->name);
+
       List_iterator iterator = list_iterator_create(reminders);
       while (list_iterator_next(&iterator)) {
         const Reminder *rem = list_iterator_element(iterator);
         print_reminder(*rem, info_level_indentation);
       }
       list_destroy(&reminders, (void (*)(void *)) free_reminder);
+      printf("\n");
       break;
     }
 
@@ -95,6 +105,9 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
 
       List tags = get_attribute_from_todo(*todo, "tags: ", ' ');
 
+      if (list_is_empty(tags)) break;
+      printf( "%s%d)%s %s\n", ANSI_RED, index + 1, ANSI_RESET, todo->name);
+
       List_iterator iterator = list_iterator_create(tags);
       while (list_iterator_next(&iterator)) {
         const char *tag = list_iterator_element(iterator);
@@ -102,11 +115,10 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
         printf("- %s\n", tag);
       }
       list_destroy(&tags, free);
+      printf("\n");
       break;
     }
   }
-
-  if (attribute != TODO_ATTRIBUTE_NONE) printf("\n");
 
   return true;
 }
