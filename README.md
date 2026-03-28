@@ -52,7 +52,7 @@ List of tags separated by spaces with the `tags:` keyword at the start of the li
 
 ### Tasks
 A task is a line that starts with one of the following tasks statuses:
-- `- [ ]`: an incomplete task
+- `- [ ]`: a task that has not started yet
 - `- [x]`: a complete task
 - `- [?]`: a tasks with a question attached
 - `- [-]`: in progress / paused
