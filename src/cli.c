@@ -95,7 +95,15 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
           }
 
           for (unsigned int x = 0; x < task->level * info_level_indentation; x++) putc(' ', stdout);
-          printf("    %s-%s [%c] %s\n", ANSI_RED, ANSI_RESET, task->state, task->msg);
+          printf("    %s-%s ", ANSI_RED, ANSI_RESET);
+          switch (task->state) {
+            case 'x': printf("%s[%c] %s%s\n", ANSI_GREEN, task->state, task->msg, ANSI_RESET);                      break;
+            case ' ': printf("[%c] %s\n", task->state, task->msg);                                                  break;
+            case '?': printf("%s[%c] %s%s\n", ANSI_BLUE, task->state, task->msg, ANSI_RESET);                       break;
+            case '-': printf("%s[%c] %s%s\n", ANSI_YELLOW, task->state, task->msg, ANSI_RESET);                     break;
+            case '~': printf("%s[%c] %s%s%s\n", ANSI_RED, task->state, ANSI_STRIKE_THROUGH, task->msg, ANSI_RESET); break;
+
+          }
         }
         list_destroy(&tasks, (void (*)(void *)) free_task);
         printf("\n");
