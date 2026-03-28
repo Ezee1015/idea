@@ -98,7 +98,7 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
           printf("    %s-%s ", ANSI_RED, ANSI_RESET);
           switch (task->state) {
             case 'x': printf("%s[%c] %s%s\n", ANSI_GREEN, task->state, task->msg, ANSI_RESET);                      break;
-            case ' ': printf("[%c] %s\n", task->state, task->msg);                                                  break;
+            case ' ': printf("%s[%c]%s %s\n", ANSI_GRAY, task->state, ANSI_RESET, task->msg);                       break;
             case '?': printf("%s[%c] %s%s\n", ANSI_BLUE, task->state, task->msg, ANSI_RESET);                       break;
             case '-': printf("%s[%c] %s%s\n", ANSI_YELLOW, task->state, task->msg, ANSI_RESET);                     break;
             case '~': printf("%s[%c] %s%s%s\n", ANSI_RED, task->state, ANSI_STRIKE_THROUGH, task->msg, ANSI_RESET); break;
