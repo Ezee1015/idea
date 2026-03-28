@@ -72,7 +72,7 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
         bool has_incomplete_tasks = !list_any(tasks, is_task_complete_list_filter);
 
         if (list_is_empty(tasks) || (attribute == TODO_ATTRIBUTE_TASKS_INCOMPLETE && !has_incomplete_tasks)) break;
-        printf( "%s%d)%s %s\n", ANSI_RED, index + 1, ANSI_RESET, todo->name);
+        printf( "%s%d)%s %s%s%s\n", ANSI_RED, index + 1, ANSI_RESET, ANSI_UNDERLINE, todo->name, ANSI_RESET);
 
         List_iterator iterator = list_iterator_create(tasks);
         while (list_iterator_next(&iterator)) {
@@ -121,7 +121,7 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
       }
 
       if (list_is_empty(reminders)) break;
-      printf( "%s%d)%s %s\n", ANSI_RED, index + 1, ANSI_RESET, todo->name);
+      printf( "%s%d)%s %s%s%s\n", ANSI_RED, index + 1, ANSI_RESET, ANSI_UNDERLINE, todo->name, ANSI_RESET);
 
       List_iterator iterator = list_iterator_create(reminders);
       while (list_iterator_next(&iterator)) {
@@ -139,7 +139,7 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
       List tags = get_attribute_from_todo(*todo, "tags: ", ' ');
 
       if (list_is_empty(tags)) break;
-      printf( "%s%d)%s %s\n", ANSI_RED, index + 1, ANSI_RESET, todo->name);
+      printf( "%s%d)%s %s%s%s\n", ANSI_RED, index + 1, ANSI_RESET, ANSI_UNDERLINE, todo->name, ANSI_RESET);
 
       List_iterator iterator = list_iterator_create(tags);
       while (list_iterator_next(&iterator)) {
