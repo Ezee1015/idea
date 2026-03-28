@@ -42,9 +42,15 @@ void print_reminder(const Reminder rem, unsigned int indentation) {
   printf("%s %s(from %s)%s\n", rem.name, ANSI_GRAY, rem.todo->name, ANSI_RESET);
 }
 
+bool is_task_complete_list_filter(void *task_p) {
+  Task *task = (Task*) task_p;
+  return !is_task_incomplete(*task);
+}
+
 typedef enum {
   TODO_ATTRIBUTE_NONE,
   TODO_ATTRIBUTE_TASKS,
+  TODO_ATTRIBUTE_TASKS_INCOMPLETE,
   TODO_ATTRIBUTE_REMINDERS,
   TODO_ATTRIBUTE_TAGS,
 } Todo_print_attributes;
@@ -58,19 +64,38 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
       printf( "%s%d)%s%s%s %s\n", ANSI_RED, index + 1, ANSI_GREEN, (todo->notes) ? " " NOTES_ICON : "", ANSI_RESET, todo->name);
       break;
 
+    case TODO_ATTRIBUTE_TASKS_INCOMPLETE:
     case TODO_ATTRIBUTE_TASKS: {
         if (!todo->notes) break;
 
         List tasks = get_tasks_from_todo(todo);
+        bool has_incomplete_tasks = !list_any(tasks, is_task_complete_list_filter);
 
-        if (list_is_empty(tasks)) break;
+        if (list_is_empty(tasks) || (attribute == TODO_ATTRIBUTE_TASKS_INCOMPLETE && !has_incomplete_tasks)) break;
         printf( "%s%d)%s %s\n", ANSI_RED, index + 1, ANSI_RESET, todo->name);
 
         List_iterator iterator = list_iterator_create(tasks);
         while (list_iterator_next(&iterator)) {
-          const Task *t = list_iterator_element(iterator);
-          for (unsigned int x = 0; x < t->level * info_level_indentation; x++) putc(' ', stdout);
-          printf("    %s-%s [%c] %s\n", ANSI_RED, ANSI_RESET, t->state, t->msg);
+          const Task *task = list_iterator_element(iterator);
+
+          // To ensure that the parent Task is shown if at least one of the children are incomplete
+          if (attribute == TODO_ATTRIBUTE_TASKS_INCOMPLETE && !is_task_incomplete(*task)) {
+              bool incomplete_subtasks = false;
+              List_iterator subtasks_iterator = iterator;
+              while (list_iterator_next(&subtasks_iterator)) {
+                  Task *sub_task = list_iterator_element(subtasks_iterator);
+                  if (sub_task->level <= task->level) break;
+                  if (is_task_incomplete(*sub_task)) {
+                      incomplete_subtasks = true;
+                      break;
+                  }
+              }
+
+              if (!incomplete_subtasks) continue;
+          }
+
+          for (unsigned int x = 0; x < task->level * info_level_indentation; x++) putc(' ', stdout);
+          printf("    %s-%s [%c] %s\n", ANSI_RED, ANSI_RESET, task->state, task->msg);
         }
         list_destroy(&tasks, (void (*)(void *)) free_task);
         printf("\n");
@@ -243,6 +268,14 @@ bool action_list_todos(Input *input) {
         return false;
       }
       attribute = TODO_ATTRIBUTE_TASKS;
+
+    } else if (!strcmp(arg, "incomplete")) {
+      free(arg);
+      if (attribute != TODO_ATTRIBUTE_TASKS && attribute != TODO_ATTRIBUTE_TASKS_INCOMPLETE) {
+        APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "'undone' is only valid for the type 'tasks'");
+        return false;
+      }
+      attribute = TODO_ATTRIBUTE_TASKS_INCOMPLETE;
 
     } else if (!strcmp(arg, "reminders") || !strcmp(arg, "rem")) {
       free(arg);
@@ -740,12 +773,12 @@ bool action_loop(Input *input) {
   }
 }
 
-bool is_reminder_triggered_list_handler(void *rem_p) {
+bool is_reminder_triggered_list_filter(void *rem_p) {
   Reminder *rem = (Reminder *) rem_p;
   return is_reminder_triggered(*rem);
 }
 
-bool is_reminder_near_list_handler(void *rem_p) {
+bool is_reminder_near_list_filter(void *rem_p) {
   Reminder *rem = (Reminder *) rem_p;
   return is_reminder_old(*rem) || is_reminder_triggered(*rem) || is_reminder_upcoming(*rem);
 }
@@ -790,9 +823,9 @@ bool action_reminders(Input *input) {
   }
 
   if (only_triggered) {
-    list_filter(&reminders, is_reminder_triggered_list_handler, (void (*)(void *)) free_reminder);
+    list_filter(&reminders, is_reminder_triggered_list_filter, (void (*)(void *)) free_reminder);
   } else if (only_near) {
-    list_filter(&reminders, is_reminder_near_list_handler, (void (*)(void *)) free_reminder);
+    list_filter(&reminders, is_reminder_near_list_filter, (void (*)(void *)) free_reminder);
   }
 
   if (filter_tag) {
@@ -907,7 +940,7 @@ bool action_print_new_line(Input *input) {
 Functionality cli_functionality[] = {
   { "--", "", action_do_nothing, MAN("Comment. Mostly used in file exports/imports and executing files", "[text]") }, // Comment and empty lines
   { "print_new_line", "", action_print_new_line, MAN("Prints a new line. Just that...", "") },
-  { "list", "-l", action_list_todos, MAN("List all ToDos", "", "tasks", "reminders / rem", "tags", "tag [tag name]", "tasks tag [tag name]", "reminders tag [tag name]", "tags tag [tag name]") },
+  { "list", "-l", action_list_todos, MAN("List all ToDos", "", "tasks", "tasks incomplete", "reminders / rem", "tags", "tag [tag name]", "tasks tag [tag name]", "reminders tag [tag name]", "tags tag [tag name]") },
   { "execute", NULL, action_execute_commands, MAN("Execute a list of idea commands from a text file", "[file]")},
   { "export", NULL, action_export_todos, MAN("Export the ToDos to a text file", "[file]") },
   { "sync", NULL, action_sync_todos, MAN("Check and import the ToDos from a text file generated by idea", "[file]") },

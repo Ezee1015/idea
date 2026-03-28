@@ -23,6 +23,8 @@ typedef struct {
 } List;
 #define list_new() (List) { 0 };
 
+# define list_any list_map_bool
+
 void list_append(List *list, void *element);
 
 void list_insert_at(List *list, void *element, unsigned int pos);
