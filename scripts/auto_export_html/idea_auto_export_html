@@ -14,7 +14,9 @@ INDEX_PATH="$SCRIPT_DATA_PATH/index.html"
 GENERATED_HTML_PATH="$SCRIPT_DATA_PATH/generated.html"
 
 HTML_REDIRECT_SEC=1
+HTML_ERROR_REDIRECT_SEC=1
 JS_REDIRECT_MSEC=500
+JS_ERROR_REDIRECT_MSEC=1000
 INDEX_HTML="
 <!DOCTYPE html>
 <html>
@@ -100,6 +102,91 @@ INDEX_HTML="
 </html>
 "
 
+ERROR_HTML="
+<!DOCTYPE html>
+<html>
+    <head>
+        <!-- Source: https://stackoverflow.com/a/5411567 -->
+        <meta http-equiv=\"refresh\" content=\"$HTML_ERROR_REDIRECT_SEC; url=./index.html\" />
+
+        <title>idea</title>
+        <link rel=\"icon\" type=\"image/png\" href=\"data:image/png;base64,$ICON_BASE64\">
+
+        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+
+        <style>
+            /* Colors taken from <https://tsoding.github.io/schedule/> */
+            :root {
+                --bg: #181818;
+                --bg-light: #1b1b1b;
+
+                --fg: #e4e4ef;
+                --fg-dark: #515151;
+
+                --green: #73c936;
+            }
+
+            body {
+                background: var(--bg);
+                color: var(--fg);
+            }
+
+            header {
+                background: var(--bg);
+
+                position: sticky;
+                top: 0px;
+            }
+
+            h1 {
+                text-align: center;
+                color: var(--green);
+            }
+
+            h2 {
+                font-size: 22px;
+                text-align: center;
+                margin-bottom: 0px;
+            }
+
+            p {
+                text-align: center;
+            }
+
+            a {
+                text-decoration: none;
+                color: var(--green);
+                border-bottom: 1px solid;
+            }
+        </style>
+    </head>
+
+    <body>
+        <header>
+            <h1>idea</h1>
+            <hr>
+        </header>
+
+        <main>
+            <h2>An error has occurred. Trying again...</h2>
+            <p id=\"redirect_text\">If the browser doesn't redirect you, please <a href=\"index.html\">click here</a></p>
+        </main>
+    </body>
+    <script>
+        redirect_text.style.display = \"none\"
+
+        // If JS is available redirect it faster than HTML refresh that only accepts seconds
+        setTimeout(() => {
+            window.location.replace(\"./index.html\");
+        }, $JS_ERROR_REDIRECT_MSEC)
+
+        setTimeout(() => {
+            redirect_text.style.display = \"revert\"
+        }, $HTML_ERROR_REDIRECT_SEC * 1000 + 200)
+    </script>
+</html>
+"
+
 help() {
     echo "-h, --help ......... Help"
     echo "--daemon ........... Run daemon"
@@ -108,7 +195,8 @@ help() {
 export_html() {
     IDEA_OUTPUT=$(IDEA_LOCAL_PATH="$IDEA_LOCAL_PATH" $IDEA_EXE_PATH html "$GENERATED_HTML_PATH")
     if [[ $? -ne 0 ]]; then
-        rm "$GENERATED_HTML_PATH"
+        # rm "$GENERATED_HTML_PATH"
+        echo "$ERROR_HTML" > "$GENERATED_HTML_PATH"
         echo "[ERROR] Error while exporting to HTML: $IDEA_OUTPUT"
     fi
     echo "[INFO] Exported HTML from idea at $(date) ($(date '+%s'))"
