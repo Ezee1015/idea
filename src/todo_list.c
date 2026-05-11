@@ -1058,6 +1058,10 @@ bool is_task_incomplete(Task task) {
   return task.state != 'x' && task.state != '~';
 }
 
+bool is_reminder_near(Reminder rem) {
+  return is_reminder_old(rem) || is_reminder_triggered(rem) || is_reminder_upcoming(rem);
+}
+
 bool get_all_tasks(List *tasks) {
   if (!tasks || !list_is_empty(*tasks)) return false;
 

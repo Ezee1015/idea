@@ -788,7 +788,7 @@ bool is_reminder_triggered_list_filter(void *rem_p) {
 
 bool is_reminder_near_list_filter(void *rem_p) {
   Reminder *rem = (Reminder *) rem_p;
-  return is_reminder_old(*rem) || is_reminder_triggered(*rem) || is_reminder_upcoming(*rem);
+  return is_reminder_near(*rem);
 }
 
 bool action_reminders(Input *input) {

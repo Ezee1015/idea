@@ -111,6 +111,10 @@
                 margin-right: 5px;
             }
 
+            #dashboard_only_show_near_reminders {
+                margin-top: 15px;
+            }
+
             /* Filters */
 
             #add_search_filter {
@@ -512,7 +516,8 @@
 
                 <div class="menu_content">
                     <!-- REMINDERS -->
-                    <p class="menu_subtitle"><u>Reminders</u></p>
+                    <input id="dashboard_only_show_near_reminders" class="checkbox clickable" type="checkbox" checked oninput="dashboard_filter_reminders()"> <label for="dashboard_only_show_near_reminders"> Only show near reminders</label>
+                    <u><p id="dashboard_reminders_title" class="menu_subtitle">Reminders</p></u>
                     <c>
                         List all_reminders = list_new();
                         if (!get_all_reminders(&all_reminders)) {
@@ -548,7 +553,7 @@
                     </c>
 
                     <!-- TASKS -->
-                    <p class="menu_subtitle"><u>Tasks</u></p>
+                    <p class="menu_subtitle"><u>Incomplete Tasks</u></p>
                     <c>
                         List all_tasks = list_new();
                         if (!get_all_tasks(&all_tasks)) {
@@ -821,7 +826,10 @@
 
         function getElementInsideContainer(container, className) {
             const list = container.getElementsByClassName(className)
-            if (list.length != 1) {
+            if (list.length == 0) {
+                return undefined
+            }
+            if (list.length > 1) {
                 console.log("Error: There's more than one or none `" + className + "` in this container:")
                 console.log(container)
             }
@@ -1006,6 +1014,58 @@
 
                 if (!ok) {
                     hideTodo(todo)
+                }
+            }
+        }
+
+        const ReminderStatus = {
+            OLD: "old",
+            TRIGGERED: "triggered",
+            UPCOMING: "upcoming",
+            NONE: "none",
+        }
+
+        function getReminderStatus(reminderDateStart, reminderDateEnd) {
+            const now = new Date(Date.now())
+
+            if (reminderDateEnd) {
+                if (reminderDateStart <= now && now <= reminderDateEnd) return ReminderStatus.TRIGGERED
+                if (reminderDateEnd < now) return ReminderStatus.OLD
+            } else {
+                // Source: <https://coreui.io/answers/how-to-check-if-date-is-today-in-javascript/>
+                if (reminderDateStart.toDateString() == now.toDateString()) return ReminderStatus.TRIGGERED
+                if (reminderDateStart < now) return ReminderStatus.OLD
+            }
+
+            if (getDifferenceInDaysFromDates(now, reminderDateStart) <= UPCOMING_REMINDER_DAYS) return ReminderStatus.UPCOMING
+
+            return ReminderStatus.NONE
+        }
+
+        function dashboard_filter_reminders() {
+            const dashboard_reminders = dashboard.getElementsByClassName("reminder")
+
+            dashboard_reminders_title.innerText = (dashboard_only_show_near_reminders.checked)
+                                                  ? "Near reminders"
+                                                  : "Reminders"
+
+
+            for (rem of dashboard_reminders) {
+                if (dashboard_only_show_near_reminders.checked) {
+                    const reminderDateStartElement = getElementInsideContainer(rem, "reminder_date_start")
+                    const reminderDateStart = getDateFromString(reminderDateStartElement.innerText)
+
+                    const reminderDateEndElement = getElementInsideContainer(rem, "reminder_date_end")
+                    const reminderDateEnd = (reminderDateEndElement) ? getDateFromString(reminderDateEndElement.innerText) : undefined
+
+                    const reminderStatus = getReminderStatus(reminderDateStart, reminderDateEnd)
+                    const isNear = (reminderStatus == ReminderStatus.TRIGGERED || reminderStatus == ReminderStatus.OLD || reminderStatus == ReminderStatus.UPCOMING)
+                    if (!isNear) {
+                        rem.style.display = "none"
+                    }
+
+                } else {
+                    rem.style.display = ""
                 }
             }
         }
@@ -1247,26 +1307,22 @@
             const reminderDateDiffStartString = getDifferenceStringFromDates(now, reminderDateStart)
             const reminderDateDiffEndString = (reminderHasEndDate) ? getDifferenceStringFromDates(now, reminderDateEnd) : undefined
 
-            // Source: <https://coreui.io/answers/how-to-check-if-date-is-today-in-javascript/>
-            const triggered = (reminderHasEndDate) ? (reminderDateStart <= now && now <= reminderDateEnd) : (reminderDateStart.toDateString() == now.toDateString())
-            const old = ((reminderHasEndDate && reminderDateEnd < now) || (reminderDateStart < now))
+            const reminderStatus = getReminderStatus(reminderDateStart, reminderDateEnd)
 
-            if (triggered) {
+            if (reminderStatus == ReminderStatus.TRIGGERED) {
                 reminderDateDiffElement.innerHTML += " (TODAY)"
+                reminderDateDiffElement.style.color = "red"
             } else if (reminderDateDiffStart == 1) {
                 reminderDateDiffElement.innerHTML += " (Tomorrow)"
+                reminderDateDiffElement.style.color = "yellow"
             } else {
-                let deltaString = (old && reminderHasEndDate) ? reminderDateDiffEndString : reminderDateDiffStartString
+                let deltaString = (reminderStatus == ReminderStatus.OLD && reminderHasEndDate) ? reminderDateDiffEndString : reminderDateDiffStartString
                 reminderDateDiffElement.innerHTML += " (" + deltaString + ")"
             }
 
-            if (triggered) {
-                reminderDateDiffElement.style.color = "red"
-            } else if (old) {
+            if (reminderStatus == ReminderStatus.OLD) {
                 reminderNameElement.style.color = "gray"
                 reminderDateDiffElement.style.color = "gray"
-            } else if (reminderDateDiffStart <= UPCOMING_REMINDER_DAYS) { // Upcoming
-                reminderDateDiffElement.style.color = "yellow"
             }
         }
 
@@ -1356,11 +1412,14 @@
         if (isChromium) {
             window.addEventListener("pageshow", function() {
                 autoApplyFilter()
+                dashboard_filter_reminders()
             }, false);
         }
 
         // on page reload
         autoApplyFilter()
+        dashboard_filter_reminders()
+
 
         // Add keyboard compatibility
         // Source: <https://developer.brianshim.com/make-html-tag-selectable-using-tab-accessibility/>

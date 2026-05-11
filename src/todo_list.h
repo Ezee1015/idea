@@ -98,5 +98,6 @@ Reminder *reminder_insertion_comparator(Reminder *rem1, Reminder *rem2);
 void free_reminder(Reminder *rem);
 bool get_reminders_from_todo(Todo *todo, List *reminders);
 bool get_all_reminders(List *reminders);
+bool is_reminder_near(Reminder rem);
 
 #endif
