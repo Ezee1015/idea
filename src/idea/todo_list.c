@@ -7,10 +7,10 @@
 
 #include "main.h"
 #include "parser.h"
-#include "utils/list.h"
-#include "utils/string.h"
+#include "../utils/list.h"
+#include "../utils/string.h"
 #include "todo_list.h"
-#include "template/template.h"
+#include "templates/html/html.h"
 
 bool is_a_number(const char *s) {
   for (int i = 0; s[i]; i++) if (s[i] < '0' || s[i] > '9') return false;
@@ -719,7 +719,8 @@ bool action_generate_html(Input *input) {
     goto exit;
   }
 
-  ret = generate_html(output_file, (!list_is_empty(custom_todos)) ? custom_todos : todo_list);
+  html_todo_list = (!list_is_empty(custom_todos)) ? custom_todos : todo_list;
+  ret = generate_html(output_file);
   list_destroy(&custom_todos, NULL);
 
 exit:

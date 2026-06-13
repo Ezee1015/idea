@@ -4,8 +4,8 @@
 
 #include "tui.h"
 #include "main.h"
-#include "utils/list.h"
-#include "utils/string.h"
+#include "../utils/list.h"
+#include "../utils/string.h"
 #include "parser.h"
 
 #define i_div_ceil(dividend, divisor) (dividend % divisor)     \

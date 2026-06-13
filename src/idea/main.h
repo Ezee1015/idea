@@ -4,8 +4,8 @@
 #include <stdbool.h>
 #include <malloc.h>
 
-#include "utils/list.h"
-#include "utils/string.h"
+#include "../utils/list.h"
+#include "../utils/string.h"
 #include "config.h"
 
 extern List todo_list;

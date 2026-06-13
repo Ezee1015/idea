@@ -8,11 +8,144 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <pthread.h>
 
-#include "../../src/parser.h"
-#include "../../src/todo_list.h"
+#include "../utils/list.h"
+#include "../utils/string.h"
 
-#include "tests.h"
+#include "../idea/parser.h"
+#include "../idea/todo_list.h"
+
+// This should be the same length
+#define CASE_PASSED        "  "
+#define CASE_FAILED        "  "
+#define CASE_UNTESTED      "  "
+#define CASE_NOT_SPECIFIED "  "
+#define CASE_LEAK          "  "
+#define CASE_LENGTH 3 // Because it has some characters that break strlen()
+
+#define MACRO_STR(n) #n
+#define MACRO_INT_TO_STR(n) MACRO_STR(n)
+
+#define VALGRIND_LEAK_EXIT_CODE 255 // Some random number
+#define VALGRIND_CMD "valgrind --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all --error-exitcode=" MACRO_INT_TO_STR(VALGRIND_LEAK_EXIT_CODE)
+
+#define ANSI_RED       "\033[0;31m"
+#define ANSI_GREEN     "\033[0;32m"
+#define ANSI_YELLOW    "\033[0;33m"
+#define ANSI_BLUE      "\033[0;34m"
+#define ANSI_GRAY      "\033[0;90m"
+#define ANSI_RESET     "\033[0m"
+#define ANSI_UNDERLINE "\033[4m"
+
+#define APPEND_TO_MESSAGES(runner_data, type, name, msg)             \
+    pthread_mutex_lock(runner_data->m_messages);                     \
+    list_append(runner_data->messages, sb_create(                    \
+            "- " ANSI_GRAY type ":" ANSI_RESET " %s\n"               \
+            "  " ANSI_GRAY "in the function" ANSI_RESET " %s()\n"    \
+            "  " ANSI_GRAY "added this message:" ANSI_RESET " %s\n", \
+            name, __FUNCTION__, msg ).str);                          \
+    pthread_mutex_unlock(runner_data->m_messages);
+
+#define APPEND_WITH_FORMAT_TO_MESSAGES(runner_data, type, name, fmt, ...)    \
+    pthread_mutex_lock(runner_data->m_messages);                             \
+    list_append(runner_data->messages, sb_create(                            \
+            "- " ANSI_GRAY type ":" ANSI_RESET " %s\n"                       \
+            "  " ANSI_GRAY "in the function" ANSI_RESET " %s()\n"            \
+            "  " ANSI_GRAY "added this message: " ANSI_RESET fmt "\n",       \
+            name, __FUNCTION__, __VA_ARGS__ ).str);                          \
+    pthread_mutex_unlock(runner_data->m_messages);
+
+// X macro. References:
+// - https://www.youtube.com/watch?v=PgDqBZFir1A
+// - https://en.wikipedia.org/wiki/X_macro
+#define CASES() \
+  X(import_initial_state) \
+  X(execution) \
+  X(export_final_state) \
+  X(expected_final_state) \
+  X(clear_after_test)
+
+typedef struct {
+  char *idea_path;
+
+  char *repo_path;
+  char *tmp_path;
+
+  char *tests_filepath;
+  char *initial_states_path;
+  char *final_states_path;
+  char *logs_path;
+
+  unsigned int max_test_name_length;
+
+  bool log;
+  bool valgrind;
+  unsigned int threads;
+} Tests_state;
+
+typedef enum {
+  RESULT_NOT_TESTED,
+  RESULT_FAILED,
+  RESULT_PASSED,
+  RESULT_NOT_SPECIFIED,
+  RESULT_COUNT
+} Result_type;
+
+typedef struct {
+  unsigned int count;
+  unsigned int results[RESULT_COUNT];
+  unsigned int good_mem_leaks;
+  unsigned int bad_mem_leaks;
+} Statistics;
+
+typedef struct {
+  Result_type result;
+  bool memory_leak;
+} Case;
+
+typedef struct {
+#define X(s) Case s;
+  CASES()
+#undef X
+} Test_result;
+
+typedef struct {
+  char *name;
+  char *state;
+
+  List instructions;
+
+  bool should_fail_execution;
+  bool expect_state_unchanged;
+
+  Test_result results;
+} Test;
+
+typedef struct {
+  unsigned int start;
+  unsigned int end;
+} Range;
+
+typedef struct {
+  List tests;
+  Range tests_range;
+
+  List *messages;
+  pthread_mutex_t *m_messages;
+
+  Statistics *stats;
+  pthread_mutex_t *m_stats;
+
+  FILE *log_file;
+  pthread_mutex_t *m_log;
+
+  // Completed inside the thread:
+  char *local_path;
+  char *export_filepath;
+} Runner_data;
+
+/////// Initialize variables
 
 Tests_state state = {
   .idea_path = "build/idea",
@@ -31,6 +164,10 @@ Tests_state state = {
   .valgrind = false,
   .threads = 1
 };
+
+#define X(s) bool run_test_case_##s(Runner_data *runner_data, Test *t, char *base_cmd, bool valgrind);
+  CASES()
+#undef X
 
 // Lines of the export/state file that should not be compared,
 // because they are unique to the moment the program is run

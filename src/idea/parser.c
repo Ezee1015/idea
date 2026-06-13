@@ -2,7 +2,7 @@
 #include <string.h>
 
 #include "parser.h"
-#include "utils/string.h"
+#include "../utils/string.h"
 
 char *next_token(Input *input, char divider) {
   if (input->cursor > input->length) return NULL;

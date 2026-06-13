@@ -3,7 +3,7 @@
 
 #include <ncurses.h>
 
-#include "utils/list.h"
+#include "../utils/list.h"
 #include "todo_list.h"
 #include "tui_mappings.h"
 

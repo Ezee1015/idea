@@ -6,8 +6,8 @@
 #include "main.h"
 #include "parser.h"
 #include "todo_list.h"
-#include "utils/list.h"
-#include "utils/string.h"
+#include "../utils/list.h"
+#include "../utils/string.h"
 
 bool cli_disable_colors = false;
 

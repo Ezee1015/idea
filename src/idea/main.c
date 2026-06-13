@@ -8,8 +8,8 @@
 #include "todo_list.h"
 #include "tui.h"
 #include "cli.h"
-#include "utils/list.h"
-#include "utils/string.h"
+#include "../utils/list.h"
+#include "../utils/string.h"
 
 State idea_state = {0};
 List backtrace = {0};

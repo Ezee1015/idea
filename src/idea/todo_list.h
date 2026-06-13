@@ -6,7 +6,7 @@
 #include <time.h>
 #include <stdint.h>
 
-#include "utils/list.h"
+#include "../utils/list.h"
 #include "parser.h"
 
 #define SAVE_FILE_INDENTATION " │"
