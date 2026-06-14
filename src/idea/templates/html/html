@@ -408,6 +408,14 @@
                 margin-bottom: 15px;
             }
 
+            #toothless {
+                position: fixed;
+                bottom: 0px;
+                right: 1%;
+                width: 8%;
+                filter: drop-shadow(8px 4px 2px #000);
+            }
+
             /* Footer */
             footer {
                 text-align: center;
@@ -438,6 +446,10 @@
                     width: 98%;
                     margin-left: 1%;
                 }
+
+                #toothless {
+                    width: 23%;
+                }
             }
 
             @media print {
@@ -455,6 +467,10 @@
 
                 header {
                     position: revert;
+                }
+
+                #toothless {
+                    display: none;
                 }
             }
         </style>
@@ -786,6 +802,10 @@
                     </div>
                 <c> } </c>
             </div>
+
+            <c> #ifdef TOOTHLESS </c>
+                <img id="toothless" src="data:image/gif;base64,<c>CSTR(TOOTHLESS)</c>">
+            <c> #endif // TOOTHLESS </c>
         </main>
 
         <footer>

@@ -110,3 +110,6 @@ For the checkpoint, remember to execute this commands:
 
 <img src="https://docs.utnso.com.ar/img/logo.gif" alt="Tux">
 ```
+
+## Attributions
+- [Toothless gif](https://tenor.com/es-AR/view/toothless-dancing-toothless-dance-meme-meme-how-to-train-your-dragon-gif-15735082899997367911)
