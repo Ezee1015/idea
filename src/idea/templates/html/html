@@ -447,7 +447,13 @@
                     margin-left: 1%;
                 }
 
+                @keyframes moveAcross {
+                    from { left: 76%; } /* 100% - width  - 1% (of margin)*/
+                    to   { left: 1% }
+                }
+
                 #toothless {
+                    animation: moveAcross 180s linear infinite alternate;
                     width: 23%;
                 }
             }
@@ -1440,7 +1446,6 @@
         // on page reload
         autoApplyFilter()
         dashboard_filter_reminders()
-
 
         // Add keyboard compatibility
         // Source: <https://developer.brianshim.com/make-html-tag-selectable-using-tab-accessibility/>
