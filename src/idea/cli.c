@@ -684,6 +684,7 @@ bool action_version(Input *input) {
 
   printf("%sVersion: %s" COMMIT "\n", ANSI_GRAY, ANSI_RESET);
   printf("%sLocal path: %s%s\n", ANSI_GRAY, ANSI_RESET, idea_state.local_path);
+  printf("%sCompiled at: %s" __DATE__ ", " __TIME__ "\n", ANSI_GRAY, ANSI_RESET);
   return true;
 }
 #endif // COMMIT
