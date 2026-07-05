@@ -220,6 +220,7 @@ bool get_tests(List *tests) {
   while (sb_read_line(tests_file, &line)) {
     if (!line.length) {
       if (test && !is_a_valid_test(test)) {
+        printf("[ERROR] Invalid test detected. Reading aborted at line %d\n", line_nr);
         ret = false;
         goto exit;
       }
@@ -802,8 +803,12 @@ bool initialize_and_create_log_dir() {
   time_t t = time(NULL);
   struct tm *tm = localtime(&t);
 
-  String_builder path = sb_create("%s/tests/logs", state.repo_path);
-  if (!create_dir_if_not_exists(path.str)) return false;
+  String_builder path = sb_create("%s/src/tests/logs", state.repo_path);
+  if (!create_dir_if_not_exists(path.str)) {
+      printf("[ERROR] Unable to create the directory %s\n", path.str);
+      sb_free(&path);
+      return false;
+  }
 
   sb_append_with_format(&path, "/%u-%02u-%02u %02u:%02u:%02u",
                                 tm->tm_year+1900,
@@ -813,20 +818,29 @@ bool initialize_and_create_log_dir() {
                                 tm->tm_min,
                                 tm->tm_sec);
 
+  if (!create_dir_if_not_exists(path.str)) {
+    printf("[ERROR] Unable to create the directory %s\n", path.str);
+    sb_free(&path);
+    return false;
+  }
+
   state.logs_path = path.str;
-  return create_dir_if_not_exists(path.str);
+  return true;
 }
 
 bool initialize_paths() {
   String_builder tmp = sb_new();
-  if (!sb_append_from_shell_variable(&tmp, "TMPDIR")) return false;
+  if (!sb_append_from_shell_variable(&tmp, "TMPDIR")) {
+    printf("[ERROR] Unable to get the TMPDIR environment variable\n");
+    return false;
+  }
 
   if (!state.repo_path) state.repo_path = ".";
 
   state.tmp_path            = tmp.str;
-  state.tests_filepath      = sb_create("%s/tests/tests", state.repo_path).str;
-  state.initial_states_path = sb_create("%s/tests/states/initial", state.repo_path).str;
-  state.final_states_path   = sb_create("%s/tests/states/final", state.repo_path).str;
+  state.tests_filepath      = sb_create("%s/src/tests/tests", state.repo_path).str;
+  state.initial_states_path = sb_create("%s/src/tests/states/initial", state.repo_path).str;
+  state.final_states_path   = sb_create("%s/src/tests/states/final", state.repo_path).str;
 
   if (state.log && !initialize_and_create_log_dir()) return false;
   return true;
@@ -1019,11 +1033,13 @@ int main(int argc, char *argv[]) {
   if (state.log) {
     String_builder log_path = sb_create("%s/final_results.txt", state.logs_path);
     log = fopen(log_path.str, "w");
-    sb_free(&log_path);
     if (!log) {
+      printf("[ERROR] Unable to open %s\n", log_path.str);
+      sb_free(&log_path);
       ret = 1;
       goto exit;
     }
+    sb_free(&log_path);
 
     print_results_header(log);
   }
