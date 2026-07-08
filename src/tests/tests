@@ -442,6 +442,30 @@ command: html
 should_fail
 
 -- --------------------
+-- GENERATE_AUTOCOMPLETE
+-- --------------------
+
+name: generate_autocomplete
+initial_state: 5_basic_todos
+command: generate_autocomplete
+should_fail
+
+name: generate_autocomplete_shell_non_existant
+initial_state: 5_basic_todos
+command: generate_autocomplete something somewhere
+should_fail
+
+name: generate_autocomplete_bash_no_path
+initial_state: 5_basic_todos
+command: generate_autocomplete bash
+should_fail
+
+name: generate_autocomplete_bash
+initial_state: 5_basic_todos
+command: generate_autocomplete bash /tmp/bash_completion.sh
+state_unchanged
+
+-- --------------------
 -- Mixing operations
 -- --------------------
 

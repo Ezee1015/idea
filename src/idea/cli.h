@@ -6,7 +6,7 @@
 #include "parser.h"
 #include "todo_list.h"
 
-#define NOTES_ICON "󱅄" //     󰠮  󰺿  󰅏
+#define NOTES_ICON ((cli_disable_colors) ? "N" : "󱅄") //     󰠮  󰺿  󰅏
 
 // Box chars source: <https://en.wikipedia.org/wiki/Box-drawing_characters>
 #define BOX_V_BAR "│"

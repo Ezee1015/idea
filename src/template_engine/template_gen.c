@@ -305,20 +305,18 @@ int main(int argc, char *argv[]) {
   } ret = SUCCESS;
   FILE *file_template = NULL;
   FILE *file_c = NULL;
-  char *c_filepath = NULL;
   char *template = NULL;
-  const char *template_name = NULL;
+  // const char *template_name = NULL;
+  char *template_path = NULL;
+  char *c_filepath = NULL;
 
   if (argc != 3 ) {
-    printf("%s [TEMPLATE filepath] [OUTPUT directory path]\n", argv[0]);
+    printf("%s [TEMPLATE filepath] [C OUTPUT filepath]\n", argv[0]);
     DEFER(HELP);
   }
 
-  char *template_path = argv[1],
-       *output_dir_path = argv[2];
-
-  template_name = basename(template_path);
-  c_filepath = sb_create("%s/%s.c", output_dir_path, template_name).str;
+  template_path = argv[1];
+  c_filepath = argv[2];
 
   file_template = fopen(template_path, "r");
   if (!file_template) DEFER(ERROR_FOPEN_TEMPLATE);
@@ -347,6 +345,5 @@ exit:
   if (file_c) fclose(file_c);
   if (ret == ERROR_GENERATING_C_OUTPUT) remove(c_filepath);
   if (template) free(template);
-  if (c_filepath) free(c_filepath);
   return ret;
 }
