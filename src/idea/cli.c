@@ -9,6 +9,7 @@
 #include "../utils/list.h"
 #include "../utils/string.h"
 #include "templates/bash_completion/bash_completion.h"
+#include "templates/zsh_completion/zsh_completion.h"
 
 bool cli_disable_colors = false;
 
@@ -960,7 +961,8 @@ bool action_generate_autocomplete(Input *input) {
     const char *name;
     bool (*generator)(FILE *output_file);
   } shells[] = {
-    { "bash", generate_bash_completion }
+    { "bash", generate_bash_completion },
+    { "zsh", generate_zsh_completion }
   };
   size_t shells_count = sizeof(shells) / sizeof(shells[0]);
 
@@ -1029,7 +1031,7 @@ Functionality cli_functionality[] = {
   { "loop", NULL, action_loop, MAN("Go into the CLI loop. You can execute `rlwrap idea loop` for a better experience", NULL) },
   { "reminders", "rem", action_reminders, MAN("See the reminders", "", "triggered", "near", "tag [tag_name]", "triggered tag [tag_name]", "near tag [tag_name]") },
   { "tags", NULL, action_tags, MAN("See the tags being used", "", "tag [tag_name]") },
-  { "generate_autocomplete", NULL, action_generate_autocomplete, MAN("Generate autocompletion files for the shell", "", "bash [path]") },
+  { "generate_autocomplete", NULL, action_generate_autocomplete, MAN("Generate autocompletion files for the shell", "", "bash [path]", "zsh [path]") },
 #ifdef COMMIT
   { "version", "-v", action_version, MAN("Print the commit hash and version", NULL) },
 #endif // COMMIT

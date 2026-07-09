@@ -5,8 +5,8 @@
 function _idea {
     local AVAILABLE_COMMANDS="
         <c>
-            COMMAND_LIST(todo_list_functionality, todo_list_functionality_count);
-            COMMAND_LIST(cli_functionality, cli_functionality_count);
+            BASH_COMMAND_LIST(todo_list_functionality, todo_list_functionality_count);
+            BASH_COMMAND_LIST(cli_functionality, cli_functionality_count);
         </c>
     "
 
@@ -20,8 +20,8 @@ function _idea {
     else
         PARAMS=()
         case "${COMP_WORDS[1]}" in
-            <c>COMMAND_SWITCH(todo_list_functionality, todo_list_functionality_count)</c>
-            <c>COMMAND_SWITCH(cli_functionality, cli_functionality_count)</c>
+            <c>BASH_COMMAND_SWITCH(todo_list_functionality, todo_list_functionality_count)</c>
+            <c>BASH_COMMAND_SWITCH(cli_functionality, cli_functionality_count)</c>
         esac
 
         for PARAM in "${PARAMS[@]}"; do

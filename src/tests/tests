@@ -455,14 +455,14 @@ initial_state: 5_basic_todos
 command: generate_autocomplete something somewhere
 should_fail
 
-name: generate_autocomplete_bash_no_path
+name: generate_autocomplete_no_path
 initial_state: 5_basic_todos
 command: generate_autocomplete bash
 should_fail
 
-name: generate_autocomplete_bash
+name: generate_autocomplete_zsh
 initial_state: 5_basic_todos
-command: generate_autocomplete bash /tmp/bash_completion.sh
+command: generate_autocomplete zsh /tmp/zsh_completion.sh
 state_unchanged
 
 -- --------------------

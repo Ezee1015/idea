@@ -1,0 +1,99 @@
+#compdef idea
+
+_idea() {
+    local -a commands
+    commands=(
+        <c>ZSH_COMMAND_LIST(todo_list_functionality, todo_list_functionality_count)</c>
+        <c>ZSH_COMMAND_LIST(cli_functionality, cli_functionality_count)</c>
+    )
+
+    _arguments -C \
+        '1: :->program' \
+        '*: :->args'
+
+    case "$state" in
+        program)
+            _describe -t commands 'commands' commands
+            ;;
+
+        *)
+            PARAMS=()
+            case $words[2] in
+                <c>ZSH_COMMAND_SWITCH(todo_list_functionality, todo_list_functionality_count)</c>
+                <c>ZSH_COMMAND_SWITCH(cli_functionality, cli_functionality_count)</c>
+            esac
+
+            for PARAM in "${PARAMS[@]}"; do
+                REPEAT_LAST_PARAMETER="" # for the token "[...]" (infinite arguments)
+                MATCHED=true
+                PARAM_WORDS=(${=PARAM})
+
+                # Check if the parameters and arguments previous to the current
+                # position match
+                for ((i=3; i<${#words}; i++)); do
+                    PARAM_WORD=${PARAM_WORDS[$i-2]}
+                    WORD=${words[$i]}
+
+                    if [[ -z $PARAM_WORD ]]; then
+                        if [[ -z $REPEAT_LAST_PARAMETER ]]; then MATCHED=false; fi
+                        break;
+                    fi
+
+                    if [[ "$PARAM_WORD" == "[...]" ]]; then
+                        REPEAT_LAST_PARAMETER=${PARAM_WORDS[$i-2]} # Take the previous one
+                        break;
+                    fi
+
+                    # We don't check if the token is ok. We could, but it is a little expensive...
+                    if [[ "$PARAM_WORD" != \[*\] ]]; then # If it is NOT a token
+                        if [[ "$WORD" != "$PARAM_WORD" ]]; then
+                            MATCHED=false
+                            break;
+                        fi
+                    fi
+                done
+
+                if $MATCHED; then
+                    if [[ -z $REPEAT_LAST_PARAMETER ]]; then
+                        NEXT=${PARAM_WORDS[${#words}-2]}
+                        if [[ "$NEXT" == "[...]" ]]; then NEXT=${PARAM_WORDS[${#words}-3]}; fi
+                    else
+                        NEXT=$REPEAT_LAST_PARAMETER
+                    fi
+
+                    if [[ -z "$NEXT" ]] \
+                       || [[ "$NEXT" == "[text]" ]] \
+                       || [[ "$NEXT" == "[name]" ]] \
+                       || [[ "$NEXT" == "[new_name]" ]] \
+                       || [[ "$NEXT" == "[new_position]" ]] \
+                       || [[ "$NEXT" == "[index]" ]];
+                   then
+                       _message "Nothing"
+                    elif [[ "$NEXT" == "[path]" ]]; then
+                        _files
+                    elif [[ "$NEXT" == "[tag_name]" ]]; then
+                        TAGS=("${(f)$(
+                            IDEA_CLI_DISABLE_COLORS=true "${words[1]}" tags | tail -n +2 | sed 's/    # //g' # Get tags from idea
+                        )}")
+
+                        for TAG in "${TAGS[@]}"; do
+                            if [[ $TAG == "$CURRENT_WORD"* ]]; then compadd -- "$TAG"; fi
+                        done
+                    elif [[ "$NEXT" == "[todo]" ]]; then
+                        TODOS=("${(f)$(
+                            IDEA_CLI_DISABLE_COLORS=true "${words[1]}" list | sed 's/^[0-9]) \(N \)\?//g'  # Get ToDos from idea
+                        )}")
+
+                        for TODO in "${TODOS[@]}"; do
+                            if [[ $TODO == "$CURRENT_WORD"* ]]; then compadd -- "$TODO"; fi
+                        done
+                    else
+                        compadd -- "$NEXT"
+                    fi
+                fi
+            done
+            ;;
+    esac
+}
+
+compdef _idea idea
