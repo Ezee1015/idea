@@ -231,6 +231,11 @@
                 font-size: 14px;
             }
 
+            .todo_notes pre {
+                margin: 0px;
+                white-space: pre-wrap;
+            }
+
             /* Set the maximum width of the images included in the ToDos to the container width */
             .todo_notes img {
                 max-width: 100%;
@@ -782,13 +787,13 @@
                                             new_line = false;
                                             </c><tr><c>
                                             </c><td class="todo_notes_line_nr unselectable"><c>UINT(line_nr)</c></td><c>
-                                            </c><td class="todo_notes_line"><c>
+                                            </c><td class="todo_notes_line"><pre><c>
                                         }
 
                                         switch (*notes) {
                                             case '\n':
                                                 new_line = true;
-                                                </c></td><c>
+                                                </c></pre></td><c>
                                                 </c></tr><c>
                                                 break;
 
