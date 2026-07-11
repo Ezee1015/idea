@@ -204,7 +204,7 @@ bool is_a_valid_test(Test *test) {
   return true;
 }
 
-bool get_tests(List *tests) {
+bool get_tests(List *tests, List *specific_tests) {
   bool ret = true;
 
   FILE *tests_file = fopen(state.tests_filepath, "r");
@@ -356,6 +356,22 @@ bool get_tests(List *tests) {
   }
 
   if (test && !is_a_valid_test(test)) ret = false;
+
+  if (!list_is_empty(*specific_tests)) {
+    List_iterator tests_iterator = list_iterator_create(*tests);
+    while (list_iterator_next(&tests_iterator)) {
+      const Test *test = list_iterator_element(tests_iterator);
+      bool found = false;
+
+      List_iterator names_iterator = list_iterator_create(*specific_tests);
+      while (list_iterator_next(&names_iterator)) {
+        const char *name = list_iterator_element(names_iterator);
+        if (!strcmp(test->name, name)) found = true;
+      }
+
+      if (!found) free_test(list_remove_element(tests, test));
+    }
+  }
 
 exit:
   sb_free(&line);
@@ -859,7 +875,7 @@ bool is_valgrind_available() {
   return (ret != -1 && WIFEXITED(ret) && ret == 0);
 }
 
-bool parse_args(int argc, char *argv[], int *ret) {
+bool parse_args(int argc, char *argv[], int *ret, List *tests_names) {
   for (int i=1; i < argc; i++) {
     if (!strcmp(argv[i], "-l")) {
       state.log = true;
@@ -872,13 +888,13 @@ bool parse_args(int argc, char *argv[], int *ret) {
         return false;
       }
 
-    } else if (!strcmp(argv[i], "-h")) {
+    } else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
       printf("Commands:\n");
       printf("\t-h\tPrint help\n");
       printf("\t-l\tEnable logs: dump al the commands and it's output\n");
       printf("\t-p\tSpecify the path to the idea repository directory\n");
       printf("\t-v\tRun checks with valgrind too\n");
-      printf("\t-j\tRun checks with the specified amount of threads\n");
+      printf("\nYou can specify the name of the test you want to run\n");
       return false;
 
     } else if (!strcmp(argv[i], "-p")) {
@@ -919,10 +935,7 @@ bool parse_args(int argc, char *argv[], int *ret) {
       state.threads = t;
 
     } else {
-      printf("Unrecognized arg (%dº): %s\n", i, argv[i]);
-
-      *ret = 1;
-      return false;
+      list_append(tests_names, argv[i]);
     }
   }
 
@@ -1010,18 +1023,24 @@ int main(int argc, char *argv[]) {
   pthread_mutex_t m_messages; pthread_mutex_init(&m_messages, NULL);
   pthread_mutex_t m_stats; pthread_mutex_init(&m_stats, NULL);
   pthread_mutex_t m_log; pthread_mutex_init(&m_log, NULL);
+  List specific_tests = list_new();
 
   int ret = 0;
-  if (!parse_args(argc, argv, &ret)) goto exit;
+  if (!parse_args(argc, argv, &ret, &specific_tests)) goto exit;
 
   if (!initialize_paths()) {
     ret = 1;
     goto exit;
   }
 
-  if (!get_tests(&tests)) {
+  if (!get_tests(&tests, &specific_tests)) {
     ret = 1;
     goto exit;
+  }
+
+  if (list_is_empty(tests)) {
+      printf("[INFO] No tests are specified\n");
+      goto exit;
   }
 
   if (state.threads > list_size(tests)) state.threads = list_size(tests);
@@ -1082,6 +1101,7 @@ int main(int argc, char *argv[]) {
   print_messages(messages);
 
 exit:
+  list_destroy(&specific_tests, NULL);
   list_destroy(&tests, (void (*)(void *))free_test);
   list_destroy(&messages, (void (*)(void *))free);
   pthread_mutex_destroy(&m_messages);
