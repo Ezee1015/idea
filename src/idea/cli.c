@@ -646,7 +646,7 @@ bool action_print_notes(Input *input) {
 
   bool number = false;
   if (arg) {
-    if (!strcmp(arg, "number")) {
+    if (!strcmp(arg, "numbers")) {
       free(arg);
       number = true;
     } else {
