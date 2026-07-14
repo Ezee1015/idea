@@ -30,6 +30,14 @@ For the scripts:
 
 > When running `make install` it will install the idea scripts too. You can see more information about each script inside the `scripts` directory
 
+### Termux installation
+```bash
+make install \
+    INSTALL_PATH="/data/data/com.termux/files/usr/bin" \
+    BASH_COMPLETION_INSTALL_PATH="/data/data/com.termux/files/usr/share/bash-completion/completions/idea" \
+    ZSH_COMPLETION_INSTALL_PATH="/data/data/com.termux/files/usr/share/zsh/site-functions/_idea"
+```
+
 ## Run
 This program has 2 interfaces: CLI or TUI.
 - You can see all the available CLI options with `./build/idea -h`

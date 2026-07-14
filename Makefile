@@ -4,7 +4,7 @@ FLAGS := -Wall -Wextra -lncurses -ggdb
 AVOID_CODE_INJECTION := sed 's/\\/\\\\\\\\/g; s/\"/\\\\\\\"/g; s/`/\\`/g'
 VERSION_FLAG := -DCOMMIT="\"$(shell git log -1 --format='%h | %s' | $(AVOID_CODE_INJECTION))\""
 
-UTILS_CFILES := $(wildcard src\/utils/*.c)
+UTILS_CFILES := $(wildcard src/utils/*.c)
 
 RESOURCES_FOLDER := resources
 ICON := $(RESOURCES_FOLDER)/icon/icon_192x192.png
@@ -25,7 +25,7 @@ COMPLETION_FOLDER := $(BUILD_FOLDER)/autocomplete
 TEMPLATE_BASH_COMPLETION := $(TEMPLATE_FOLDER)/bash_completion/bash_completion
 TEMPLATE_BASH_COMPLETION_CFILE := $(TEMPLATE_BUILD_FOLDER)/$(notdir $(TEMPLATE_BASH_COMPLETION)).c
 BASH_COMPLETION := $(COMPLETION_FOLDER)/bash
-BASH_COMPLETION_INSTALL_PATH := /usr/share/bash-completion/completions/idea
+BASH_COMPLETION_INSTALL_PATH ?= /usr/share/bash-completion/completions/idea
 
 TEMPLATE_ZSH_COMPLETION := $(TEMPLATE_FOLDER)/zsh_completion/zsh_completion
 TEMPLATE_ZSH_COMPLETION_CFILE := $(TEMPLATE_BUILD_FOLDER)/$(notdir $(TEMPLATE_ZSH_COMPLETION)).c
@@ -42,7 +42,7 @@ IDEA_EXEC := $(BUILD_FOLDER)/$(IDEA_EXEC_NAME)
 IDEA_CFILES := $(wildcard src/idea/*.c)
 
 TESTS_EXEC := $(BUILD_FOLDER)/tests
-TESTS_CFILES := $(wildcard src/tests/*.c) $(wildcard src/utils/*.c) src/idea/parser.c
+TESTS_CFILES := $(wildcard src/tests/*.c) $(UTILS_CFILES) src/idea/parser.c
 
 SCRIPTS := $(wildcard scripts/*)
 INSTALL_PATH ?= /usr/local/bin
@@ -103,9 +103,9 @@ run: $(IDEA_EXEC)
 .PHONY = install
 install: $(IDEA_EXEC) $(BASH_COMPLETION) $(ZSH_COMPLETION)
 	@echo "- Install bash completion"
-	mv $(BASH_COMPLETION) "$(BASH_COMPLETION_INSTALL_PATH)"
+	cp $(BASH_COMPLETION) "$(BASH_COMPLETION_INSTALL_PATH)"
 	@echo "- Install zsh completion"
-	mv $(ZSH_COMPLETION) "$(ZSH_COMPLETION_INSTALL_PATH)"
+	cp $(ZSH_COMPLETION) "$(ZSH_COMPLETION_INSTALL_PATH)"
 	@echo "- Installing idea in $(INSTALL_PATH)"
 	cp $(IDEA_EXEC) "$(INSTALL_PATH)/"
 	@echo "- Installing scripts"
