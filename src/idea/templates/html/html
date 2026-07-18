@@ -575,7 +575,7 @@
                                         </tr>
                                     <c>
                                 }
-                                list_destroy(&all_reminders, (void (*)(void *)) free_reminder);
+                                list_destroy(&all_reminders, NULL);
                                 </c> </table> <c>
                             </c> </div> <c>
                         }
@@ -650,7 +650,7 @@
                                         }
                                     </c> </div> <c>
                                 }
-                                list_destroy(&all_tasks, (void (*)(void *)) free_task);
+                                list_destroy(&all_tasks, NULL);
                                 if (last_todo_name) {
                                     </c></div><c> // Close the dashboard_todo_tasks_container div
                                 }
@@ -677,34 +677,32 @@
 
                             <!-- TAGS -->
                             <c>
-                                List tags = list_new();
-                                if (!get_attributes(e, ATTRIBUTE_TAG, &tags)) {
-                                  ERROR("Unable to get the tags");
+                                if (!build_attributes(e)) {
+                                    ERROR("Unable to build the attributes")
+                                    return false;
                                 }
-                                if (!list_is_empty(tags)) {
+                                if (!list_is_empty(e->attributes.tags)) {
                                     </c> <div class="tags_container"> <c>
                                         </c> <h3>Tags:</h3> <c>
-                                        List_iterator tag_iterator = list_iterator_create(tags);
+                                        List_iterator tag_iterator = list_iterator_create(e->attributes.tags);
                                         while (list_iterator_next(&tag_iterator)) {
                                             const char *tag = list_iterator_element(tag_iterator);
                                             </c> <p class="tag"><c>CSTR(tag)</c></p> <c>
                                         }
-                                        list_destroy(&tags, free);
                                     </c> </div> <c>
                                 }
                             </c>
 
                             <!-- TASKS -->
                             <c>
-                                List tasks = list_new();
-                                if (!get_attributes(e, ATTRIBUTE_TASK, &tasks)) {
-                                  ERROR("Unable to load the tasks")
+                                if (!build_attributes(e)) {
+                                  ERROR("Unable to build the attributes")
                                 }
-                                if (!list_is_empty(tasks)) {
+                                if (!list_is_empty(e->attributes.tasks)) {
                                     </c> <h3>Tasks</h3> <c>
                                     </c> <div> <c>
 
-                                    List_iterator tasks_iterator = list_iterator_create(tasks);
+                                    List_iterator tasks_iterator = list_iterator_create(e->attributes.tasks);
                                     while (list_iterator_next(&tasks_iterator)) {
                                         const Task *task = list_iterator_element(tasks_iterator);
 
@@ -739,22 +737,20 @@
                                     }
 
                                     </c> </div> <c>
-                                    list_destroy(&tasks, (void (*)(void *)) free_task);
                                 }
                             </c>
 
                             <!-- REMINDERS -->
                             <c>
-                                List reminders = list_new();
-                                if (!get_attributes(e, ATTRIBUTE_REMINDER, &reminders)) {
-                                    ERROR_FMT("Unable to load the reminders from the ToDo '%s'", e->name)
+                                if (!build_attributes(e)) {
+                                    ERROR_FMT("Unable to load the attributes from the ToDo '%s'", e->name)
                                 }
 
-                                if (!list_is_empty(reminders)) {
+                                if (!list_is_empty(e->attributes.reminders)) {
                                     </c> <h3>Reminders</h3> <c>
                                     </c> <div class="reminders_container"> <c>
                                         </c> <table> <c>
-                                            List_iterator rem_iterator = list_iterator_create(reminders);
+                                            List_iterator rem_iterator = list_iterator_create(e->attributes.reminders);
                                             while (list_iterator_next(&rem_iterator)) {
                                                 Reminder *rem = list_iterator_element(rem_iterator);
 
@@ -772,7 +768,6 @@
                                                     </tr>
                                                 <c>
                                             }
-                                            list_destroy(&reminders, (void (*)(void *)) free_reminder);
                                         </c> </table> <c>
                                     </c> </div> <c>
                                 }

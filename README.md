@@ -92,11 +92,12 @@ reminder: 2025-07-12 Live test of the project at university and oral defense
     - [x] 1.3: Register group for the project on the utnso website
 
 - [ ] 2: Create the protocol of communication
-      reminder: 2025-03-31 Do task #2
+      reminder: 2025-03-31 ~ 2026-04-05 Do task #2
 
     - [?] 2.1: Investigate about the handshake in C
           Question: What should the program do if the handshake fails? How can it happen?
     - [ ] 2.2: Code the utils for the different modules
+          reminder: 2025-04-01
     - [ ] 2.3: Test the code with various messages
 
 ## Checkpoint

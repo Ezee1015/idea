@@ -6,6 +6,7 @@
 #include <time.h>
 
 #include "main.h"
+#include "notes_parser.h"
 #include "parser.h"
 #include "../utils/list.h"
 #include "../utils/string.h"
@@ -63,6 +64,7 @@ void free_todo(Todo *todo) {
   free(todo->name);
   free(todo->hostname);
   free(todo->notes);
+  free_attributes(todo);
   free(todo);
 }
 
@@ -75,6 +77,7 @@ Todo *create_todo(char *name) {
   todo->name = name;
   todo->creation_time = time(NULL);
   todo->notes = NULL;
+  todo->attributes = (Attributes){0};
   todo->hostname = strdup(idea_state.config.hostname);
   if (!todo->hostname) return NULL;
 
@@ -671,6 +674,7 @@ bool action_notes_todo_remove(Input *input) {
   free(todo->notes);
   todo->notes = NULL;
   todo_list_modified = true;
+  todo->attributes.generated = false;
 
   return true;
 }

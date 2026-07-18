@@ -79,14 +79,13 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
     case TODO_ATTRIBUTE_TASKS: {
         if (!todo->notes) break;
 
-        List tasks = list_new();
-        if (!get_attributes(todo, ATTRIBUTE_TASK, &tasks)) return false;
-        bool has_incomplete_tasks = !list_any(tasks, is_task_complete_list_filter);
+        if (!build_attributes(todo)) return false;
+        bool has_incomplete_tasks = !list_any(todo->attributes.tasks, is_task_complete_list_filter);
 
-        if (list_is_empty(tasks) || (attribute == TODO_ATTRIBUTE_TASKS_INCOMPLETE && !has_incomplete_tasks)) break;
+        if (list_is_empty(todo->attributes.tasks) || (attribute == TODO_ATTRIBUTE_TASKS_INCOMPLETE && !has_incomplete_tasks)) break;
         printf( "%s%d)%s %s%s%s\n", ANSI_RED, index + 1, ANSI_RESET, ANSI_UNDERLINE, todo->name, ANSI_RESET);
 
-        List_iterator iterator = list_iterator_create(tasks);
+        List_iterator iterator = list_iterator_create(todo->attributes.tasks);
         while (list_iterator_next(&iterator)) {
           const Task *task = list_iterator_element(iterator);
 
@@ -117,7 +116,6 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
 
           }
         }
-        list_destroy(&tasks, (void (*)(void *)) free_task);
         printf("\n");
         break;
       }
@@ -125,22 +123,19 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
     case TODO_ATTRIBUTE_REMINDERS: {
       if (!todo->notes) break;
 
-      List reminders = list_new();
-      if (!get_attributes(todo, ATTRIBUTE_REMINDER, &reminders)) {
+      if (!build_attributes(todo)) {
         APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to load the reminders");
-        list_destroy(&reminders, (void (*)(void *)) free_reminder);
         return false;
       }
 
-      if (list_is_empty(reminders)) break;
+      if (list_is_empty(todo->attributes.reminders)) break;
       printf( "%s%d)%s %s%s%s\n", ANSI_RED, index + 1, ANSI_RESET, ANSI_UNDERLINE, todo->name, ANSI_RESET);
 
-      List_iterator iterator = list_iterator_create(reminders);
+      List_iterator iterator = list_iterator_create(todo->attributes.reminders);
       while (list_iterator_next(&iterator)) {
         const Reminder *rem = list_iterator_element(iterator);
         print_reminder(*rem, info_level_indentation);
       }
-      list_destroy(&reminders, (void (*)(void *)) free_reminder);
       printf("\n");
       break;
     }
@@ -148,19 +143,17 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
     case TODO_ATTRIBUTE_TAGS: {
       if (!todo->notes) break;
 
-      List tags = list_new();
-      if (!get_attributes(todo, ATTRIBUTE_TAG, &tags)) return false;
+      if (!build_attributes(todo)) return false;
 
-      if (list_is_empty(tags)) break;
+      if (list_is_empty(todo->attributes.tags)) break;
       printf( "%s%d)%s %s%s%s\n", ANSI_RED, index + 1, ANSI_RESET, ANSI_UNDERLINE, todo->name, ANSI_RESET);
 
-      List_iterator iterator = list_iterator_create(tags);
+      List_iterator iterator = list_iterator_create(todo->attributes.tags);
       while (list_iterator_next(&iterator)) {
         const char *tag = list_iterator_element(iterator);
         for (unsigned int i=0; i < info_level_indentation; i++) putc(' ', stdout);
         printf("- %s\n", tag);
       }
-      list_destroy(&tags, free);
       printf("\n");
       break;
     }
@@ -338,13 +331,12 @@ bool action_list_todos(Input *input) {
     Todo *todo = list_iterator_element(iterator);
 
     if (filter_tag) {
-      List tags = list_new();
-      if (!get_attributes(todo, ATTRIBUTE_TAG, &tags)) {
+      if (!build_attributes(todo)) {
         free(filter_tag);
         return false;
       }
 
-      List_iterator tag_iterator = list_iterator_create(tags);
+      List_iterator tag_iterator = list_iterator_create(todo->attributes.tags);
       bool tag_match = false;
       while (list_iterator_next(&tag_iterator)) {
         const char *tag = list_iterator_element(tag_iterator);
@@ -353,7 +345,6 @@ bool action_list_todos(Input *input) {
           break;
         }
       }
-      list_destroy(&tags, free);
 
       if (!tag_match) continue;
     }
@@ -624,6 +615,7 @@ bool action_notes_todo(Input *input) {
   }
 
   todo_list_modified = true;
+  todo->attributes.generated = false;
   return true;
 }
 
@@ -850,9 +842,9 @@ bool action_reminders(Input *input) {
   }
 
   if (only_triggered) {
-    list_filter(&reminders, is_reminder_triggered_list_filter, (void (*)(void *)) free_reminder);
+    list_filter(&reminders, is_reminder_triggered_list_filter, NULL);
   } else if (only_near) {
-    list_filter(&reminders, is_reminder_near_list_filter, (void (*)(void *)) free_reminder);
+    list_filter(&reminders, is_reminder_near_list_filter, NULL);
   }
 
   if (filter_tag) {
@@ -862,12 +854,11 @@ bool action_reminders(Input *input) {
     while (list_iterator_next(&rem_iterator)) {
       const Reminder *rem = list_iterator_element(rem_iterator);
 
-      List tags = list_new();
-      if (!get_attributes(rem->todo, ATTRIBUTE_TAG, &tags)) {
+      if (!build_attributes(rem->todo)) {
         free(filter_tag);
         return false;
       }
-      List_iterator tag_iterator = list_iterator_create(tags);
+      List_iterator tag_iterator = list_iterator_create(rem->todo->attributes.tags);
       bool tag_match = false;
       while (list_iterator_next(&tag_iterator)) {
         const char *tag = list_iterator_element(tag_iterator);
@@ -876,9 +867,8 @@ bool action_reminders(Input *input) {
           break;
         }
       }
-      list_destroy(&tags, free);
 
-      if (!tag_match) free_reminder(list_remove_element(&reminders, rem));
+      if (!tag_match) list_remove_element(&reminders, rem);
     }
 
     free(filter_tag);
@@ -891,7 +881,7 @@ bool action_reminders(Input *input) {
     const Reminder *rem = list_iterator_element(rem_iterator);
     print_reminder(*rem, 4);
   }
-  list_destroy(&reminders, (void (*)(void *)) free_reminder);
+  list_destroy(&reminders, NULL);
 
   return true;
 }
@@ -929,9 +919,12 @@ bool action_tags(Input *input) {
     while (list_iterator_next(&todo_list_iterator)) {
       Todo *todo = list_iterator_element(todo_list_iterator);
 
-      List todo_tags = list_new();
-      get_attributes(todo, ATTRIBUTE_TAG, &todo_tags);
-      List_iterator tag_iterator = list_iterator_create(todo_tags);
+      if (!build_attributes(todo)) {
+        free(filter_tag);
+        return false;
+      }
+
+      List_iterator tag_iterator = list_iterator_create(todo->attributes.tags);
       while (list_iterator_next(&tag_iterator)) {
         const char *tag = list_iterator_element(tag_iterator);
         if (!strcmp(tag, filter_tag)) {
@@ -939,14 +932,16 @@ bool action_tags(Input *input) {
           break;
         }
       }
-      list_destroy(&todo_tags, free);
     }
     free(filter_tag);
 
-    get_attributes_from_todo_list(todo_list_filtered, ATTRIBUTE_TAG, &tags);
+    if (!get_attributes_from_todo_list(todo_list_filtered, ATTRIBUTE_TAG, &tags)) {
+      list_destroy(&todo_list_filtered, NULL);
+      return false;
+    }
     list_destroy(&todo_list_filtered, NULL);
   } else {
-    get_attributes_from_todo_list(todo_list, ATTRIBUTE_TAG, &tags);
+    if (!get_attributes_from_todo_list(todo_list, ATTRIBUTE_TAG, &tags)) return false;
   }
 
   if (!list_is_empty(tags)) printf("Tags:\n");
@@ -958,7 +953,7 @@ bool action_tags(Input *input) {
     for (unsigned int i = 0; i < indentation; i++) putc(' ', stdout);
     printf("%s%s#%s %s\n", ANSI_GRAY, ANSI_ITALIC, ANSI_RESET, tag);
   }
-  list_destroy(&tags, free);
+  list_destroy(&tags, NULL);
 
   return true;
 }

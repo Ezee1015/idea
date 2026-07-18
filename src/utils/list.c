@@ -81,7 +81,7 @@ void list_filter(List *list, bool (*condition)(void *),  void (*free_element)(vo
 
     if (!condition(list_e)) {
       list_remove_element(list, list_e);
-      free_element(list_e);
+      if (free_element) free_element(list_e);
     }
   }
 }

@@ -1,9 +1,21 @@
 #include "notes_parser.h"
+#include <stdlib.h>
 #include <string.h>
 
 void free_task(Task *task) {
   free(task->msg);
   free(task);
+}
+
+void free_reminder(Reminder *rem) {
+  free(rem->name);
+  free(rem);
+}
+
+void free_attributes(Todo *todo) {
+  list_destroy(&todo->attributes.tasks, (void (*)(void *)) free_task);
+  list_destroy(&todo->attributes.reminders, (void (*)(void *)) free_reminder);
+  list_destroy(&todo->attributes.tags, free);
 }
 
 bool is_a_task(const char *cstr, unsigned int length) {
@@ -63,7 +75,7 @@ char *read_property(const char *property_name, const char *cstr, unsigned int cs
   if (!value) return NULL;
   strncpy(value, cstr + *cursor, value_length);
   value[value_length] = '\0';
-  *cursor = end_line;
+  *cursor = end_line-1;
 
   return value;
 }
@@ -118,18 +130,46 @@ bool parse_reminder(char *rem_str, Reminder *rem) {
   }
 
   rem->name = next_token(&rem_input, '\0');
-  if (!rem->name || rem->name[0] == '\0') {
-    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to get the name of the reminder");
-    if (rem->name) free(rem->name);
-    return false;
-  }
-
   return true;
 }
 
-bool get_attributes(Todo *todo, Attribute_type attr_type, List *attributes) {
+Task *read_task(Todo *todo, unsigned int notes_length, unsigned int *indentation, unsigned int spaces, unsigned int *cursor) {
+  // Auto-detect indentation with the indentation of the first checkbox
+  // that has some indentation
+  if (*indentation == 0 && spaces != 0) {
+    *indentation = spaces;
+  }
+
+  Task *task = malloc(sizeof(Task));
+  task->todo = todo;
+  task->level = (*indentation) ? spaces / *indentation : 0;
+  task->state = *(todo->notes + *cursor + 3);
+
+  // Read the message from the checkbox
+  *cursor += 6; // strlen("- [x] ")
+  unsigned int x = *cursor;
+  while (x < notes_length && todo->notes[x] != '\n') x++;
+  unsigned int msg_length = x - *cursor;
+  if (msg_length == 0) {
+    free(task);
+    return NULL;
+  }
+
+  task->msg = malloc(msg_length + 1);
+  if (!task->msg) return false;
+  strncpy(task->msg, todo->notes + *cursor, msg_length);
+  task->msg[msg_length] = '\0';
+
+  *cursor += msg_length-1;
+  return task;
+}
+
+bool build_attributes(Todo *todo) {
   if (!todo) return false;
   if (!todo->notes) return true;
+  if (todo->attributes.generated) return true;
+
+  free_attributes(todo);
 
   unsigned int notes_length = strlen(todo->notes);
   unsigned int indentation = 0;
@@ -153,95 +193,57 @@ bool get_attributes(Todo *todo, Attribute_type attr_type, List *attributes) {
     if (c == ' ') {
       spaces++;
       continue;
-
     }
 
-    switch (attr_type) {
-      case ATTRIBUTE_TASK:
-        if (is_a_task(cstr_start, cstr_length)){
-          // Auto-detect indentation with the indentation of the first checkbox
-          // that has some indentation
-          if (indentation == 0 && spaces != 0) {
-            indentation = spaces;
-          }
+    if (is_a_task(cstr_start, cstr_length)) {
+      Task *task = read_task(todo, notes_length, &indentation, spaces, &i);
+      if (task) list_append(&todo->attributes.tasks, task);
 
-          Task *task = malloc(sizeof(Task));
-          task->todo = todo;
-          task->level = (indentation) ? spaces / indentation : 0;
-          task->state = *(todo->notes + i + 3);
+    } else if (is_property("tags", cstr_start)) {
+      char *tags = read_property("tags", todo->notes, notes_length, &i);
 
-          // Read the message from the checkbox
-          i += 6; // strlen("- [x] ")
-          unsigned int x = i;
-          while (x < notes_length && todo->notes[x] != '\n') x++;
-          unsigned int msg_length = x - i;
-          if (msg_length == 0) {
-            free(task);
-            new_line = true;
-            continue;
-          }
+      Input tags_input = {
+        .input = tags,
+        .cursor = 0,
+        .length = strlen(tags),
+      };
+      char *tag = NULL;
+      while ( (tag = next_token(&tags_input, ' ')) ) list_append(&todo->attributes.tags, tag);
 
-          task->msg = malloc(msg_length + 1);
-          if (!task->msg) return false;
-          strncpy(task->msg, todo->notes + i, msg_length);
-          task->msg[msg_length] = '\0';
-          list_append(attributes, task);
+      free(tags);
 
-          i += msg_length;
-          new_line = true;
-          spaces = 0;
-          continue;
+    } else if (is_property("reminder", cstr_start)) {
+      char *reminder_cstr = read_property("reminder", todo->notes, notes_length, &i);
+
+      Reminder *rem = malloc(sizeof(Reminder));
+      memset(rem, 0, sizeof(Reminder));
+      rem->todo = todo;
+      bool ok = parse_reminder(reminder_cstr, rem);
+      free(reminder_cstr); reminder_cstr = NULL;
+      if (!ok) {
+        APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to parse the %dº reminder from the ToDo '%s'", todo->attributes.reminders.count+1, todo->name);
+        free(rem);
+        return false;
+      }
+
+      if (!rem->name || !strcmp(rem->name, "")) {
+        if (todo->attributes.tasks.count <= 0) {
+          APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to associate the %dº reminder to a task from the ToDo '%s'", todo->attributes.reminders.count+1, todo->name);
+          free(rem);
+          return false;
         }
-        break;
 
-      case ATTRIBUTE_TAG:
-        if (is_property("tags", cstr_start)) {
-          char *tags = read_property("tags", todo->notes, notes_length, &i);
+        rem->name = strdup( ((Task *) list_get(todo->attributes.tasks, todo->attributes.tasks.count-1))->msg );
+      }
 
-          Input tags_input = {
-            .input = tags,
-            .cursor = 0,
-            .length = strlen(tags),
-          };
-          char *tag = NULL;
-          while ( (tag = next_token(&tags_input, ' ')) ) {
-            // TODO Needed?
-            // const unsigned int tag_length = strlen(tag);
-            // if (tag[tag_length-1] == '\n') tag[tag_length-1] = '\0';
-            list_append(attributes, tag);
-          }
-
-          free(tags);
-          new_line = false;
-          continue;
-        }
-        break;
-
-      case ATTRIBUTE_REMINDER:
-        if (is_property("reminder", cstr_start)) {
-          char *reminder_cstr = read_property("reminder", todo->notes, notes_length, &i);
-
-          Reminder *rem = malloc(sizeof(Reminder));
-          memset(rem, 0, sizeof(Reminder));
-          rem->todo = todo;
-          bool ok = parse_reminder(reminder_cstr, rem);
-          free(reminder_cstr); reminder_cstr = NULL;
-          if (!ok) {
-            APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to parse the %dº reminder from the ToDo '%s'", attributes->count+1, todo->name);
-            free(rem);
-            return false;
-          }
-
-          list_insert_sorted(attributes, rem, (void *(*)(void *, void *)) reminder_insertion_comparator);
-          new_line = false;
-          continue;
-        }
-        break;
+      list_insert_sorted(&todo->attributes.reminders, rem, (void *(*)(void *, void *)) reminder_insertion_comparator);
     }
 
     new_line = false;
+    spaces = 0;
   }
 
+  todo->attributes.generated = true;
   return true;
 }
 
@@ -270,11 +272,6 @@ bool is_reminder_upcoming(Reminder rem) {
   const int days_left = get_delta_time_days(now, rem.start);
 
   return 0 < days_left && days_left <= UPCOMING_REMINDER_DAYS;
-}
-
-void free_reminder(Reminder *rem) {
-  free(rem->name);
-  free(rem);
 }
 
 Reminder *reminder_insertion_comparator(Reminder *rem1, Reminder *rem2) {
@@ -337,22 +334,30 @@ bool comparator_equals_tag(void *t1, void *t2) {
   return !strcmp(t1, t2);
 }
 
+// NOTE Memory allocation: Just free the attributes list nodes, not the items
 bool get_attributes_from_todo_list(List todos, Attribute_type attr_type, List *attributes) {
   List_iterator todo_list_iterator = list_iterator_create(todos);
   while (list_iterator_next(&todo_list_iterator)) {
     Todo *todo = list_iterator_element(todo_list_iterator);
 
-    List todo_attributes = list_new();
-    if (!get_attributes(todo, attr_type, &todo_attributes)) {
+    if (!build_attributes(todo)) {
       return false;
     }
 
-    while (!list_is_empty(todo_attributes)) {
-      void *attribute = list_remove(&todo_attributes, 0);
+    List *todo_attributes = NULL;
+    switch (attr_type) {
+      case ATTRIBUTE_TASK:     todo_attributes = &todo->attributes.tasks;     break;
+      case ATTRIBUTE_REMINDER: todo_attributes = &todo->attributes.reminders; break;
+      case ATTRIBUTE_TAG:      todo_attributes = &todo->attributes.tags;      break;
+    }
+
+    List_iterator attributes_iterator = list_iterator_create(*todo_attributes);
+    while (list_iterator_next(&attributes_iterator)) {
+      void *attribute = list_iterator_element(attributes_iterator);
 
       switch (attr_type) {
         case ATTRIBUTE_TAG:
-          if (!list_insert_if_unique(attributes, attribute, comparator_equals_tag)) free(attribute);
+          list_insert_if_unique(attributes, attribute, comparator_equals_tag);
           break;
 
         case ATTRIBUTE_REMINDER:

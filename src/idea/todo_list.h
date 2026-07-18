@@ -20,11 +20,21 @@
 #define UPCOMING_REMINDER_DAYS 10
 
 typedef struct {
+  bool generated;
+  List tags;
+  List reminders;
+  List tasks;
+} Attributes;
+
+typedef struct {
   char *name; // Primary key
 
   char *hostname;
   uint64_t creation_time;
   char *notes;
+
+  // Runtime-detected attributes from the notes to improve performance
+  Attributes attributes;
 } Todo;
 
 Todo *create_todo(char *name);

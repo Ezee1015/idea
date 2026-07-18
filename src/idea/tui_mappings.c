@@ -438,19 +438,22 @@ void nv_map_todo_information() {
   Todo *todo = list_get(todo_list, tui_st.current_pos);
   String_builder sb = sb_new();
 
-  // Tags
-  List tags = list_new();
-  get_attributes(todo, ATTRIBUTE_TAG, &tags);
-  if (!list_is_empty(tags)) sb_append(&sb, "Tags:\n");
-  List_iterator tag_iterator = list_iterator_create(tags);
-  while (list_iterator_next(&tag_iterator)) {
-    const char *tag = list_iterator_element(tag_iterator);
-
-    sb_append_with_format(&sb, "  - %s\n", tag);
+  if (!build_attributes(todo)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to load the attributes from the notes");
+    return;
   }
-  if (!list_is_empty(tags)) {
+
+  // Tags
+  if (!list_is_empty(todo->attributes.tags)) {
+    sb_append(&sb, "Tags:\n");
+    List_iterator tag_iterator = list_iterator_create(todo->attributes.tags);
+    while (list_iterator_next(&tag_iterator)) {
+      const char *tag = list_iterator_element(tag_iterator);
+
+      sb_append_with_format(&sb, "  - %s\n", tag);
+    }
+
     sb_append(&sb, "\n");
-    list_destroy(&tags, free);
     sb_append(&sb, "\nPress a key to continue...");
     if (message("ToDo Tags", sb.str) == 'q') {
       sb_free(&sb);
@@ -460,21 +463,15 @@ void nv_map_todo_information() {
   }
 
   // Tasks
-  const unsigned int tasks_level_indentation = 4;
-  List tasks = list_new();
-  if (!get_attributes(todo, ATTRIBUTE_TASK, &tasks)) {
-    sb_free(&sb);
-    return;
-  }
-  sb_append(&sb, "Tasks:\n");
-  List_iterator iterator = list_iterator_create(tasks);
-  while (list_iterator_next(&iterator)) {
-    const Task *t = list_iterator_element(iterator);
-    for (unsigned int x = 0; x < t->level * tasks_level_indentation; x++) sb_append_char(&sb, ' ');
-    sb_append_with_format(&sb, "  - [%c] %s\n", t->state, t->msg);
-  }
-  if (!list_is_empty(tasks)) {
-    list_destroy(&tasks, (void (*)(void *)) free_task);
+  if (!list_is_empty(todo->attributes.tasks)) {
+    const unsigned int tasks_level_indentation = 4;
+    sb_append(&sb, "Tasks:\n");
+    List_iterator iterator = list_iterator_create(todo->attributes.tasks);
+    while (list_iterator_next(&iterator)) {
+      const Task *t = list_iterator_element(iterator);
+      for (unsigned int x = 0; x < t->level * tasks_level_indentation; x++) sb_append_char(&sb, ' ');
+      sb_append_with_format(&sb, "  - [%c] %s\n", t->state, t->msg);
+    }
     sb_append(&sb, "\nPress a key to continue...");
     if (message("ToDo Tasks", sb.str) == 'q') {
       sb_free(&sb);
@@ -484,25 +481,19 @@ void nv_map_todo_information() {
   }
 
   // Reminders
-  List reminders = list_new();
-  if (!get_attributes(todo, ATTRIBUTE_REMINDER, &reminders)) {
-    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to load the reminders");
-    return;
-  }
-  if (!list_is_empty(reminders)) sb_append(&sb, "Reminders:\n");
-  List_iterator rem_iterator = list_iterator_create(reminders);
-  while (list_iterator_next(&rem_iterator)) {
-    const Reminder *rem = list_iterator_element(rem_iterator);
+  if (!list_is_empty(todo->attributes.reminders)) {
+    sb_append(&sb, "Reminders:\n");
+    List_iterator rem_iterator = list_iterator_create(todo->attributes.reminders);
+    while (list_iterator_next(&rem_iterator)) {
+      const Reminder *rem = list_iterator_element(rem_iterator);
 
-    sb_append_with_format(&sb, "  - %04d/%02d/%02d", rem->start.year, rem->start.month, rem->start.day);
-    if (!is_date_equals(rem->start, rem->end)) {
-      sb_append_with_format(&sb, " ~ %04d/%02d/%02d", rem->end.year, rem->end.month, rem->end.day);
+      sb_append_with_format(&sb, "  - %04d/%02d/%02d", rem->start.year, rem->start.month, rem->start.day);
+      if (!is_date_equals(rem->start, rem->end)) {
+        sb_append_with_format(&sb, " ~ %04d/%02d/%02d", rem->end.year, rem->end.month, rem->end.day);
+      }
+      sb_append_with_format(&sb, ": %s (from %s)\n", rem->name, rem->todo->name);
+
     }
-    sb_append_with_format(&sb, ": %s (from %s)\n", rem->name, rem->todo->name);
-
-  }
-  if (!list_is_empty(reminders)) {
-    list_destroy(&reminders, (void (*)(void *)) free_reminder);
     sb_append(&sb, "\nPress a key to continue...");
     if (message("ToDo Reminders", sb.str) == 'q') {
       sb_free(&sb);
