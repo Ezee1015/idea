@@ -11,7 +11,7 @@
 
 #define SAVE_FILE_INDENTATION " │"
 
-#define LOCAL_PATH ".local/share/idea"
+#define LOCAL_PATH ".local/share/idea_temp"
 
 #define LOCK_FILENAME "lock"
 #define SAVE_FILENAME "todos.txt"
@@ -26,22 +26,6 @@ typedef struct {
   uint64_t creation_time;
   char *notes;
 } Todo;
-
-typedef struct {
-  Todo *todo;
-
-  char *msg;
-  char state;
-  unsigned int level;
-} Task;
-
-typedef struct {
-  Todo *todo;
-
-  char *name;
-  Date start;
-  Date end;
-} Reminder;
 
 Todo *create_todo(char *name);
 bool todo_exists(const char *name);
@@ -74,30 +58,5 @@ bool action_notes_todo_remove(Input *input);
 bool action_generate_html(Input *input);
 extern Functionality todo_list_functionality[];
 extern unsigned int todo_list_functionality_count;
-
-// Tasks (taken from the ToDo's notes)
-void free_task(Task *task);
-List get_tasks_from_todo(Todo *todo);
-bool get_all_tasks(List *tasks);
-bool is_task_incomplete(Task task);
-
-// Get attribute from ToDo (taken from the ToDo's notes)
-// The attributes are special keywords at the start of the line.
-// Example: tags, reminder
-List get_attribute_from_todo(Todo todo, const char *attribute, char argument_separator);
-
-// Tags
-List get_all_tags(List todos);
-
-// Reminder (attribute)
-bool parse_reminder(Todo *todo, char *rem_str, Reminder *rem);
-bool is_reminder_old(Reminder rem);
-bool is_reminder_triggered(Reminder rem);
-bool is_reminder_upcoming(Reminder rem);
-Reminder *reminder_insertion_comparator(Reminder *rem1, Reminder *rem2);
-void free_reminder(Reminder *rem);
-bool get_reminders_from_todo(Todo *todo, List *reminders);
-bool get_all_reminders(List *reminders);
-bool is_reminder_near(Reminder rem);
 
 #endif

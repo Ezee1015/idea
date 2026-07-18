@@ -6,6 +6,7 @@
 #include "main.h"
 #include "parser.h"
 #include "todo_list.h"
+#include "notes_parser.h"
 #include "../utils/list.h"
 #include "../utils/string.h"
 #include "templates/bash_completion/bash_completion.h"
@@ -78,7 +79,8 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
     case TODO_ATTRIBUTE_TASKS: {
         if (!todo->notes) break;
 
-        List tasks = get_tasks_from_todo(todo);
+        List tasks = list_new();
+        if (!get_attributes(todo, ATTRIBUTE_TASK, &tasks)) return false;
         bool has_incomplete_tasks = !list_any(tasks, is_task_complete_list_filter);
 
         if (list_is_empty(tasks) || (attribute == TODO_ATTRIBUTE_TASKS_INCOMPLETE && !has_incomplete_tasks)) break;
@@ -124,7 +126,7 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
       if (!todo->notes) break;
 
       List reminders = list_new();
-      if (!get_reminders_from_todo(todo, &reminders)) {
+      if (!get_attributes(todo, ATTRIBUTE_REMINDER, &reminders)) {
         APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to load the reminders");
         list_destroy(&reminders, (void (*)(void *)) free_reminder);
         return false;
@@ -146,7 +148,8 @@ bool print_todo(unsigned int index, Todo *todo, Todo_print_attributes attribute)
     case TODO_ATTRIBUTE_TAGS: {
       if (!todo->notes) break;
 
-      List tags = get_attribute_from_todo(*todo, "tags: ", ' ');
+      List tags = list_new();
+      if (!get_attributes(todo, ATTRIBUTE_TAG, &tags)) return false;
 
       if (list_is_empty(tags)) break;
       printf( "%s%d)%s %s%s%s\n", ANSI_RED, index + 1, ANSI_RESET, ANSI_UNDERLINE, todo->name, ANSI_RESET);
@@ -335,7 +338,12 @@ bool action_list_todos(Input *input) {
     Todo *todo = list_iterator_element(iterator);
 
     if (filter_tag) {
-      List tags = get_attribute_from_todo(*todo, "tags: ", ' ');
+      List tags = list_new();
+      if (!get_attributes(todo, ATTRIBUTE_TAG, &tags)) {
+        free(filter_tag);
+        return false;
+      }
+
       List_iterator tag_iterator = list_iterator_create(tags);
       bool tag_match = false;
       while (list_iterator_next(&tag_iterator)) {
@@ -835,7 +843,7 @@ bool action_reminders(Input *input) {
   }
 
   List reminders = list_new();
-  if (!get_all_reminders(&reminders)) {
+  if (!get_attributes_from_todo_list(todo_list, ATTRIBUTE_REMINDER, &reminders)) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to load the reminders");
     if (filter_tag) free(filter_tag);
     return false;
@@ -854,7 +862,11 @@ bool action_reminders(Input *input) {
     while (list_iterator_next(&rem_iterator)) {
       const Reminder *rem = list_iterator_element(rem_iterator);
 
-      List tags = get_attribute_from_todo(*rem->todo, "tags: ", ' ');
+      List tags = list_new();
+      if (!get_attributes(rem->todo, ATTRIBUTE_TAG, &tags)) {
+        free(filter_tag);
+        return false;
+      }
       List_iterator tag_iterator = list_iterator_create(tags);
       bool tag_match = false;
       while (list_iterator_next(&tag_iterator)) {
@@ -906,7 +918,7 @@ bool action_tags(Input *input) {
     }
   }
 
-  List tags;
+  List tags = list_new();
   if (filter_tag) {
     printf("%sTAG: %s%s\n", ANSI_GRAY, filter_tag, ANSI_RESET);
 
@@ -917,7 +929,8 @@ bool action_tags(Input *input) {
     while (list_iterator_next(&todo_list_iterator)) {
       Todo *todo = list_iterator_element(todo_list_iterator);
 
-      List todo_tags = get_attribute_from_todo(*todo, "tags: ", ' ');
+      List todo_tags = list_new();
+      get_attributes(todo, ATTRIBUTE_TAG, &todo_tags);
       List_iterator tag_iterator = list_iterator_create(todo_tags);
       while (list_iterator_next(&tag_iterator)) {
         const char *tag = list_iterator_element(tag_iterator);
@@ -930,10 +943,10 @@ bool action_tags(Input *input) {
     }
     free(filter_tag);
 
-    tags = get_all_tags(todo_list_filtered);
+    get_attributes_from_todo_list(todo_list_filtered, ATTRIBUTE_TAG, &tags);
     list_destroy(&todo_list_filtered, NULL);
   } else {
-    tags = get_all_tags(todo_list);
+    get_attributes_from_todo_list(todo_list, ATTRIBUTE_TAG, &tags);
   }
 
   if (!list_is_empty(tags)) printf("Tags:\n");

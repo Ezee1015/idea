@@ -2,6 +2,7 @@
 
 #include "tui_mappings.h"
 #include "tui.h"
+#include "notes_parser.h"
 
 #define UNUSED(var) (void) var;
 
@@ -438,7 +439,8 @@ void nv_map_todo_information() {
   String_builder sb = sb_new();
 
   // Tags
-  List tags = get_attribute_from_todo(*todo, "tags: ", ' ');
+  List tags = list_new();
+  get_attributes(todo, ATTRIBUTE_TAG, &tags);
   if (!list_is_empty(tags)) sb_append(&sb, "Tags:\n");
   List_iterator tag_iterator = list_iterator_create(tags);
   while (list_iterator_next(&tag_iterator)) {
@@ -459,7 +461,11 @@ void nv_map_todo_information() {
 
   // Tasks
   const unsigned int tasks_level_indentation = 4;
-  List tasks = get_tasks_from_todo(todo);
+  List tasks = list_new();
+  if (!get_attributes(todo, ATTRIBUTE_TASK, &tasks)) {
+    sb_free(&sb);
+    return;
+  }
   sb_append(&sb, "Tasks:\n");
   List_iterator iterator = list_iterator_create(tasks);
   while (list_iterator_next(&iterator)) {
@@ -479,7 +485,7 @@ void nv_map_todo_information() {
 
   // Reminders
   List reminders = list_new();
-  if (!get_reminders_from_todo(todo, &reminders)) {
+  if (!get_attributes(todo, ATTRIBUTE_REMINDER, &reminders)) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to load the reminders");
     return;
   }

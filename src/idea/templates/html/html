@@ -549,7 +549,7 @@
                     <u><p id="dashboard_reminders_title" class="menu_subtitle">Reminders</p></u>
                     <c>
                         List all_reminders = list_new();
-                        if (!get_all_reminders(&all_reminders)) {
+                        if (!get_attributes_from_todo_list(todo_list, ATTRIBUTE_REMINDER, &all_reminders)) {
                             ERROR("Unable to load all the reminders")
                         }
 
@@ -585,7 +585,7 @@
                     <p class="menu_subtitle"><u>Incomplete Tasks</u></p>
                     <c>
                         List all_tasks = list_new();
-                        if (!get_all_tasks(&all_tasks)) {
+                        if (!get_attributes_from_todo_list(todo_list, ATTRIBUTE_TASK, &all_tasks)) {
                             ERROR("Unable to load all the tasks")
                         }
 
@@ -677,7 +677,10 @@
 
                             <!-- TAGS -->
                             <c>
-                                List tags = get_attribute_from_todo(*e, "tags: ", ' ');
+                                List tags = list_new();
+                                if (!get_attributes(e, ATTRIBUTE_TAG, &tags)) {
+                                  ERROR("Unable to get the tags");
+                                }
                                 if (!list_is_empty(tags)) {
                                     </c> <div class="tags_container"> <c>
                                         </c> <h3>Tags:</h3> <c>
@@ -693,7 +696,10 @@
 
                             <!-- TASKS -->
                             <c>
-                                List tasks = get_tasks_from_todo(e);
+                                List tasks = list_new();
+                                if (!get_attributes(e, ATTRIBUTE_TASK, &tasks)) {
+                                  ERROR("Unable to load the tasks")
+                                }
                                 if (!list_is_empty(tasks)) {
                                     </c> <h3>Tasks</h3> <c>
                                     </c> <div> <c>
@@ -740,7 +746,7 @@
                             <!-- REMINDERS -->
                             <c>
                                 List reminders = list_new();
-                                if (!get_reminders_from_todo(e, &reminders)) {
+                                if (!get_attributes(e, ATTRIBUTE_REMINDER, &reminders)) {
                                     ERROR_FMT("Unable to load the reminders from the ToDo '%s'", e->name)
                                 }
 
