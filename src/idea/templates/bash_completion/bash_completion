@@ -82,7 +82,7 @@ function _idea {
                     done
                 elif [[ "$NEXT" == "[todo]" ]]; then
                     mapfile -t TODOS < <(
-                        IDEA_CLI_DISABLE_COLORS=true "${COMP_WORDS[0]}" list | sed 's/^[0-9]) \(N \)\?//g'  # Get ToDos from idea
+                        IDEA_CLI_DISABLE_COLORS=true "${COMP_WORDS[0]}" list | sed 's/^[0-9]*) \(N \)\?//g'  # Get ToDos from idea
                     )
 
                     for TODO in "${TODOS[@]}"; do

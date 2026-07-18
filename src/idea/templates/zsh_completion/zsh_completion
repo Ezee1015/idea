@@ -81,7 +81,7 @@ _idea() {
                         done
                     elif [[ "$NEXT" == "[todo]" ]]; then
                         TODOS=("${(f)$(
-                            IDEA_CLI_DISABLE_COLORS=true "${words[1]}" list | sed 's/^[0-9]) \(N \)\?//g'  # Get ToDos from idea
+                            IDEA_CLI_DISABLE_COLORS=true "${words[1]}" list | sed 's/^[0-9]*) \(N \)\?//g'  # Get ToDos from idea
                         )}")
 
                         for TODO in "${TODOS[@]}"; do

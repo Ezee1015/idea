@@ -478,7 +478,7 @@ bool load_todo_list(List *list, char *file_path, bool obligatory) {
 
 /// Functionality
 bool action_add_todo(Input *input) {
-  char *data = next_token(input, 0);
+  char *data = next_token(input, ' ');
   if (!data) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You must specify the name of the ToDo");
     return false;
@@ -514,7 +514,7 @@ bool action_add_at_todo(Input *input) {
     return false;
   }
 
-  char *data = next_token(input, 0);
+  char *data = next_token(input, ' ');
   if (!data) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You need to specify the name of ToDo");
     return false;
@@ -538,7 +538,7 @@ bool action_add_at_todo(Input *input) {
 }
 
 bool action_remove_todo(Input *input) {
-  char *argument = next_token(input, 0);
+  char *argument = next_token(input, ' ');
   if (!argument) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You need to specify the ToDo");
     return false;
@@ -573,7 +573,7 @@ bool action_move_todo(Input *input) {
   }
   free(arg); arg = NULL;
 
-  arg = next_token(input, 0);
+  arg = next_token(input, ' ');
   if (!arg) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You need to specify the position to move the ToDo");
     return false;
@@ -612,7 +612,7 @@ bool action_edit_todo(Input *input) {
   }
   free(arg); arg = NULL;
 
-  char *new_name = next_token(input, 0);
+  char *new_name = next_token(input, ' ');
   if (!new_name) {
     free(new_name);
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "The ToDo can't have an empty name.");
@@ -651,7 +651,7 @@ bool action_clear_todos(Input *input) {
 }
 
 bool action_notes_todo_remove(Input *input) {
-  char *arg = next_token(input, 0);
+  char *arg = next_token(input, ' ');
   if (!arg) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You need to specify the ToDo");
     return false;

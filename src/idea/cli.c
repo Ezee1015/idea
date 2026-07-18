@@ -408,7 +408,7 @@ bool action_print_help(Input *input) {
 }
 
 bool action_export_todos(Input *input) {
-  char *export_path = next_token(input, '\0');
+  char *export_path = next_token(input, ' ');
   if (!export_path) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You must specify the export file path");
     return false;
@@ -421,7 +421,7 @@ bool action_export_todos(Input *input) {
 }
 
 bool action_execute_commands(Input *input) {
-  char *import_path = next_token(input, '\0');
+  char *import_path = next_token(input, ' ');
   if (!import_path) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You must specify the file path");
     return false;
@@ -463,7 +463,7 @@ bool action_execute_commands(Input *input) {
 }
 
 bool action_import_todos(Input *input) {
-  char *import_path = next_token(input, '\0');
+  char *import_path = next_token(input, ' ');
   if (!import_path) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You must specify the import file path");
     return false;
@@ -488,7 +488,7 @@ bool action_sync_todos(Input *input) {
   String_builder local_path    = sb_create("%s/local.idea", idea_state.tmp_path);
   String_builder external_path = sb_create("%s/external.idea", idea_state.tmp_path);
 
-  char *import_path = next_token(input, '\0');
+  char *import_path = next_token(input, ' ');
   if (!import_path) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You must specify the file path to sync");
     result = false;
@@ -578,7 +578,7 @@ exit:
 }
 
 bool action_notes_todo(Input *input) {
-  char *arg = next_token(input, 0);
+  char *arg = next_token(input, ' ');
   if (!arg) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: you must specify the ToDo");
     return false;
@@ -642,7 +642,7 @@ bool action_print_notes(Input *input) {
   }
 
   // Parameters
-  arg = next_token(input, 0);
+  arg = next_token(input, ' ');
 
   bool number = false;
   if (arg) {
@@ -1070,7 +1070,9 @@ bool cli_parse_input(char *input) {
 
   if (function(&cmd)) {
     if (cmd.cursor <= cmd.length) {
-      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command parsing error. There's data left in the command parameters. Command: '%s'", instruction);
+      APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command parsing error. There are arguments left without processing in the instruction. Instruction: '%s'", instruction);
+      free(instruction);
+      return false;
     }
     free(instruction);
     return true;
