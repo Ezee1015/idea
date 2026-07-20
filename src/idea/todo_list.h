@@ -11,7 +11,7 @@
 
 #define SAVE_FILE_INDENTATION " │"
 
-#define LOCAL_PATH ".local/share/idea_temp"
+#define LOCAL_PATH ".local/share/idea"
 
 #define LOCK_FILENAME "lock"
 #define SAVE_FILENAME "todos.txt"
