@@ -95,5 +95,3 @@ _idea() {
             ;;
     esac
 }
-
-compdef _idea idea
