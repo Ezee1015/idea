@@ -184,7 +184,18 @@ bool clone_text_file(char *origin_path, char *clone_path) {
 
 bool write_notes_to_temporal_file(Todo *todo) {
   String_builder notes_temp_path = sb_create("%s/" NOTES_TEMP_FILENAME, idea_state.local_path);
-  FILE *f = fopen(notes_temp_path.str, "w");
+
+  // Check if there's a notes file already present from another idea instance
+  // that exited abnormally
+  FILE *f = fopen(notes_temp_path.str, "r");
+  if (f) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "It seems that idea didn't finish correctly while writing some notes. Please check the content of '%s' and either move or remove the file", notes_temp_path.str);
+    sb_free(&notes_temp_path);
+    fclose(f);
+    return false;
+  }
+
+  f = fopen(notes_temp_path.str, "w");
   if (!f) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to open '%s'", notes_temp_path.str);
     sb_free(&notes_temp_path);
