@@ -53,3 +53,9 @@ bool action_do_nothing(Input *input) {
   input->cursor = input->length+1;
   return true;
 }
+
+bool has_more_tokens(Input *input, char **left_overs) {
+  bool has_left = input->cursor <= input->length;
+  if (left_overs && has_left) *left_overs = input->input + input->cursor;
+  return has_left;
+}

@@ -10,9 +10,7 @@ typedef struct {
 } Input;
 
 #define ACTION_NO_ARGS(action_name, input) do {                                          \
-  char *args;                                                                            \
-  if ( input && (args = next_token(input, 0)) ) {                                        \
-    free(args);                                                                          \
+  if (has_more_tokens(input, NULL)) {                                                    \
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "`" action_name "` doesn't require arguments"); \
     return false;                                                                        \
   }                                                                                      \
@@ -34,6 +32,7 @@ typedef struct {
 } Functionality;
 
 char *next_token(Input *input, char divider);
+bool has_more_tokens(Input *input, char **left_overs);
 
 bool (*search_functionality_function(char *instruction, Functionality functionality[], unsigned int functionality_count))(Input *);
 bool action_do_nothing(Input *input);

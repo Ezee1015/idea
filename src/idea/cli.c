@@ -419,9 +419,18 @@ bool action_print_help(Input *input) {
 }
 
 bool action_export_todos(Input *input) {
+  if (!input) abort();
+
   char *export_path = next_token(input, ' ');
   if (!export_path) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You must specify the export file path");
+    return false;
+  }
+
+  char *left = NULL;
+  if (has_more_tokens(input, &left)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You provided too many arguments: %s", left);
+    free(export_path);
     return false;
   }
 
@@ -432,9 +441,18 @@ bool action_export_todos(Input *input) {
 }
 
 bool action_execute_commands(Input *input) {
+  if (!input) abort();
+
   char *import_path = next_token(input, ' ');
   if (!import_path) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You must specify the file path");
+    return false;
+  }
+
+  char *left = NULL;
+  if (has_more_tokens(input, &left)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You provided too many arguments: %s", left);
+    free(import_path);
     return false;
   }
 
@@ -474,9 +492,18 @@ bool action_execute_commands(Input *input) {
 }
 
 bool action_import_todos(Input *input) {
+  if (!input) abort();
+
   char *import_path = next_token(input, ' ');
   if (!import_path) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You must specify the import file path");
+    return false;
+  }
+
+  char *left = NULL;
+  if (has_more_tokens(input, &left)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You provided too many arguments: %s", left);
+    free(import_path);
     return false;
   }
 
@@ -493,6 +520,8 @@ bool action_import_todos(Input *input) {
 }
 
 bool action_sync_todos(Input *input) {
+  if (!input) abort();
+
   bool result = true;
 
   String_builder base_path     = sb_create("%s/local_without_changes.idea", idea_state.tmp_path);
@@ -502,6 +531,13 @@ bool action_sync_todos(Input *input) {
   char *import_path = next_token(input, ' ');
   if (!import_path) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You must specify the file path to sync");
+    result = false;
+    goto exit;
+  }
+
+  char *left = NULL;
+  if (has_more_tokens(input, &left)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You provided too many arguments: %s", left);
     result = false;
     goto exit;
   }
@@ -589,19 +625,28 @@ exit:
 }
 
 bool action_notes_todo(Input *input) {
-  char *arg = next_token(input, ' ');
-  if (!arg) {
+  if (!input) abort();
+
+  char *todo_ref = next_token(input, ' ');
+  if (!todo_ref) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: you must specify the ToDo");
     return false;
   }
 
-  unsigned int pos;
-  if (!search_todo_pos_by_name_or_pos(arg, &pos)) {
-    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to find the ToDo '%s'", arg);
-    free(arg);
+  char *left = NULL;
+  if (has_more_tokens(input, &left)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You provided too many arguments: %s", left);
+    free(todo_ref);
     return false;
   }
-  free(arg); arg = NULL;
+
+  unsigned int pos;
+  if (!search_todo_pos_by_name_or_pos(todo_ref, &pos)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Unable to find the ToDo '%s'", todo_ref);
+    free(todo_ref);
+    return false;
+  }
+  free(todo_ref); todo_ref = NULL;
 
   Todo *todo = list_get(todo_list, pos);
 
@@ -631,6 +676,8 @@ bool action_notes_todo(Input *input) {
 }
 
 bool action_print_notes(Input *input) {
+  if (!input) abort();
+
   char *arg = next_token(input, ' ');
   if (!arg) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: you must specify the ToDo");
@@ -976,6 +1023,8 @@ bool action_print_new_line(Input *input) {
 }
 
 bool action_generate_autocomplete(Input *input) {
+  if (!input) abort();
+
   struct {
     const char *name;
     bool (*generator)(FILE *output_file);
@@ -1016,6 +1065,13 @@ bool action_generate_autocomplete(Input *input) {
   output_path = next_token(input, ' ');
   if (!output_path) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You need to specify at least the autocompletion output path");
+    ret = false;
+    goto exit;
+  }
+
+  char *left = NULL;
+  if (has_more_tokens(input, &left)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You provided too many arguments: %s", left);
     ret = false;
     goto exit;
   }

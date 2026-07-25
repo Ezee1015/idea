@@ -830,6 +830,8 @@ bool action_save(Input *input) {
 }
 
 bool action_add_at_todo_tui(Input *input) {
+  if (!input) return false;
+
   bool (*function)(Input *input) = search_functionality_function("add_at", todo_list_functionality, todo_list_functionality_count);
   if (!function) abort(); // Should not happen
 
@@ -839,12 +841,10 @@ bool action_add_at_todo_tui(Input *input) {
   input->cursor = argument_cursor;
 
   bool action_return = function(input);
-  unsigned int pos = 0;
   if (action_return) {
       todo_list_modified = true;
-      pos = atoi(pos_str);
+      unsigned int pos = atoi(pos_str);
       if (!pos) abort(); // Should not happen as this is checked inside the original add_at (todo_list.c)
-
       tui_st.current_pos = pos-1;
   }
   free(pos_str);

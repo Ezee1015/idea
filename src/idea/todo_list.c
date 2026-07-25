@@ -478,9 +478,18 @@ bool load_todo_list(List *list, char *file_path, bool obligatory) {
 
 /// Functionality
 bool action_add_todo(Input *input) {
+  if (!input) abort();
+
   char *data = next_token(input, ' ');
   if (!data) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You must specify the name of the ToDo");
+    return false;
+  }
+
+  char *left = NULL;
+  if (has_more_tokens(input, &left)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You provided too many arguments: %s", left);
+    free(data);
     return false;
   }
 
@@ -502,6 +511,8 @@ bool action_add_todo(Input *input) {
 }
 
 bool action_add_at_todo(Input *input) {
+  if (!input) abort();
+
   char *pos_str = next_token(input, ' ');
   if (!pos_str) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You need to specify the index");
@@ -526,6 +537,13 @@ bool action_add_at_todo(Input *input) {
     return false;
   }
 
+  char *left = NULL;
+  if (has_more_tokens(input, &left)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You provided too many arguments: %s", left);
+    free(data);
+    return false;
+  }
+
   Todo *todo = create_todo(data);
   if (!todo) {
     free(data);
@@ -538,9 +556,18 @@ bool action_add_at_todo(Input *input) {
 }
 
 bool action_remove_todo(Input *input) {
+  if (!input) abort();
+
   char *argument = next_token(input, ' ');
   if (!argument) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You need to specify the ToDo");
+    return false;
+  }
+
+  char *left = NULL;
+  if (has_more_tokens(input, &left)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You provided too many arguments: %s", left);
+    free(argument);
     return false;
   }
 
@@ -560,6 +587,8 @@ bool action_remove_todo(Input *input) {
 }
 
 bool action_move_todo(Input *input) {
+  if (!input) abort();
+
   char *arg = next_token(input, ' ');
   if (!arg) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You need to specify the Name or the ID of the ToDo to move");
@@ -585,6 +614,12 @@ bool action_move_todo(Input *input) {
     return false;
   }
 
+  char *left = NULL;
+  if (has_more_tokens(input, &left)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You provided too many arguments: %s", left);
+    return false;
+  }
+
   if (pos_destination-1 /* 1-based to 0-based */ == pos_origin) {
     APPEND_TO_BACKTRACE(BACKTRACE_INFO, "Moving to the same position");
     return true;
@@ -598,6 +633,8 @@ bool action_move_todo(Input *input) {
 }
 
 bool action_edit_todo(Input *input) {
+  if (!input) abort();
+
   char *arg = next_token(input, ' ');
   if (!arg) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You need to specify the Name or the ID of the ToDo to edit");
@@ -625,6 +662,13 @@ bool action_edit_todo(Input *input) {
     return false;
   }
 
+  char *left = NULL;
+  if (has_more_tokens(input, &left)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You provided too many arguments: %s", left);
+    free(new_name);
+    return false;
+  }
+
   Todo *todo = list_get(todo_list, pos);
   free(todo->name);
   todo->name = new_name;
@@ -633,6 +677,8 @@ bool action_edit_todo(Input *input) {
 }
 
 bool action_clear_todos(Input *input) {
+  if (!input) abort();
+
   char *confirmation = next_token(input, 0);
   if (!confirmation) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: you must confirm the operation by passing as an argument 'all'");
@@ -645,15 +691,30 @@ bool action_clear_todos(Input *input) {
   }
   free(confirmation);
 
+  char *left = NULL;
+  if (has_more_tokens(input, &left)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You provided too many arguments: %s", left);
+    return false;
+  }
+
   list_destroy(&todo_list, (void (*)(void *))free_todo);
   todo_list_modified = true;
   return true;
 }
 
 bool action_notes_todo_remove(Input *input) {
+  if (!input) abort();
+
   char *arg = next_token(input, ' ');
   if (!arg) {
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "Command malformed: You need to specify the ToDo");
+    return false;
+  }
+
+  char *left = NULL;
+  if (has_more_tokens(input, &left)) {
+    APPEND_TO_BACKTRACE(BACKTRACE_ERROR, "You provided too many arguments: %s", left);
+    free(arg);
     return false;
   }
 
@@ -689,6 +750,8 @@ void initialize_notes(Todo *todo) {
 }
 
 bool action_generate_html(Input *input) {
+  if (!input) abort();
+
   List custom_todos = list_new();
   FILE *output_file = NULL;
   bool ret = true;
