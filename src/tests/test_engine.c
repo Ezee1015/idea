@@ -12,9 +12,9 @@
 
 #include "../utils/list.h"
 #include "../utils/string.h"
+#include "../utils/tokenizer.h"
 
-#include "../idea/parser.h"
-#include "../idea/todo_list.h"
+#include "../idea/todos/todo_list.h"
 
 // This should be the same length
 #define CASE_PASSED        "  "

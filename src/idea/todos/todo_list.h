@@ -6,8 +6,9 @@
 #include <time.h>
 #include <stdint.h>
 
-#include "../utils/list.h"
-#include "parser.h"
+#include "../../utils/list.h"
+#include "../../utils/tokenizer.h"
+#include "../utils/functionality.h"
 
 #define SAVE_FILE_INDENTATION " │"
 

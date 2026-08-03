@@ -1,7 +1,7 @@
 include make/top.mk
 
 TESTS_EXEC := $(BUILD_FOLDER)/tests
-TESTS_CFILES := $(wildcard src/tests/*.c) $(UTILS_CFILES) src/idea/parser.c
+TESTS_CFILES := $(wildcard src/tests/*.c) $(UTILS_CFILES)
 
 all: $(TESTS_EXEC)
 

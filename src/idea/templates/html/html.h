@@ -3,7 +3,8 @@
 
 #include "../../../utils/list.h"
 #include "../../../../build/src/html_resources.h"
-#include "../../notes_parser.h"
+#include "../../todos/notes_parser.h"
+#include "../../main.h"
 
 #define TASKS_LEVEL_INDENTATION_PX 30
 

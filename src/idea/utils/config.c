@@ -1,9 +1,12 @@
 #include "config.h"
 
 #include <unistd.h>
+#include <stdlib.h>
 
-#include "main.h"
-#include "parser.h"
+#include "../../utils/tokenizer.h"
+#include "../utils/functionality.h"
+#include "backtrace.h"
+#include "../main.h"
 
 bool fill_config_with_defaults(Config *config) {
   if (!config->hostname) {

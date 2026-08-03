@@ -5,13 +5,12 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#include "main.h"
-#include "notes_parser.h"
-#include "parser.h"
-#include "../utils/list.h"
-#include "../utils/string.h"
 #include "todo_list.h"
-#include "templates/html/html.h"
+#include "notes_parser.h"
+#include "../../utils/tokenizer.h"
+#include "../templates/html/html.h"
+#include "../../utils/list.h"
+#include "../../utils/string.h"
 
 bool is_a_number(const char *s) {
   for (int i = 0; s[i]; i++) if (s[i] < '0' || s[i] > '9') return false;

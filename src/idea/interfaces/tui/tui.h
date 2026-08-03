@@ -3,8 +3,8 @@
 
 #include <ncurses.h>
 
-#include "../utils/list.h"
-#include "todo_list.h"
+#include "../../../utils/list.h"
+#include "../../todos/todo_list.h"
 #include "tui_mappings.h"
 
 #define INPUT_SIZE 128

@@ -1,7 +1,8 @@
 #ifndef TEMPLATE_IDEA_H
 #define TEMPLATE_IDEA_H
 
-#include "../todo_list.h"
+#include "../todos/todo_list.h"
+#include "../utils/backtrace.h"
 
 #define ERROR(msg) do {                        \
     APPEND_TO_BACKTRACE(BACKTRACE_ERROR, msg); \

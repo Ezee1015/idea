@@ -2,7 +2,7 @@
 #define BASH_COMPLETE_H
 
 #include "../../../utils/list.h"
-#include "../../cli.h"
+#include "../../interfaces/cli/cli.h"
 
 #include <string.h>
 

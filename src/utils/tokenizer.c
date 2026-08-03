@@ -1,8 +1,5 @@
-#include <ncurses.h>
-#include <string.h>
-
-#include "parser.h"
-#include "../utils/string.h"
+#include "tokenizer.h"
+#include "string.h"
 
 char *next_token(Input *input, char divider) {
   if (input->cursor > input->length) return NULL;
@@ -35,23 +32,6 @@ char *next_token(Input *input, char divider) {
 
   input->cursor = i + 1;
   return sb.str;
-}
-
-bool (*search_functionality_function(char *instruction, Functionality functionality[], unsigned int functionality_count))(Input *input) {
-  if (!instruction) return false;
-
-  unsigned int i = 0;
-  while (i < functionality_count) {
-    if (functionality[i].abbreviation_cmd && !strcmp(instruction, functionality[i].abbreviation_cmd)) break;
-    if (!strcmp(instruction, functionality[i].full_cmd)) break;
-    i++;
-  }
-  return (i == functionality_count) ? NULL : functionality[i].function_cmd;
-}
-
-bool action_do_nothing(Input *input) {
-  input->cursor = input->length+1;
-  return true;
 }
 
 bool has_more_tokens(Input *input, char **left_overs) {

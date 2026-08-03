@@ -2,6 +2,7 @@
 #define NOTES_PARSER_H
 
 #include "todo_list.h"
+#include "../utils/date.h"
 
 typedef struct {
   Todo *todo;

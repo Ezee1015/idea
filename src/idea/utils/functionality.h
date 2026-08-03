@@ -1,13 +1,7 @@
-#ifndef ACTIONS_H
-#define ACTIONS_H
+#ifndef FUNCTIONALITY_H
+#define FUNCTIONALITY_H
 
-#include "main.h"
-
-typedef struct {
-  char *input;
-  unsigned int length;
-  unsigned int cursor;
-} Input;
+#include "../../utils/tokenizer.h"
 
 #define ACTION_NO_ARGS(action_name, input) do {                                          \
   if (has_more_tokens(input, NULL)) {                                                    \
@@ -30,9 +24,6 @@ typedef struct {
   bool (*function_cmd)(Input *);
   Manual man;
 } Functionality;
-
-char *next_token(Input *input, char divider);
-bool has_more_tokens(Input *input, char **left_overs);
 
 bool (*search_functionality_function(char *instruction, Functionality functionality[], unsigned int functionality_count))(Input *);
 bool action_do_nothing(Input *input);

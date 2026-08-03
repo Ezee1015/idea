@@ -1,6 +1,9 @@
-#include "notes_parser.h"
 #include <stdlib.h>
 #include <string.h>
+
+#include "notes_parser.h"
+#include "../utils/backtrace.h"
+#include "../../utils/string.h"
 
 void free_task(Task *task) {
   free(task->msg);

@@ -2,7 +2,10 @@
 
 #include "tui_mappings.h"
 #include "tui.h"
-#include "notes_parser.h"
+#include "../../main.h"
+#include "../../todos/notes_parser.h"
+#include "../../utils/backtrace.h"
+#include "../../../utils/string.h"
 
 #define UNUSED(var) (void) var;
 

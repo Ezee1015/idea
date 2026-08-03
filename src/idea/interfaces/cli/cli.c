@@ -3,14 +3,15 @@
 #include <string.h>
 
 #include "cli.h"
-#include "main.h"
-#include "parser.h"
-#include "todo_list.h"
-#include "notes_parser.h"
-#include "../utils/list.h"
-#include "../utils/string.h"
-#include "templates/bash_completion/bash_completion.h"
-#include "templates/zsh_completion/zsh_completion.h"
+#include "../../main.h"
+#include "../../utils/date.h"
+#include "../../todos/todo_list.h"
+#include "../../todos/notes_parser.h"
+#include "../../templates/bash_completion/bash_completion.h"
+#include "../../templates/zsh_completion/zsh_completion.h"
+#include "../../../utils/list.h"
+#include "../../../utils/tokenizer.h"
+#include "../../../utils/string.h"
 
 bool cli_disable_colors = false;
 

@@ -3,8 +3,7 @@
 
 #include <stdbool.h>
 
-#include "parser.h"
-#include "todo_list.h"
+#include "../../todos/todo_list.h"
 
 #define NOTES_ICON ((cli_disable_colors) ? "N" : "󱅄") //     󰠮  󰺿  󰅏
 

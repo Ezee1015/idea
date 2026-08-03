@@ -3,7 +3,7 @@ include make/top.mk
 AVOID_CODE_INJECTION := sed 's/\\/\\\\\\\\/g; s/\"/\\\\\\\"/g; s/`/\\`/g'
 VERSION_FLAG := -DCOMMIT="\"$(shell git log -1 --format='%h | %s' | $(AVOID_CODE_INJECTION))\""
 
-IDEA_CFILES := $(wildcard src/idea/*.c)
+IDEA_CFILES := $(wildcard src/idea/*.c) $(wildcard src/idea/interfaces/**/*.c) $(wildcard src/idea/todos/*.c) $(wildcard src/idea/utils/*.c)
 
 $(IDEA_EXEC): $(IDEA_CFILES) $(UTILS_CFILES) $(TEMPLATE_HTML_CFILE) $(TEMPLATE_BASH_COMPLETION_CFILE) $(TEMPLATE_ZSH_COMPLETION_CFILE)
 	@echo "- Building idea"

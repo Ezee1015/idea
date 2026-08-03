@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# Thanks to <https://www.youtube.com/watch?v=CPjOLq2FjsQ> for an introduction in this topic
-
 function _idea {
     local AVAILABLE_COMMANDS="
         <c>

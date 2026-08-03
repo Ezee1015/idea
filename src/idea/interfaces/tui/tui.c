@@ -3,10 +3,11 @@
 #include <stdlib.h>
 
 #include "tui.h"
-#include "main.h"
-#include "../utils/list.h"
-#include "../utils/string.h"
-#include "parser.h"
+#include "../../main.h"
+#include "../../utils/backtrace.h"
+#include "../../../utils/tokenizer.h"
+#include "../../../utils/list.h"
+#include "../../../utils/string.h"
 
 #define i_div_ceil(dividend, divisor) (dividend % divisor)     \
                                       ? dividend / divisor + 1 \

@@ -122,3 +122,4 @@ For the checkpoint, remember to execute this commands:
 
 ## Attributions
 - [Toothless gif](https://tenor.com/es-AR/view/toothless-dancing-toothless-dance-meme-meme-how-to-train-your-dragon-gif-15735082899997367911)
+- Thanks to [this video](https://www.youtube.com/watch?v=CPjOLq2FjsQ) for an introduction in bash completion
